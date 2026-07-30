@@ -31,15 +31,20 @@ def main() -> None:
         seen.add(name)
         db = client[name]
         for f in BUILTIN_FACTORS:
+            payload = {**f, "status": "active", "builtin": True, "updated_at": now}
+            if f.get("created_at") is None:
+                payload["created_at"] = now
             db["factors"].update_one(
                 {"factor_id": f["factor_id"]},
-                {
-                    "$set": {**f, "status": "active", "builtin": True, "updated_at": now},
-                    "$setOnInsert": {"created_at": now},
-                },
+                {"$set": payload},
                 upsert=True,
             )
-        ids = [x.get("factor_id") for x in db["factors"].find({}, {"factor_id": 1})]
+        ids = [
+            x.get("factor_id")
+            for x in db["factors"].find({}, {"factor_id": 1, "created_at": 1}).sort(
+                [("created_at", 1), ("factor_id", 1)]
+            )
+        ]
         print(f"{name} => {ids}")
     print("current settings.MONGO_DB =", settings.MONGO_DB)
 

@@ -17,8 +17,10 @@ logger = logging.getLogger("webapi")
 router = APIRouter(prefix="/factors", tags=["factors"])
 
 
+@router.get("")
 @router.get("/")
 async def list_factors(current_user: dict = Depends(get_current_user)):
+    """同时挂 '' 与 '/'，避免 /api/factors → /api/factors/ 的 307 丢掉 Authorization。"""
     items = await factors_service.list_factors()
     return ok({"total": len(items), "items": items})
 

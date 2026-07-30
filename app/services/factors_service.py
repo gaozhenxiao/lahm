@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -367,8 +367,33 @@ for _fid, _meta in FACTOR_IMPL.items():
         }
     )
 
-# 已下线因子：ensure_builtins 时从库中移除
-RETIRED_FACTOR_IDS = ("nt_dip", "ma20_cross")
+# 按定义顺序写入生成时间，供列表「按生成时间」排序（先生成的在前）
+_FACTOR_GEN_BASE = datetime(2026, 6, 1, 12, 0, 0)
+for _i, _f in enumerate(BUILTIN_FACTORS):
+    _f["created_at"] = _FACTOR_GEN_BASE + timedelta(hours=_i)
+
+# 已下线因子：ensure_builtins 时从库中移除（含冒烟负收益因子）
+RETIRED_FACTOR_IDS = (
+    "nt_dip",
+    "ma20_cross",
+    "pe_low_ma_reclaim",
+    "cheap_roe_bounce",
+    "eps_growth_reclaim",
+    "ma_trend_quality",
+    "high_margin_pullback",
+    "low_vol_reclaim",
+    "momentum_ma_pullback",
+    "ma120_pullback",
+    "turnover_dryup_bounce",
+    "gap_down_recover",
+    "consecutive_down_bounce",
+)
+
+
+def _json_time(v: Any) -> Any:
+    if isinstance(v, datetime):
+        return v.isoformat()
+    return v
 
 
 def _serialize_factor(doc: Dict[str, Any], *, include_backtest: bool = True) -> Dict[str, Any]:
@@ -384,9 +409,9 @@ def _serialize_factor(doc: Dict[str, Any], *, include_backtest: bool = True) -> 
         "builtin": bool(doc.get("builtin", False)),
         "latest_signal": doc.get("latest_signal"),
         "latest_value": doc.get("latest_value"),
-        "latest_asof": doc.get("latest_asof"),
-        "created_at": doc.get("created_at"),
-        "updated_at": doc.get("updated_at"),
+        "latest_asof": _json_time(doc.get("latest_asof")),
+        "created_at": _json_time(doc.get("created_at")),
+        "updated_at": _json_time(doc.get("updated_at")),
     }
     if include_backtest and factor_id:
         out["backtest"] = _build_backtest_summary(str(factor_id))
@@ -403,27 +428,28 @@ class FactorsService:
             await db[FACTORS].delete_many({"factor_id": {"$in": list(RETIRED_FACTOR_IDS)}})
             await db[FACTOR_SIGNALS].delete_many({"factor_id": {"$in": list(RETIRED_FACTOR_IDS)}})
         for f in BUILTIN_FACTORS:
-            # 内置因子元数据每次同步（名称/说明/参数变更能进库）；时间戳仅首次写入
+            # 内置因子元数据每次同步；created_at 用注册表生成时间，保证列表排序稳定
+            payload = {
+                **f,
+                "status": "active",
+                "builtin": True,
+                "updated_at": now,
+            }
+            if f.get("created_at") is not None:
+                payload["created_at"] = f["created_at"]
+            else:
+                payload.setdefault("created_at", now)
             await db[FACTORS].update_one(
                 {"factor_id": f["factor_id"]},
-                {
-                    "$set": {
-                        **f,
-                        "status": "active",
-                        "builtin": True,
-                        "updated_at": now,
-                    },
-                    "$setOnInsert": {
-                        "created_at": now,
-                    },
-                },
+                {"$set": payload},
                 upsert=True,
             )
 
     async def list_factors(self) -> List[Dict[str, Any]]:
         await self.ensure_builtins()
         db = get_mongo_db()
-        cursor = db[FACTORS].find({}).sort("factor_id", 1)
+        # 按生成时间升序：先做的在前；无时间戳的排最后
+        cursor = db[FACTORS].find({}).sort([("created_at", 1), ("factor_id", 1)])
         return [_serialize_factor(d) async for d in cursor]
 
     async def get_factor(self, factor_id: str) -> Optional[Dict[str, Any]]:

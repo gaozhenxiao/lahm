@@ -1,4 +1,4 @@
-"""挂机链式回测：先较大样本，再全量技术面，再全量基本面。
+"""挂机链式回测：先技术面全量，再基本面全量。
 
 用法:
   python scripts/chain_factor_backtests.py
@@ -20,16 +20,9 @@ def run(args: list[str]) -> None:
 
 
 def main() -> None:
-    # 1) 已有 limit100 时可由外部先跑；这里默认从技术面全量开始
     tech = [
-        "low_vol_reclaim",
-        "momentum_ma_pullback",
         "volume_breakout",
-        "ma120_pullback",
-        "turnover_dryup_bounce",
         "narrow_range_breakout",
-        "gap_down_recover",
-        "consecutive_down_bounce",
         "turn_surge_ma_reclaim",
         "boll_lower_reclaim",
         "new_high_pullback",
@@ -37,16 +30,11 @@ def main() -> None:
         "ret20_extreme_bounce",
         "amount_shrink_breakout",
         "pb_low_ma_reclaim",
-        "pe_low_ma_reclaim",
         "double_cheap_reclaim",
         "pb_below_one_reclaim",
     ]
     funda = [
-        "cheap_roe_bounce",
         "growth_breakout",
-        "eps_growth_reclaim",
-        "ma_trend_quality",
-        "high_margin_pullback",
         "oversold_roe_bounce",
         "pead_roe_drift",
         "pe_quality_cross",
