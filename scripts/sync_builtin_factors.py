@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT))
 from pymongo import MongoClient
 
 from app.core.config import settings
-from app.services.factors_service import BUILTIN_FACTORS
+from app.services.factors_service import BUILTIN_FACTORS, RETIRED_FACTOR_IDS
 
 
 TARGETS = [
@@ -30,6 +30,9 @@ def main() -> None:
             continue
         seen.add(name)
         db = client[name]
+        if RETIRED_FACTOR_IDS:
+            db["factors"].delete_many({"factor_id": {"$in": list(RETIRED_FACTOR_IDS)}})
+            db["factor_signals"].delete_many({"factor_id": {"$in": list(RETIRED_FACTOR_IDS)}})
         for f in BUILTIN_FACTORS:
             payload = {**f, "status": "active", "builtin": True, "updated_at": now}
             if f.get("created_at") is None:
