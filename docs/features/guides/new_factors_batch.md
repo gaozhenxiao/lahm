@@ -44,8 +44,17 @@ python scripts/run_new_factors.py --only growth_breakout,volume_breakout --limit
 | boll_lower_reclaim | 布林下轨反弹 | 技术 |
 | new_high_pullback | 新高回踩 | 技术 |
 | dual_ma_volume | 放量金叉 | 技术 |
+| pe_quality_cross | 低估值质量金叉 | 基本面 |
+| ret20_extreme_bounce | 二十日急跌反弹 | 技术 |
+| amount_shrink_breakout | 缩量后放量突破 | 技术 |
 
 另有既有稳定因子：`national_team` / `dip_buy` / `earnings_forecast`。
+
+全量挂机：
+
+```bash
+python scripts/chain_factor_backtests.py
+```
 
 ## 冒烟结果说明
 

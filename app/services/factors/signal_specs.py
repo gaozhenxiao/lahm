@@ -339,6 +339,46 @@ def signal_turn_surge_ma_reclaim(px: pd.DataFrame, params: Dict[str, Any]) -> pd
     return out
 
 
+def signal_pe_quality_cross(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """估值中等偏低 + ROE 质量 + MA20 上穿 MA60。"""
+    if "roeAvg" not in px.columns or "pe_pct" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    roe_min = float(params.get("roe_min") or 0.10)
+    roe = px["roeAvg"]
+    roe_ok = (roe >= roe_min) | (roe >= roe_min * 100)
+    cross = (px["ma20"] > px["ma60"]) & (px["ma20"].shift(1) <= px["ma60"].shift(1))
+    m = roe_ok & (px["pe_pct"] <= float(params.get("pe_pct_max") or 0.50)) & cross
+    out = px.loc[m, ["date", "close"]].copy()
+    out["note"] = "低估值质量金叉"
+    return out
+
+
+def signal_ret20_extreme_bounce(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """20日跌幅过深后收盘站上 MA20（纯价格超卖）。"""
+    df = px.copy()
+    thr = -abs(float(params.get("ret20_min") or 0.15))
+    cross = (df["close"] > df["ma20"]) & (df["close"].shift(1) <= df["ma20"].shift(1))
+    m = df["ret_20"].notna() & (df["ret_20"] <= thr) & cross
+    out = df.loc[m, ["date", "close"]].copy()
+    out["note"] = "20日急跌后站上MA20"
+    return out
+
+
+def signal_amount_shrink_breakout(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """成交额先萎缩再放量突破20日高。"""
+    df = px.copy()
+    if "amount" not in df.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    amt_ma = df["amount"].rolling(20).mean()
+    shrink = df["amount"].shift(1) <= amt_ma.shift(1) * float(params.get("shrink_ratio") or 0.6)
+    surge = df["amount"] >= amt_ma * float(params.get("surge_ratio") or 1.5)
+    hi20 = df["high"].rolling(20).max().shift(1)
+    m = shrink & surge & (df["close"] >= hi20) & (df["close"] > df["ma20"])
+    out = df.loc[m, ["date", "close"]].copy()
+    out["note"] = "缩量后放量突破20日高"
+    return out
+
+
 def signal_boll_lower_reclaim(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
     """触及布林下轨后收盘重新站上 MA20。"""
     df = px.copy()
