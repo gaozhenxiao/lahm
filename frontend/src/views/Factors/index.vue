@@ -172,6 +172,15 @@ const TRADE_LABELS: Record<string, string> = {
   date: '日期',
   action: '动作',
   side: '方向',
+  code: '代码',
+  entry_mode: '入场路径',
+  surprise_tier: '超预期档',
+  event_pub: '公告日',
+  days_after_announce: '公告后天数',
+  pre_run: '公告前涨幅',
+  lt_run: '两年涨幅',
+  pullback: '回撤',
+  price: '价格',
   logic: '逻辑',
   position_before: '仓位前',
   position_after: '仓位后',
@@ -206,10 +215,12 @@ function tradeColLabel(col: string) {
 }
 
 function tradeColWidth(col: string) {
-  if (col === 'note') return 220
-  if (col === 'date') return 110
+  if (col === 'note') return 260
+  if (col === 'date' || col === 'event_pub') return 110
   if (col === 'action' || col === 'side') return 80
-  if (col === 'equity' || col === 'day_ret') return 90
+  if (col === 'entry_mode') return 110
+  if (col === 'code') return 100
+  if (col === 'equity' || col === 'day_ret' || col === 'price') return 90
   if (col === 'best_universe' || col === 'universe_exec' || col === 'era' || col === 'logic') return 90
   return 90
 }

@@ -13,6 +13,7 @@ from app.models.factors import FactorCreate, FactorUpdate
 from app.utils.timezone import now_tz
 from app.services.factors.national_team import compute_national_team_signal
 from app.services.factors.dip_buy import compute_dip_buy_signal
+from app.services.factors.earnings_forecast import compute_earnings_forecast_signal
 
 logger = logging.getLogger("webapi")
 FACTORS = "factors"
@@ -39,6 +40,28 @@ FACTOR_ARTIFACTS: Dict[str, Dict[str, Dict[str, Any]]] = {
         "daily": {
             "label": "日度回测",
             "filename": "dip_buy_backtest.csv",
+            "kind": "csv",
+        },
+    },
+    "earnings_forecast": {
+        "equity_curve": {
+            "label": "净值图 · earnings_forecast",
+            "filename": "earnings_forecast_equity_curve.png",
+            "kind": "image",
+        },
+        "summary": {
+            "label": "回测摘要 JSON",
+            "filename": "earnings_forecast_backtest.json",
+            "kind": "json",
+        },
+        "trades": {
+            "label": "操作历史",
+            "filename": "earnings_forecast_trade_history.csv",
+            "kind": "csv",
+        },
+        "daily": {
+            "label": "日度回测",
+            "filename": "earnings_forecast_backtest.csv",
             "kind": "csv",
         },
     },
@@ -227,6 +250,28 @@ def _build_backtest_summary(factor_id: str) -> Optional[Dict[str, Any]]:
                 )
             except Exception:  # noqa: BLE001
                 logger.exception("failed to read dip_buy_backtest.json")
+    elif factor_id == "earnings_forecast":
+        summary_path = data_dir / "earnings_forecast_backtest.json"
+        if summary_path.exists():
+            try:
+                raw = json.loads(summary_path.read_text(encoding="utf-8"))
+                results = raw.get("results") or {}
+                logics: Dict[str, Any] = {}
+                for key, row in results.items():
+                    if isinstance(row, dict):
+                        logics[str(row.get("position_logic") or key)] = _metric_slice(row)
+                out.update(
+                    {
+                        "available": bool(logics),
+                        "primary_logic": "dual_path_3factor_chase",
+                        "logics": logics,
+                        "updated_at": datetime.fromtimestamp(summary_path.stat().st_mtime).isoformat(
+                            timespec="seconds"
+                        ),
+                    }
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("failed to read earnings_forecast_backtest.json")
     return out
 
 
@@ -261,6 +306,37 @@ BUILTIN_FACTORS: List[Dict[str, Any]] = [
             "aggression": 1.35,
             "trade_mode": "best_etf",
             "cash_annual": 0.014,
+        },
+    },
+    {
+        "factor_id": "earnings_forecast",
+        "name": "业绩预告双路径因子",
+        "category": "fundamental",
+        "description": (
+            "正向前瞻业绩预告后分情况追高："
+            "综合超预期幅度（爆发 vs 一般强增）、中长期股价位置、短期涨幅；"
+            "够格则公告收盘直买，否则等回调；持有约20日，计佣金+印花税。"
+        ),
+        "tags": ["业绩预告", "超预期", "追高三维", "公告后回调", "baostock"],
+        "builtin": True,
+        "params": {
+            "universe": "hs300",
+            "explosive_chg_pct_dwn": 100,
+            "strong_chg_pct_dwn": 30,
+            "pre_run_lookback": 20,
+            "pre_run_max": 0.05,
+            "pre_run_max_explosive": 0.10,
+            "lt_lookback": 504,
+            "lt_quiet_max": 0.40,
+            "lt_hot_min": 1.0,
+            "pullback_pct": 0.08,
+            "stop_loss": 0.15,
+            "min_days_after_announce": 3,
+            "max_days_wait": 45,
+            "hold_days": 20,
+            "max_positions": 8,
+            "commission_rate": 0.0001,
+            "stamp_tax_sell": 0.001,
         },
     },
 ]
@@ -301,14 +377,19 @@ class FactorsService:
             await db[FACTORS].delete_many({"factor_id": {"$in": list(RETIRED_FACTOR_IDS)}})
             await db[FACTOR_SIGNALS].delete_many({"factor_id": {"$in": list(RETIRED_FACTOR_IDS)}})
         for f in BUILTIN_FACTORS:
+            # 内置因子元数据每次同步（名称/说明/参数变更能进库）；时间戳仅首次写入
             await db[FACTORS].update_one(
                 {"factor_id": f["factor_id"]},
                 {
-                    "$setOnInsert": {
+                    "$set": {
                         **f,
-                        "created_at": now,
+                        "status": "active",
+                        "builtin": True,
                         "updated_at": now,
-                    }
+                    },
+                    "$setOnInsert": {
+                        "created_at": now,
+                    },
                 },
                 upsert=True,
             )
@@ -374,6 +455,12 @@ class FactorsService:
         elif factor_id == "dip_buy":
             result = await asyncio.to_thread(
                 compute_dip_buy_signal,
+                factor.get("params") or {},
+                asof,
+            )
+        elif factor_id == "earnings_forecast":
+            result = await asyncio.to_thread(
+                compute_earnings_forecast_signal,
                 factor.get("params") or {},
                 asof,
             )
