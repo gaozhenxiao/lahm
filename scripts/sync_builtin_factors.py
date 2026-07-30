@@ -1,5 +1,10 @@
 """把内置因子同步到本机可能在用的多个 Mongo 库。"""
 from datetime import datetime
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from pymongo import MongoClient
 

@@ -14,57 +14,42 @@ from app.utils.timezone import now_tz
 from app.services.factors.national_team import compute_national_team_signal
 from app.services.factors.dip_buy import compute_dip_buy_signal
 from app.services.factors.earnings_forecast import compute_earnings_forecast_signal
+from app.services.factors.factor_registry import FACTOR_IMPL, compute_factor_signal
 
 logger = logging.getLogger("webapi")
 FACTORS = "factors"
 FACTOR_SIGNALS = "factor_signals"
 
+
+def _standard_artifacts(factor_id: str, label: str) -> Dict[str, Dict[str, Any]]:
+    return {
+        "equity_curve": {
+            "label": f"净值图 · {label}",
+            "filename": f"{factor_id}_equity_curve.png",
+            "kind": "image",
+        },
+        "summary": {
+            "label": "回测摘要 JSON",
+            "filename": f"{factor_id}_backtest.json",
+            "kind": "json",
+        },
+        "trades": {
+            "label": "操作历史",
+            "filename": f"{factor_id}_trade_history.csv",
+            "kind": "csv",
+        },
+        "daily": {
+            "label": "日度回测",
+            "filename": f"{factor_id}_backtest.csv",
+            "kind": "csv",
+        },
+    }
+
+
 # factor_id -> artifact_id -> metadata (filename under data/factors/)
 FACTOR_ARTIFACTS: Dict[str, Dict[str, Dict[str, Any]]] = {
-    "dip_buy": {
-        "equity_curve": {
-            "label": "净值图 · dip_buy",
-            "filename": "dip_buy_equity_curve.png",
-            "kind": "image",
-        },
-        "summary": {
-            "label": "回测摘要 JSON",
-            "filename": "dip_buy_backtest.json",
-            "kind": "json",
-        },
-        "trades": {
-            "label": "操作历史",
-            "filename": "dip_buy_trade_history.csv",
-            "kind": "csv",
-        },
-        "daily": {
-            "label": "日度回测",
-            "filename": "dip_buy_backtest.csv",
-            "kind": "csv",
-        },
-    },
-    "earnings_forecast": {
-        "equity_curve": {
-            "label": "净值图 · earnings_forecast",
-            "filename": "earnings_forecast_equity_curve.png",
-            "kind": "image",
-        },
-        "summary": {
-            "label": "回测摘要 JSON",
-            "filename": "earnings_forecast_backtest.json",
-            "kind": "json",
-        },
-        "trades": {
-            "label": "操作历史",
-            "filename": "earnings_forecast_trade_history.csv",
-            "kind": "csv",
-        },
-        "daily": {
-            "label": "日度回测",
-            "filename": "earnings_forecast_backtest.csv",
-            "kind": "csv",
-        },
-    },
+    "dip_buy": _standard_artifacts("dip_buy", "dip_buy"),
+    "earnings_forecast": _standard_artifacts("earnings_forecast", "earnings_forecast"),
     "national_team": {
         "equity_curve": {
             "label": "净值图 · long_hold",
@@ -114,6 +99,10 @@ FACTOR_ARTIFACTS: Dict[str, Dict[str, Dict[str, Any]]] = {
         },
     },
 }
+
+# 注册表因子自动挂上标准产物
+for _fid, _meta in FACTOR_IMPL.items():
+    FACTOR_ARTIFACTS[_fid] = _standard_artifacts(_fid, _meta["name"])
 
 
 def _factors_data_dir() -> Path:
@@ -272,6 +261,29 @@ def _build_backtest_summary(factor_id: str) -> Optional[Dict[str, Any]]:
                 )
             except Exception:  # noqa: BLE001
                 logger.exception("failed to read earnings_forecast_backtest.json")
+    else:
+        # 标准单逻辑因子：{id}_backtest.json
+        summary_path = data_dir / f"{factor_id}_backtest.json"
+        if summary_path.exists():
+            try:
+                raw = json.loads(summary_path.read_text(encoding="utf-8"))
+                results = raw.get("results") or {}
+                logics: Dict[str, Any] = {}
+                for key, row in results.items():
+                    if isinstance(row, dict):
+                        logics[str(row.get("position_logic") or key)] = _metric_slice(row)
+                out.update(
+                    {
+                        "available": bool(logics),
+                        "primary_logic": factor_id,
+                        "logics": logics,
+                        "updated_at": datetime.fromtimestamp(summary_path.stat().st_mtime).isoformat(
+                            timespec="seconds"
+                        ),
+                    }
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("failed to read %s_backtest.json", factor_id)
     return out
 
 
@@ -340,6 +352,20 @@ BUILTIN_FACTORS: List[Dict[str, Any]] = [
         },
     },
 ]
+
+# 注册表因子并入内置目录
+for _fid, _meta in FACTOR_IMPL.items():
+    BUILTIN_FACTORS.append(
+        {
+            "factor_id": _fid,
+            "name": _meta["name"],
+            "category": _meta.get("category") or "fundamental",
+            "description": _meta.get("description") or "",
+            "tags": _meta.get("tags") or [],
+            "builtin": True,
+            "params": _meta.get("params") or {},
+        }
+    )
 
 # 已下线因子：ensure_builtins 时从库中移除
 RETIRED_FACTOR_IDS = ("nt_dip", "ma20_cross")
@@ -461,6 +487,13 @@ class FactorsService:
         elif factor_id == "earnings_forecast":
             result = await asyncio.to_thread(
                 compute_earnings_forecast_signal,
+                factor.get("params") or {},
+                asof,
+            )
+        elif factor_id in FACTOR_IMPL:
+            result = await asyncio.to_thread(
+                compute_factor_signal,
+                factor_id,
                 factor.get("params") or {},
                 asof,
             )
