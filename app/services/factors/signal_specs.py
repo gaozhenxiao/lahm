@@ -446,3 +446,138 @@ def signal_gap_down_recover(px: pd.DataFrame, params: Dict[str, Any]) -> pd.Data
                 )
                 break
     return pd.DataFrame(rows)
+
+
+def signal_bottom_earn_vol_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """长期底部 + 业绩扭亏转好 + 地量后放量突破。
+
+    对齐仕佳光子路径：磨底 → 业绩由亏转盈/同比显著改善 → 缩量蓄势后放量突破。
+    """
+    df = px.copy()
+    if "amount" not in df.columns or "high_60" not in df.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+
+    near_pct = float(params.get("near_low_pct") or 0.12)
+    dd_need = -abs(float(params.get("dd_252_need") or 0.28))
+    bottom_lookback = int(params.get("bottom_lookback") or 252)
+    max_lift = float(params.get("max_lift_from_low") or 0.55)
+    if "low_252" in df.columns:
+        low252 = df["low_252"]
+    else:
+        low252 = df["low"].rolling(252).min()
+    if "dd_252" in df.columns:
+        dd252 = df["dd_252"]
+    else:
+        hi252 = df["high"].rolling(252).max()
+        dd252 = df["close"] / hi252 - 1.0
+
+    # 底部：一年内触底，且当前仍深度回撤或仍在底部区；离一年低点不能太远
+    touched_bottom = (df["low"] <= low252 * (1.0 + near_pct)).rolling(
+        bottom_lookback, min_periods=20
+    ).max().astype(bool)
+    still_depressed = dd252 <= dd_need
+    near_zone = df["close"] <= low252 * (1.0 + float(params.get("near_zone_pct") or 0.45))
+    lift_from_low = df["close"] / low252 - 1.0
+    not_too_far = lift_from_low.isna() | (lift_from_low <= max_lift)
+    bottom = touched_bottom & (still_depressed | near_zone) & not_too_far
+
+    # 估值：近端曾便宜即可（突破日估值常被一日抬高）
+    val_ok = pd.Series(True, index=df.index)
+    pb_max = float(params.get("pb_pct_max") or 0.50)
+    pe_max = float(params.get("pe_pct_max") or 0.55)
+    val_look = int(params.get("val_lookback") or 60)
+    if "pb_pct" in df.columns:
+        pb_recent = df["pb_pct"].rolling(val_look, min_periods=1).min()
+        val_ok = val_ok & (df["pb_pct"].isna() | (pb_recent <= pb_max))
+    if "pe_pct" in df.columns:
+        pe_recent = df["pe_pct"].rolling(val_look, min_periods=1).min()
+        val_ok = val_ok & (df["pe_pct"].isna() | (pe_recent <= pe_max))
+
+    # 业绩：必须「曾经差过」+「现在转好」，且近端有转好事件
+    funda_hist = int(params.get("funda_hist") or 400)
+    earn_event = pd.Series(False, index=df.index)
+    turnaround_state = pd.Series(False, index=df.index)
+
+    if "roeAvg" in df.columns and df["roeAvg"].notna().any():
+        roe = pd.to_numeric(df["roeAvg"], errors="coerce")
+        roe_past_min = roe.rolling(funda_hist, min_periods=40).min().shift(1)
+        roe_had_weak = roe_past_min < float(params.get("roe_weak_max") or 0.02)
+        roe_now_ok = roe >= float(params.get("roe_min") or 0.0)
+        roe_turn = (roe.shift(1) < 0) & (roe >= 0)
+        improve = float(params.get("roe_improve") or 0.003)
+        roe_up = (roe.diff() > improve) | (roe.diff() > improve * 100)
+        turnaround_state = turnaround_state | (roe_had_weak & roe_now_ok)
+        earn_event = earn_event | roe_turn | roe_up
+
+    gcol = None
+    for c in ("YOYNI", "YOYEPSBasic", "NIYOY"):
+        if c in df.columns and df[c].notna().any():
+            gcol = c
+            break
+    if gcol is not None:
+        g = pd.to_numeric(df[gcol], errors="coerce")
+        g_past_min = g.rolling(funda_hist, min_periods=40).min().shift(1)
+        had_neg = g_past_min < 0
+        now_pos = (g >= float(params.get("growth_min") or 0.10)) | (
+            g >= float(params.get("growth_min") or 0.10) * 100
+        )
+        turn = (g.shift(1) < 0) & (g >= 0)
+        lift_thr = float(params.get("growth_lift") or 0.20)
+        lift = (g.diff() > lift_thr) | (g.diff() > lift_thr * 100)
+        newly_pos = now_pos & (~now_pos.shift(1).fillna(False))
+        turnaround_state = turnaround_state | (had_neg & now_pos)
+        earn_event = earn_event | turn | lift | newly_pos
+
+    if not bool(turnaround_state.any()) and not bool(earn_event.any()):
+        return pd.DataFrame(columns=["date", "close", "note"])
+
+    win = int(params.get("earn_window") or 180)
+    recent_earn = earn_event.rolling(win, min_periods=1).max().astype(bool)
+    # 必须处于扭亏/转好状态，且近端确有转好事件（避免常年高增误伤）
+    earn_ok = turnaround_state & recent_earn
+
+    # 地量蓄势后放量；允许「先放量、后几日突破」（仕佳：9/24放量、9/27突破）
+    amt_ma20 = df["amount"].rolling(20).mean()
+    amt_ma60 = df["amount"].rolling(60).mean()
+    quiet = amt_ma20.shift(1) <= amt_ma60.shift(1) * float(params.get("quiet_ratio") or 0.95)
+    surge = df["amount"] >= amt_ma20 * float(params.get("vol_mult") or 1.7)
+    vol_day = quiet & surge
+    vol_lag = int(params.get("vol_lag") or 5)
+    vol_ok = vol_day.rolling(vol_lag, min_periods=1).max().astype(bool)
+
+    hi20 = df["high"].rolling(20).max().shift(1)
+    brk60 = df["close"] >= df["high_60"].shift(1)
+    brk20 = df["close"] >= hi20
+    # 仍在底部区：20 日突破即可；略远则要求 60 日突破
+    brk = (near_zone & brk20) | brk60
+
+    not_chased = df["ret_20"].isna() | (df["ret_20"] <= float(params.get("ret20_max") or 0.25))
+    not_runaway = df["ret_60"].isna() | (df["ret_60"] <= float(params.get("ret60_max") or 0.60))
+
+    m = (
+        bottom
+        & val_ok
+        & earn_ok
+        & vol_ok
+        & brk
+        & df["ma20"].notna()
+        & (df["close"] > df["ma20"])
+        & not_chased
+        & not_runaway
+    )
+
+    # 同股去抖：一次启动只保留首个信号
+    cool = int(params.get("cooldown_days") or 20)
+    keep = []
+    last_pos = -10**9
+    pos_map = {idx: pos for pos, idx in enumerate(df.index)}
+    for idx in df.index[m.fillna(False)]:
+        pos = pos_map[idx]
+        if pos - last_pos >= cool:
+            keep.append(idx)
+            last_pos = pos
+    if not keep:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    out = df.loc[keep, ["date", "close"]].copy()
+    out["note"] = "长期底部+业绩扭亏+放量突破"
+    return out

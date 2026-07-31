@@ -189,6 +189,45 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
         "signal": sig.signal_amount_shrink_breakout,
         "params": _p(shrink_ratio=0.6, surge_ratio=1.5, hold_days=12, stop_loss=0.12),
     },
+    "bottom_earn_vol_break": {
+        "name": "底部业绩放量突破",
+        "category": "fundamental",
+        "description": (
+            "长期磨底且估值不高，业绩由弱转强（扭亏/同比改善）后，"
+            "缩量蓄势再放量突破；对齐仕佳光子类路径。"
+        ),
+        "tags": ["长期底部", "业绩扭亏", "放量", "突破"],
+        "title": "LT bottom + earnings turnaround + volume breakout",
+        "need_profit": True,
+        "need_growth": True,
+        "signal": sig.signal_bottom_earn_vol_break,
+        "params": _p(
+            val_window=756,
+            near_low_pct=0.12,
+            near_zone_pct=0.45,
+            dd_252_need=0.28,
+            bottom_lookback=252,
+            max_lift_from_low=0.55,
+            pb_pct_max=0.50,
+            pe_pct_max=0.55,
+            val_lookback=60,
+            funda_hist=400,
+            roe_weak_max=0.02,
+            roe_min=0.0,
+            roe_improve=0.003,
+            earn_window=180,
+            growth_min=0.10,
+            growth_lift=0.20,
+            quiet_ratio=0.95,
+            vol_mult=1.7,
+            vol_lag=5,
+            ret20_max=0.25,
+            ret60_max=0.60,
+            cooldown_days=20,
+            hold_days=40,
+            stop_loss=0.15,
+        ),
+    },
 }
 
 

@@ -29,6 +29,9 @@ def prepare_price_panel(df: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFram
     out["ret_60"] = out["close"].pct_change(60)
     out["dd_20"] = out["close"] / out["close"].rolling(20).max() - 1.0
     out["high_60"] = out["high"].rolling(60).max()
+    out["low_252"] = out["low"].rolling(252).min()
+    out["high_252"] = out["high"].rolling(252).max()
+    out["dd_252"] = out["close"] / out["high_252"] - 1.0
     out["vol_60"] = out["close"].pct_change().rolling(60).std()
     return out
 

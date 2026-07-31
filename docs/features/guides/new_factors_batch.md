@@ -31,6 +31,7 @@ python scripts/chain_factor_backtests.py
 | pe_quality_cross | 低估值质量金叉 | 待全量 |
 | ret20_extreme_bounce | 二十日急跌反弹 | 待全量 |
 | amount_shrink_breakout | 缩量后放量突破 | 待全量 |
+| bottom_earn_vol_break | 底部业绩放量突破 | 长期底部+业绩转好+放量 |
 
 另有稳定因子：`national_team` / `dip_buy` / `earnings_forecast`。
 
