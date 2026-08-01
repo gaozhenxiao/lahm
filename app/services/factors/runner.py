@@ -57,6 +57,8 @@ def build_legs_from_entries(
     *,
     hold_days: int,
     stop_loss: float,
+    take_profit: float | None = None,
+    trail_stop: float | None = None,
 ) -> List[dict]:
     if entries is None or entries.empty:
         return []
@@ -73,15 +75,31 @@ def build_legs_from_entries(
         reason = "hold_end"
         exit_px = float(p.loc[exit_i, "close"])
         exit_dt = pd.Timestamp(p.loc[exit_i, "date"])
+        peak = entry_px
         for j in range(i + 1, exit_i + 1):
             cl = p.loc[j, "close"]
             if pd.isna(cl):
                 continue
-            if float(cl) <= entry_px * (1.0 - stop_loss):
+            clf = float(cl)
+            if clf > peak:
+                peak = clf
+            if clf <= entry_px * (1.0 - stop_loss):
                 exit_i = j
-                exit_px = float(cl)
+                exit_px = clf
                 exit_dt = pd.Timestamp(p.loc[j, "date"])
                 reason = "stop_loss"
+                break
+            if take_profit is not None and clf >= entry_px * (1.0 + float(take_profit)):
+                exit_i = j
+                exit_px = clf
+                exit_dt = pd.Timestamp(p.loc[j, "date"])
+                reason = "take_profit"
+                break
+            if trail_stop is not None and clf <= peak * (1.0 - float(trail_stop)):
+                exit_i = j
+                exit_px = clf
+                exit_dt = pd.Timestamp(p.loc[j, "date"])
+                reason = "trail_stop"
                 break
         legs.append(
             {
@@ -153,7 +171,20 @@ def enrich_with_profit(
         for i, (code, px) in enumerate(price_map.items(), 1):
             try:
                 profit = kit.fetch_profit_quarters(code, years, limiter, cache_dir, bs=bs)
-                out[code] = merge_asof_funda(px, profit, ["roeAvg", "npMargin", "netProfit", "epsTTM"])
+                out[code] = merge_asof_funda(
+                    px,
+                    profit,
+                    [
+                        "roeAvg",
+                        "npMargin",
+                        "gpMargin",
+                        "netProfit",
+                        "epsTTM",
+                        "MBRevenue",
+                        "totalShare",
+                        "liqaShare",
+                    ],
+                )
             except Exception as exc:  # noqa: BLE001
                 logger.warning("profit merge %s: %s", code, exc)
                 out[code] = px
@@ -203,6 +234,10 @@ def collect_legs(
 ) -> pd.DataFrame:
     hold = int(params.get("hold_days") or 20)
     stop = float(params.get("stop_loss") or 0.15)
+    tp_raw = params.get("take_profit")
+    take_profit = float(tp_raw) if tp_raw is not None else None
+    tr_raw = params.get("trail_stop")
+    trail_stop = float(tr_raw) if tr_raw is not None else None
     all_legs: List[dict] = []
     for code, px in price_map.items():
         try:
@@ -211,7 +246,16 @@ def collect_legs(
                 continue
             entries = entries.copy()
             entries["code"] = code
-            all_legs.extend(build_legs_from_entries(entries, px, hold_days=hold, stop_loss=stop))
+            all_legs.extend(
+                build_legs_from_entries(
+                    entries,
+                    px,
+                    hold_days=hold,
+                    stop_loss=stop,
+                    take_profit=take_profit,
+                    trail_stop=trail_stop,
+                )
+            )
         except Exception as exc:  # noqa: BLE001
             logger.warning("signal %s: %s", code, exc)
     if not all_legs:
@@ -222,32 +266,73 @@ def collect_legs(
     return legs.reset_index(drop=True)
 
 
-def legs_to_trade_history(legs: pd.DataFrame) -> pd.DataFrame:
+def legs_to_trade_history(legs: pd.DataFrame, *, max_positions: int = 8) -> pd.DataFrame:
     if legs is None or legs.empty:
         return pd.DataFrame()
+    w = 1.0 / max(1, int(max_positions or 8))
     rows = []
     for _, r in legs.iterrows():
-        ret = float(r["exit_price"]) / float(r["entry_price"]) - 1.0
+        entry = float(r["entry_price"])
+        exit_px = float(r["exit_price"])
+        ret = exit_px / entry - 1.0 if entry else 0.0
+        nav = ret * w
+        entry_date = pd.Timestamp(r["entry_date"]).strftime("%Y-%m-%d")
+        exit_date = pd.Timestamp(r["exit_date"]).strftime("%Y-%m-%d")
+        reason = str(r.get("reason") or "").strip()
+        sell_note = f"买入{entry_date} 成本价{entry:.4f}"
+        if reason:
+            sell_note = f"{reason}；{sell_note}"
         rows.append(
             {
-                "date": pd.Timestamp(r["entry_date"]).strftime("%Y-%m-%d"),
+                "date": entry_date,
                 "action": "开仓",
                 "code": r["code"],
-                "price": round(float(r["entry_price"]), 4),
+                "name": "",
+                "buy_position": round(w, 4),
+                "nav_pnl": "",
+                "price": round(entry, 4),
                 "note": r.get("note") or "",
             }
         )
         rows.append(
             {
-                "date": pd.Timestamp(r["exit_date"]).strftime("%Y-%m-%d"),
+                "date": exit_date,
                 "action": "清仓",
                 "code": r["code"],
-                "price": round(float(r["exit_price"]), 4),
+                "name": "",
+                "buy_position": round(w, 4),
+                "nav_pnl": f"{nav * 100:.2f}%",
+                "price": round(exit_px, 4),
                 "day_ret": f"{ret * 100:.2f}%",
-                "note": r.get("reason") or "",
+                "note": sell_note,
             }
         )
     return pd.DataFrame(rows).sort_values("date")
+
+
+def enrich_with_balance(
+    price_map: Dict[str, pd.DataFrame],
+    params: Dict[str, Any],
+    cache_dir: Path,
+) -> Dict[str, pd.DataFrame]:
+    """合并合同负债/预收款。"""
+    limiter = kit.RateLimiter(float(params.get("request_interval_sec") or 0.35))
+    out = {}
+    n = len(price_map)
+    for i, (code, px) in enumerate(price_map.items(), 1):
+        try:
+            bal = kit.fetch_contract_liab(code, cache_dir, limiter=limiter)
+            out[code] = merge_asof_funda(
+                px,
+                bal,
+                ["contract_liab", "advance_recv", "contract_liab_raw", "contract_liab_yoy"],
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("balance merge %s: %s", code, exc)
+            out[code] = px
+        if i % 10 == 0 or i == n:
+            print(f"[balance] {i}/{n}", flush=True)
+    return out
 
 
 def run_factor_pipeline(
@@ -258,6 +343,7 @@ def run_factor_pipeline(
     *,
     need_profit: bool = False,
     need_growth: bool = False,
+    need_balance: bool = False,
     limit: int = 0,
     start: str = "2018-01-01",
     price_map: Optional[Dict[str, pd.DataFrame]] = None,
@@ -280,8 +366,15 @@ def run_factor_pipeline(
             price_map = enrich_with_profit(price_map, params, cache_dir)
         if need_growth:
             price_map = enrich_with_growth(price_map, params, cache_dir)
+        if need_balance:
+            price_map = enrich_with_balance(price_map, params, cache_dir)
     else:
         print(f"[{factor_id}] reuse panel n={len(price_map)}", flush=True)
+        # 共享面板可能尚未含 balance
+        if need_balance:
+            sample = next(iter(price_map.values()), pd.DataFrame())
+            if sample is None or "contract_liab" not in sample.columns:
+                price_map = enrich_with_balance(price_map, params, cache_dir)
 
     legs = collect_legs(price_map, signal_fn, params)
     print(f"[{factor_id}] legs={len(legs)}", flush=True)
@@ -299,13 +392,16 @@ def run_factor_pipeline(
         cache_dir,
     )
     params["note"] = title
-    daily, summary = kit.run_equal_weight_backtest(
+    daily, summary, accepted = kit.run_equal_weight_backtest(
         legs, params=params, bench_daily=bench, start=start
     )
     if daily.empty:
         print(f"[{factor_id}] backtest empty: {summary}", flush=True)
         return summary
-    trades = legs_to_trade_history(legs)
+    # 交易历史只写组合实际入账的腿（与净值一致；已按 start 过滤）
+    trades = legs_to_trade_history(
+        accepted, max_positions=int(params.get("max_positions") or 8)
+    )
     kit.write_factor_artifacts(factor_id, daily, summary, trades, params=params, title=title)
     return summary
 
@@ -315,6 +411,7 @@ def prepare_shared_panel(
     *,
     need_profit: bool = False,
     need_growth: bool = False,
+    need_balance: bool = False,
     limit: int = 0,
 ) -> Dict[str, pd.DataFrame]:
     """批量跑多个因子时先准备一次面板。"""
@@ -324,12 +421,17 @@ def prepare_shared_panel(
     codes = kit.fetch_universe_codes(universe, limiter, cache_dir)
     if limit and limit > 0:
         codes = codes[:limit]
-    print(f"[panel] codes={len(codes)} profit={need_profit} growth={need_growth}", flush=True)
+    print(
+        f"[panel] codes={len(codes)} profit={need_profit} growth={need_growth} balance={need_balance}",
+        flush=True,
+    )
     price_map = load_or_fetch_universe_prices(codes, params, cache_dir)
     if need_profit:
         price_map = enrich_with_profit(price_map, params, cache_dir)
     if need_growth:
         price_map = enrich_with_growth(price_map, params, cache_dir)
+    if need_balance:
+        price_map = enrich_with_balance(price_map, params, cache_dir)
     return price_map
 
 
@@ -340,6 +442,7 @@ def latest_candidates(
     *,
     need_profit: bool = False,
     need_growth: bool = False,
+    need_balance: bool = False,
     asof: Optional[str] = None,
     lookback_codes: int = 80,
 ) -> Dict[str, Any]:
@@ -370,13 +473,33 @@ def latest_candidates(
             profit = kit.fetch_profit_quarters(
                 code, kit.years_range(2018), kit.RateLimiter(0.05), cache_dir
             )
-            px = merge_asof_funda(px, profit, ["roeAvg", "npMargin", "netProfit", "epsTTM"])
+            px = merge_asof_funda(
+                px,
+                profit,
+                [
+                    "roeAvg",
+                    "npMargin",
+                    "gpMargin",
+                    "netProfit",
+                    "epsTTM",
+                    "MBRevenue",
+                    "totalShare",
+                    "liqaShare",
+                ],
+            )
         if need_growth:
             growth = kit.fetch_growth_quarters(
                 code, kit.years_range(2018), kit.RateLimiter(0.05), cache_dir
             )
             cols = [c for c in growth.columns if c not in ("code", "pubDate", "statDate")]
             px = merge_asof_funda(px, growth, cols[:8])
+        if need_balance:
+            bal = kit.fetch_contract_liab(code, cache_dir, limiter=kit.RateLimiter(0.05))
+            px = merge_asof_funda(
+                px,
+                bal,
+                ["contract_liab", "advance_recv", "contract_liab_raw", "contract_liab_yoy"],
+            )
         entries = signal_fn(px, params)
         if entries is None or entries.empty:
             continue

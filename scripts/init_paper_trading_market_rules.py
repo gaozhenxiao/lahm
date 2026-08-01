@@ -36,9 +36,9 @@ MARKET_RULES = [
             "lot_size": 100,  # 最小交易单位（手）
             "min_price_tick": 0.01,  # 最小报价单位
             "commission": {
-                "rate": 0.0003,  # 佣金费率 0.03%
+                "rate": 0.0001,  # 佣金费率 万分之一
                 "min": 5.0,  # 最低佣金 5元
-                "stamp_duty_rate": 0.001,  # 印花税 0.1%（仅卖出）
+                "stamp_duty_rate": 0.001,  # 印花税 千分之一（仅卖出）
                 "transfer_fee_rate": 0.00002,  # 过户费 0.002%
             },
             "trading_hours": {

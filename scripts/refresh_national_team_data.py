@@ -187,19 +187,22 @@ def refresh_share_curve(end: str) -> None:
         print("[skip] share curve: no backtest csv yet")
         return
     bt = pd.read_csv(bt_path)
-    bt["date"] = pd.to_datetime(bt["date"])
+    # pandas 2.x：parquet(us) 与 csv(ms/ns) 混用会触发 merge_asof 精度冲突
+    bt["date"] = pd.to_datetime(bt["date"], errors="coerce").astype("datetime64[ns]")
     cal = bt[["date"]].drop_duplicates().sort_values("date")
     panel = cal.copy()
     for code, w, _name in codes:
         sub = pd.read_parquet(OUT / f"{code}_share.parquet")
-        sub["date"] = pd.to_datetime(sub["date"], errors="coerce")
+        sub["date"] = pd.to_datetime(sub["date"], errors="coerce").astype("datetime64[ns]")
         sub = sub[["date", "share"]].dropna().sort_values("date")
         m = pd.merge_asof(cal, sub, on="date", direction="backward")
         panel[code] = m["share"]
         panel[code] = panel[code].ffill()
     panel["w_share"] = sum(panel[c] * w for c, w, _ in codes)
     if "share_z" in bt.columns:
-        panel = panel.merge(bt[["date", "share_z", "position", "episode_state"]], on="date", how="left")
+        right = bt[["date", "share_z", "position", "episode_state"]].copy()
+        right["date"] = pd.to_datetime(right["date"], errors="coerce").astype("datetime64[ns]")
+        panel = panel.merge(right, on="date", how="left")
     panel.to_csv(OUT / "huijin_etf_share_history.csv", index=False, encoding="utf-8-sig")
 
     fig, axes = plt.subplots(3, 1, figsize=(13, 10), dpi=140, sharex=True)

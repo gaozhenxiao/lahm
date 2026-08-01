@@ -3,14 +3,17 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+from io import StringIO
 from typing import Optional
 
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.core.response import ok
 from app.models.factors import FactorCreate, FactorUpdate
 from app.routers.auth_db import get_current_user
+from app.services.factors import bs_kit as kit
 from app.services.factors_service import factors_service
 
 logger = logging.getLogger("webapi")
@@ -61,6 +64,32 @@ async def get_factor_artifact(
         raise HTTPException(status_code=404, detail="artifact not found")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="artifact file missing; run backtest first")
+
+    # 操作历史：返回时补齐股票名称列（兼容旧 CSV）
+    is_trade_csv = (
+        str(meta.get("kind") or "") == "csv"
+        and (
+            "trade" in str(artifact_id).lower()
+            or path.name.endswith("_trade_history.csv")
+            or "操作历史" in str(meta.get("label") or "")
+        )
+    )
+    if is_trade_csv and path.exists():
+        try:
+            df = pd.read_csv(path)
+            df = kit.attach_stock_name_column(df)
+            buf = StringIO()
+            df.to_csv(buf, index=False)
+            content = "\ufeff" + buf.getvalue()
+            return Response(
+                content=content.encode("utf-8"),
+                media_type="text/csv; charset=utf-8",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{path.name}"'
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("enrich trade names fail %s/%s: %s", factor_id, artifact_id, exc)
 
     media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     return FileResponse(

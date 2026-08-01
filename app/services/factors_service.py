@@ -14,7 +14,15 @@ from app.utils.timezone import now_tz
 from app.services.factors.national_team import compute_national_team_signal
 from app.services.factors.dip_buy import compute_dip_buy_signal
 from app.services.factors.earnings_forecast import compute_earnings_forecast_signal
+from app.services.factors.dividend_etf_swing import (
+    DEFAULT_PARAMS as DIVIDEND_ETF_DEFAULT_PARAMS,
+    compute_dividend_etf_swing_signal,
+)
 from app.services.factors.factor_registry import FACTOR_IMPL, compute_factor_signal
+from app.services.factors.guide_builder import (
+    pick_trade_example,
+    selection_steps,
+)
 
 logger = logging.getLogger("webapi")
 FACTORS = "factors"
@@ -27,11 +35,6 @@ def _standard_artifacts(factor_id: str, label: str) -> Dict[str, Dict[str, Any]]
             "label": f"净值图 · {label}",
             "filename": f"{factor_id}_equity_curve.png",
             "kind": "image",
-        },
-        "summary": {
-            "label": "回测摘要 JSON",
-            "filename": f"{factor_id}_backtest.json",
-            "kind": "json",
         },
         "trades": {
             "label": "操作历史",
@@ -50,6 +53,7 @@ def _standard_artifacts(factor_id: str, label: str) -> Dict[str, Dict[str, Any]]
 FACTOR_ARTIFACTS: Dict[str, Dict[str, Dict[str, Any]]] = {
     "dip_buy": _standard_artifacts("dip_buy", "dip_buy"),
     "earnings_forecast": _standard_artifacts("earnings_forecast", "earnings_forecast"),
+    "dividend_etf_swing": _standard_artifacts("dividend_etf_swing", "红利ETF波段"),
     "national_team": {
         "equity_curve": {
             "label": "净值图 · long_hold",
@@ -67,11 +71,6 @@ FACTOR_ARTIFACTS: Dict[str, Dict[str, Dict[str, Any]]] = {
             "label": "汇金 ETF 份额曲线",
             "filename": "huijin_etf_share_curve.png",
             "kind": "image",
-        },
-        "summary": {
-            "label": "回测摘要 JSON",
-            "filename": "national_team_backtest.json",
-            "kind": "json",
         },
         "trades_long_hold": {
             "label": "操作历史 · long_hold",
@@ -137,6 +136,330 @@ def load_factor_guide(factor_id: str) -> Optional[Dict[str, Any]]:
     }
 
 
+_PARAM_LABELS = {
+    "universe": "股票池",
+    "price_start": "行情起始",
+    "max_positions": "最大持仓数",
+    "commission_rate": "佣金率（双边）",
+    "stamp_tax_sell": "印花税（卖出）",
+    "hold_days": "持有天数",
+    "stop_loss": "止损",
+    "take_profit": "固定止盈",
+    "trail_stop": "移动止盈回撤",
+    "val_window": "估值分位窗口（交易日）",
+    "pe_pct_max": "PE分位上限",
+    "pb_pct_max": "PB分位上限",
+    "pb_max": "PB绝对值上限",
+    "roe_min": "ROE下限",
+    "margin_min": "利润率/毛利率下限",
+    "np_min": "净利率下限",
+    "np_improve": "净利率改善阈值",
+    "growth_min": "同比增速下限",
+    "mom_min": "动量下限",
+    "dd_need": "回撤触发幅度",
+    "roe_improve": "ROE改善阈值",
+    "margin_improve": "利润率改善阈值",
+    "gp_improve": "毛利率改善阈值",
+    "peg_max": "PEG近似上限",
+    "accel_min": "增速加速阈值",
+    "growth_accel": "成长加速阈值",
+    "score_min": "Neff分值下限",
+    "vol_q": "波动分位上限",
+    "bench_code": "基准代码",
+    "funda_lag": "财务热窗（交易日）",
+    "break_days": "突破回看天数",
+    "ma_days": "确认均线天数",
+    "base_window": "横盘窗口",
+    "amp_max": "横盘振幅上限",
+    "entry": "技术图形入场类型",
+    "yoy_min": "合同负债同比下限",
+    "qoq_min": "环比扩张下限",
+    "cl_rev_min": "合同负债/营收强度下限",
+    "intensity_improve": "预收强度提升阈值",
+    "asset_yoy_max": "资产同比上限（轻资产）",
+    "lead_min": "归属净利领先幅度",
+    "ret20_max": "20日涨幅上限",
+    "amt_dry_ratio": "缩量比例",
+}
+
+
+def _fmt_param_value(key: str, val: Any) -> str:
+    if val is None:
+        return "-"
+    pct_keys = {
+        "commission_rate",
+        "stamp_tax_sell",
+        "stop_loss",
+        "take_profit",
+        "trail_stop",
+        "dd_need",
+        "mom_min",
+        "roe_min",
+        "margin_min",
+        "np_min",
+        "np_improve",
+        "growth_min",
+        "roe_improve",
+        "margin_improve",
+        "gp_improve",
+        "accel_min",
+        "growth_accel",
+        "yoy_min",
+        "qoq_min",
+        "cl_rev_min",
+        "intensity_improve",
+        "asset_yoy_max",
+        "lead_min",
+        "amp_max",
+        "ret20_max",
+        "amt_dry_ratio",
+    }
+    if key in pct_keys and isinstance(val, (int, float)):
+        return f"{float(val):.2%}"
+    if (key.endswith("_pct_max") or key.endswith("_pct_min") or key == "vol_q") and isinstance(
+        val, (int, float)
+    ):
+        return f"{float(val):.0%}"
+    if isinstance(val, float):
+        return f"{val:.4g}"
+    return str(val)
+
+
+def _fmt_pct_md(v: Any) -> str:
+    if v is None or (isinstance(v, float) and (v != v)):
+        return "—"
+    try:
+        return f"{float(v) * 100:.1f}%"
+    except (TypeError, ValueError):
+        return "—"
+
+
+def _fmt_num_md(v: Any, digits: int = 2) -> str:
+    if v is None or (isinstance(v, float) and (v != v)):
+        return "—"
+    try:
+        return f"{float(v):.{digits}f}"
+    except (TypeError, ValueError):
+        return "—"
+
+
+def build_factor_guide_markdown(factor: Dict[str, Any], *, file_guide: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """拼装面向用户的详细说明：思路、参数、回测、产物；文件说明过短时用自动稿增强。"""
+    factor_id = str(factor.get("factor_id") or "")
+    name = str(factor.get("name") or factor_id)
+    desc = (factor.get("description") or "").strip()
+    tags = factor.get("tags") or []
+    category = factor.get("category") or ""
+    params = factor.get("params") or {}
+    meta = FACTOR_IMPL.get(factor_id) or {}
+
+    lines: List[str] = [f"# {name}", ""]
+    if desc:
+        lines += ["## 思路概览", "", desc, ""]
+    else:
+        lines += ["## 思路概览", "", "暂无文字描述，请结合下方参数与回测理解该因子。", ""]
+
+    meta_bits = []
+    if category:
+        meta_bits.append(f"**分类**：{category}")
+    if tags:
+        meta_bits.append("**标签**：" + " · ".join(f"`{t}`" for t in tags))
+    meta_bits.append(f"**因子 ID**：`{factor_id}`")
+    lines += ["## 基本信息", "", "  \n".join(meta_bits), ""]
+
+    # 入场与确认（来自注册表 title/flags）
+    lines += ["## 信号与交易规则", ""]
+    title = meta.get("title") or name
+    lines.append(f"- **策略标题**：{title}")
+    if meta.get("need_profit"):
+        lines.append("- **财务依赖**：需要利润表字段（如 ROE / 净利率 / 毛利率 / 营收）")
+    if meta.get("need_growth"):
+        lines.append("- **成长依赖**：需要成长表字段（如 YOYNI / YOYEPS / YOYPNI）")
+    if meta.get("need_balance"):
+        lines.append("- **资产负债表**：需要合同负债 / 预收款（东财合并口径）")
+    if not meta.get("need_profit") and not meta.get("need_growth") and factor_id in FACTOR_IMPL:
+        lines.append("- **财务依赖**：主要使用价量 / 估值分位，不强制合并利润或成长表")
+    lines.append("- **仓位模型**：等权持仓；到期或触发止损/止盈后换仓（详见参数）")
+    lines.append("")
+
+    # 选股步骤（核心：基本面闸门 + 技术图形）
+    steps = selection_steps(params if isinstance(params, dict) else {}, meta)
+    if steps:
+        lines += ["## 怎么选股（逐步）", ""]
+        for i, step in enumerate(steps, 1):
+            lines.append(f"{i}. {step}")
+        lines.append("")
+        sig = meta.get("signal")
+        sig_name = getattr(sig, "__name__", "") or ""
+        if sig_name:
+            lines.append(f"信号实现：`{sig_name}`。")
+            lines.append("")
+
+    ex = pick_trade_example(factor_id, _factors_data_dir()) if factor_id else None
+    if ex:
+        title_ex = f"{ex['code']}" + (f" {ex['name']}" if ex.get("name") else "")
+        lines += ["## 举例：回测真实成交一腿", ""]
+        lines.append("| 项目 | 内容 |")
+        lines.append("|---|---|")
+        lines.append(f"| 标的 | **{title_ex}** |")
+        if ex.get("buy_date"):
+            cost_s = f"，约 {ex['cost']:.4g}" if ex.get("cost") else ""
+            lines.append(f"| 开仓 | {ex['buy_date']}{cost_s} |")
+        if ex.get("sell_date"):
+            px_s = f"，约 {ex['sell_price']:.4g}" if ex.get("sell_price") else ""
+            lines.append(f"| 清仓 | {ex['sell_date']}{px_s} |")
+        if ex.get("leg_return") is not None:
+            lines.append(f"| 单腿涨跌 | {_fmt_pct_md(ex['leg_return'])} |")
+        lines.append(f"| 组合贡献 | NAV {_fmt_pct_md(ex.get('nav_pnl'))} |")
+        if ex.get("open_note"):
+            lines.append(f"| 开仓备注 | {ex['open_note']} |")
+        if ex.get("exit_note"):
+            lines.append(f"| 出场备注 | {ex['exit_note']} |")
+        lines += ["", "案例用于理解「财务 + 图形」如何同时打勾，不构成投资建议。", ""]
+
+    # 参数表
+    show_keys = [
+        k
+        for k in params.keys()
+        if k
+        not in {
+            "request_interval_sec",
+            "note",
+            "position_logic",
+        }
+        and not str(k).startswith("_")
+    ]
+    # 重要参数优先
+    priority = [
+        "universe",
+        "hold_days",
+        "stop_loss",
+        "commission_rate",
+        "stamp_tax_sell",
+        "pe_pct_max",
+        "pb_pct_max",
+        "roe_min",
+        "margin_min",
+        "growth_min",
+        "mom_min",
+        "val_window",
+        "max_positions",
+    ]
+    ordered = [k for k in priority if k in show_keys] + [k for k in show_keys if k not in priority]
+    if ordered:
+        lines += ["## 关键参数", "", "| 参数 | 含义 | 取值 |", "|---|---|---|"]
+        for k in ordered:
+            label = _PARAM_LABELS.get(k, k)
+            lines.append(f"| `{k}` | {label} | {_fmt_param_value(k, params.get(k))} |")
+        lines.append("")
+
+    # 回测
+    bt = _build_backtest_summary(factor_id) if factor_id else None
+    lines += ["## 回测表现", ""]
+    if bt and bt.get("available") and bt.get("logics"):
+        lines.append("成本约定一般为：**佣金万一（买卖）+ 卖出印花税千一**（ETF 类因子可能免印花税）。")
+        lines.append("")
+        lines.append("| 逻辑 | 区间 | 累计收益 | CAGR | 夏普 | 最大回撤 | 基准买入持有 |")
+        lines.append("|---|---|---:|---:|---:|---:|---:|")
+        for logic, m in (bt.get("logics") or {}).items():
+            if not isinstance(m, dict):
+                continue
+            span = "—"
+            if m.get("start") and m.get("end"):
+                span = f"{m['start']} ~ {m['end']}"
+            lines.append(
+                f"| `{logic}` | {span} | {_fmt_pct_md(m.get('total_return'))} | "
+                f"{_fmt_pct_md(m.get('annual_return'))} | {_fmt_num_md(m.get('sharpe'))} | "
+                f"{_fmt_pct_md(m.get('max_drawdown'))} | {_fmt_pct_md(m.get('buy_hold_return'))} |"
+            )
+        if bt.get("updated_at"):
+            lines += ["", f"回测产物更新于：`{bt['updated_at']}`"]
+        arts = [a for a in (bt.get("artifacts") or []) if a.get("available")]
+        if arts:
+            lines += ["", "### 可查看产物", ""]
+            for a in arts:
+                lines.append(f"- {a.get('label') or a.get('id')}（`{a.get('kind')}`）")
+        lines.append("")
+    else:
+        lines += ["暂无可用回测摘要。可先在列表页查看是否已生成净值图 / JSON 产物。", ""]
+
+    lines += [
+        "## 使用提示",
+        "",
+        "- 列表中的累计 / CAGR / 夏普 / 回撤来自本地回测产物，便于横向对比；点开说明可看完整参数与区间。",
+        "- 冒烟子集（如前 40 只）夏普往往偏高，**以全市场或全成分回测为准**。",
+        "- 「计算信号」给出的是最近时点候选，不代表立刻下单建议。",
+        "",
+    ]
+
+    auto_body = "\n".join(lines).strip() + "\n"
+
+    # 已有文档：足够详细则保留正文并附上回测；过短则用自动稿为主并附录原文
+    if file_guide and (file_guide.get("content") or "").strip():
+        raw = file_guide["content"].strip()
+        # 去掉纯「怎么跑」脚手架后仍很短 → 视为过简
+        substantive = raw
+        for marker in ("## 怎么跑", "## 产物", "```"):
+            if marker in substantive:
+                substantive = substantive.split(marker)[0]
+        if len(substantive.strip()) >= 280:
+            # 丰富文档：正文 + 自动回测/参数附录（避免重复标题）
+            appendix = "\n".join(
+                [
+                    "",
+                    "---",
+                    "",
+                    "## 参数与回测（系统汇总）",
+                    "",
+                    auto_body.split("## 基本信息", 1)[-1]
+                    if "## 基本信息" in auto_body
+                    else auto_body,
+                ]
+            )
+            # 若原文已有回测章节则只补参数表较啰嗦；简化为附上回测表现段
+            bt_only = []
+            capturing = False
+            for line in auto_body.splitlines():
+                if line.startswith("## 回测表现"):
+                    capturing = True
+                if capturing:
+                    bt_only.append(line)
+                if capturing and line.startswith("## 使用提示"):
+                    break
+            content = raw + "\n\n---\n\n" + "\n".join(bt_only).strip() + "\n"
+            return {
+                "factor_id": factor_id,
+                "title": file_guide.get("title") or name,
+                "format": "markdown",
+                "content": content,
+                "path": file_guide.get("path"),
+                "fallback": False,
+            }
+        # 过简：自动详细稿 + 原文附录
+        content = (
+            auto_body
+            + "\n---\n\n## 原始说明（文档）\n\n"
+            + raw
+            + "\n"
+        )
+        return {
+            "factor_id": factor_id,
+            "title": name,
+            "format": "markdown",
+            "content": content,
+            "path": file_guide.get("path"),
+            "fallback": True,
+        }
+
+    return {
+        "factor_id": factor_id,
+        "title": name,
+        "format": "markdown",
+        "content": auto_body,
+        "fallback": True,
+    }
+
+
 def _metric_slice(row: Dict[str, Any]) -> Dict[str, Any]:
     keys = (
         "total_return",
@@ -169,8 +492,9 @@ def _load_national_team_backtest() -> Optional[Dict[str, Any]]:
 def _build_backtest_summary(factor_id: str) -> Optional[Dict[str, Any]]:
     """Attach lightweight backtest summary + artifact links for list/detail."""
     registry = FACTOR_ARTIFACTS.get(factor_id)
+    # 新注册因子若进程未热加载，仍按标准产物约定挂载，避免列表有名无回测
     if not registry:
-        return None
+        registry = _standard_artifacts(factor_id, factor_id)
 
     artifacts: List[Dict[str, Any]] = []
     data_dir = _factors_data_dir()
@@ -189,7 +513,7 @@ def _build_backtest_summary(factor_id: str) -> Optional[Dict[str, Any]]:
 
     out: Dict[str, Any] = {
         "available": False,
-        "primary_logic": "long_hold",
+        "primary_logic": factor_id,
         "logics": {},
         "artifacts": artifacts,
         "updated_at": None,
@@ -261,6 +585,28 @@ def _build_backtest_summary(factor_id: str) -> Optional[Dict[str, Any]]:
                 )
             except Exception:  # noqa: BLE001
                 logger.exception("failed to read earnings_forecast_backtest.json")
+    elif factor_id == "dividend_etf_swing":
+        summary_path = data_dir / "dividend_etf_swing_backtest.json"
+        if summary_path.exists():
+            try:
+                raw = json.loads(summary_path.read_text(encoding="utf-8"))
+                results = raw.get("results") or {}
+                logics: Dict[str, Any] = {}
+                for key, row in results.items():
+                    if isinstance(row, dict) and "sharpe" in row:
+                        logics[str(row.get("position_logic") or key)] = _metric_slice(row)
+                out.update(
+                    {
+                        "available": bool(logics),
+                        "primary_logic": "ma_pullback",
+                        "logics": logics,
+                        "updated_at": datetime.fromtimestamp(summary_path.stat().st_mtime).isoformat(
+                            timespec="seconds"
+                        ),
+                    }
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("failed to read dividend_etf_swing_backtest.json")
     else:
         # 标准单逻辑因子：{id}_backtest.json
         summary_path = data_dir / f"{factor_id}_backtest.json"
@@ -351,6 +697,19 @@ BUILTIN_FACTORS: List[Dict[str, Any]] = [
             "stamp_tax_sell": 0.001,
         },
     },
+    {
+        "factor_id": "dividend_etf_swing",
+        "name": "红利ETF波段",
+        "category": "alternative",
+        "description": (
+            "在红利类ETF（默认515080）上做防守波段："
+            "MA60趋势过滤 + MA20回踩确认入场；跌破均线/止损/到期离场。"
+            "ETF免印花税，佣金万一；适合作为组合卫星仓。"
+        ),
+        "tags": ["另类", "红利", "ETF", "波段", "515080"],
+        "builtin": True,
+        "params": {k: v for k, v in DIVIDEND_ETF_DEFAULT_PARAMS.items() if k != "fallback_etfs"},
+    },
 ]
 
 # 注册表因子并入内置目录
@@ -387,6 +746,46 @@ RETIRED_FACTOR_IDS = (
     "turnover_dryup_bounce",
     "gap_down_recover",
     "consecutive_down_bounce",
+    # 效果差 / 用户明确不入库
+    "quality_on_sale",
+    "templeton_panic",
+    "greenblatt_magic",
+    "dreman_growth_filter",
+    "earnings_accel_reclaim",
+    "gp_margin_expand",
+    "margin_roe_reclaim",
+    "pb_below_growth",
+    "pb_cheap_growth_mom",
+    "pe_pb_growth_triple",
+    "triple_quality",
+    "value_quality_mom",
+    "decrowd_trend_hold",
+    "gap_down_intraday_reclaim",
+    "illiquid_quality_bounce",
+    "month_end_quality",
+    "neglect_reawakening",
+    "pricing_power_gap",
+    "roe_turnaround",
+    "rs_momentum_pullback",
+    "amount_dryup_thrust",
+    "gap_down_fill",
+    "inside_day_break",
+    "two_bar_reversal_quality",
+    # 第五波纯量价 / 日历量价（用户要求侧重基本面）
+    "nr7_breakout",
+    "ma60_slope_turn",
+    "friday_quality_dip",
+    "intraday_recovery",
+    "vol_expansion_trend",
+    "turn_climax_cool",
+    "quiet_breakout",
+    "asset_light_efficiency",
+    "eps_ni_sync_growth",
+    "parent_profit_lead",
+    "revenue_up_roe",
+    "roe_pb_misprice",
+    "roe_persist_reclaim",
+    "share_shrink_quality",
 )
 
 
@@ -516,6 +915,12 @@ class FactorsService:
                 factor.get("params") or {},
                 asof,
             )
+        elif factor_id == "dividend_etf_swing":
+            result = await asyncio.to_thread(
+                compute_dividend_etf_swing_signal,
+                factor.get("params") or {},
+                asof,
+            )
         elif factor_id in FACTOR_IMPL:
             result = await asyncio.to_thread(
                 compute_factor_signal,
@@ -582,23 +987,27 @@ class FactorsService:
         factor = await self.get_factor(factor_id)
         if not factor:
             return None
-        guide = load_factor_guide(factor_id)
-        if not guide:
-            return {
-                "factor_id": factor_id,
-                "title": factor.get("name") or factor_id,
-                "format": "markdown",
-                "content": (
-                    f"# {factor.get('name') or factor_id}\n\n"
-                    f"{factor.get('description') or '暂无更详细说明。'}\n"
-                ),
-                "fallback": True,
+        # 以注册表为准拼装说明（Mongo 里 description/params 常过简或滞后）
+        if factor_id in FACTOR_IMPL:
+            meta = FACTOR_IMPL[factor_id]
+            factor = {
+                **factor,
+                "name": meta.get("name") or factor.get("name"),
+                "description": meta.get("description") or factor.get("description"),
+                "tags": meta.get("tags") or factor.get("tags") or [],
+                "category": meta.get("category") or factor.get("category"),
+                "params": {**(factor.get("params") or {}), **(meta.get("params") or {})},
             }
-        return guide
+        file_guide = load_factor_guide(factor_id)
+        return build_factor_guide_markdown(factor, file_guide=file_guide)
 
     def resolve_artifact(self, factor_id: str, artifact_id: str) -> Tuple[Path, Dict[str, Any]]:
         registry = FACTOR_ARTIFACTS.get(factor_id)
+        # 与 _build_backtest_summary 一致：注册表缺失时仍按标准产物约定解析
+        # （例如已从 FACTOR_IMPL 下线但仍有回测文件的因子）
         if not registry or artifact_id not in registry:
+            registry = _standard_artifacts(factor_id, factor_id)
+        if artifact_id not in registry:
             raise LookupError("artifact not found")
         meta = registry[artifact_id]
         path = (_factors_data_dir() / str(meta["filename"])).resolve()

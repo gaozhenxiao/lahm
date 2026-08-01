@@ -643,15 +643,26 @@ def run_portfolio_backtest(
     *,
     start: Optional[str] = None,
     end: Optional[str] = None,
-) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-    """等权、有限名额组合；收盘调仓；扣佣金+卖出印花税。"""
+) -> Tuple[pd.DataFrame, Dict[str, Any], pd.DataFrame]:
+    """等权、有限名额组合；收盘调仓；扣佣金+卖出印花税。
+
+    start/end = 交易区间；返回 (daily, summary, accepted_legs)。
+    """
+    empty_legs = pd.DataFrame()
     params = {**DEFAULT_PARAMS, **(params or {})}
     if legs is None or legs.empty:
-        return pd.DataFrame(), {"error": "no_legs"}
+        return pd.DataFrame(), {"error": "no_legs"}, empty_legs
 
     legs = legs.copy()
     legs["entry_date"] = pd.to_datetime(legs["entry_date"])
     legs["exit_date"] = pd.to_datetime(legs["exit_date"])
+    # start/end = 交易区间：只保留区间内开仓腿，不结转区间前持仓
+    if start:
+        legs = legs[legs["entry_date"] >= pd.Timestamp(start)].copy()
+    if end:
+        legs = legs[legs["entry_date"] <= pd.Timestamp(end)].copy()
+    if legs.empty:
+        return pd.DataFrame(), {"error": "no_legs_after_start"}, empty_legs
     commission = float(params.get("commission_rate") or 0.0001)
     stamp = float(params.get("stamp_tax_sell") or 0.001)
     max_pos = int(params.get("max_positions") or 8)
@@ -702,7 +713,7 @@ def run_portfolio_backtest(
         accepted.append(row)
         active.append(row.to_dict())
     if not accepted:
-        return pd.DataFrame(), {"error": "no_accepted_legs"}
+        return pd.DataFrame(), {"error": "no_accepted_legs"}, empty_legs
     acc = pd.DataFrame(accepted)
 
     rows = []
@@ -760,7 +771,7 @@ def run_portfolio_backtest(
 
     daily = pd.DataFrame(rows)
     if daily.empty:
-        return daily, {"error": "empty_daily"}
+        return daily, {"error": "empty_daily"}, empty_legs
 
     eq = daily["equity"]
     n = len(daily)
@@ -804,9 +815,11 @@ def run_portfolio_backtest(
         "stop_loss": params.get("stop_loss"),
         "position_logic": "dual_path_3factor_chase",
         "accounting": "eod_rebalance_hold_earns_day",
+        "trade_start": start,
+        "trade_end": end,
         "note": "追高综合：超预期幅度+中长期位置+短期涨幅；否则等回调",
     }
-    return daily, summary
+    return daily, summary, acc
 
 
 def compute_earnings_forecast_signal(

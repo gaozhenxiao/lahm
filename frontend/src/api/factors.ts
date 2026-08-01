@@ -45,6 +45,7 @@ export interface FactorItem {
   latest_signal?: string | null
   latest_value?: number | null
   latest_asof?: string | null
+  created_at?: string | null
   backtest?: FactorBacktest | null
   has_guide?: boolean
 }

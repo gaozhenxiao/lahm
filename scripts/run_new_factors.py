@@ -23,8 +23,17 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=40, help="每因子股票数，0=全量")
     parser.add_argument("--only", default="", help="逗号分隔 factor_id")
-    parser.add_argument("--start", default="2018-01-01")
+    parser.add_argument(
+        "--start",
+        default="2018-01-01",
+        help="交易起点（含当日开仓；不结转此前持仓）",
+    )
     parser.add_argument("--no-shared-panel", action="store_true", help="每个因子单独拉数")
+    parser.add_argument(
+        "--out",
+        default="",
+        help="摘要 JSON 路径（默认 data/factors/new_factors_batch_summary.json）",
+    )
     args = parser.parse_args()
 
     ids = list(FACTOR_IMPL.keys())
@@ -36,6 +45,7 @@ def main() -> None:
 
     need_profit = any(FACTOR_IMPL[i]["need_profit"] for i in ids)
     need_growth = any(FACTOR_IMPL[i]["need_growth"] for i in ids)
+    need_balance = any(bool(FACTOR_IMPL[i].get("need_balance")) for i in ids)
     base_params = dict(next(iter(FACTOR_IMPL.values()))["params"])
 
     price_map = None
@@ -44,6 +54,7 @@ def main() -> None:
             base_params,
             need_profit=need_profit,
             need_growth=need_growth,
+            need_balance=need_balance,
             limit=args.limit,
         )
 
@@ -59,6 +70,7 @@ def main() -> None:
                 meta["params"],
                 need_profit=meta["need_profit"],
                 need_growth=meta["need_growth"],
+                need_balance=bool(meta.get("need_balance")),
                 limit=args.limit,
                 start=args.start,
                 price_map=price_map,
@@ -68,7 +80,9 @@ def main() -> None:
             print(f"[fail] {fid}: {exc}", flush=True)
             results[fid] = {"error": str(exc)}
 
-    out = ROOT / "data" / "factors" / "new_factors_batch_summary.json"
+    out = Path(args.out) if args.out.strip() else ROOT / "data" / "factors" / "new_factors_batch_summary.json"
+    if not out.is_absolute():
+        out = ROOT / out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n[ok] batch summary -> {out}", flush=True)

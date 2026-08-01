@@ -1,0 +1,183 @@
+"""第六波财务基本面因子：冒烟 → 全量 → 写排名。"""
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+PY = ROOT / ".venv" / "Scripts" / "python.exe"
+
+ONLY = [
+    "dual_margin_expand",
+    "roe_pb_misprice",
+    "parent_profit_lead",
+    "eps_ni_sync_growth",
+    "asset_light_efficiency",
+    "share_shrink_quality",
+    "revenue_up_roe",
+    "np_margin_regime",
+    "roe_persist_reclaim",
+    "growth_not_expensive",
+    "eps_reaccel",
+    "gross_net_catchup",
+]
+
+
+def run(cmd: list[str]) -> None:
+    print("[cmd]", " ".join(cmd), flush=True)
+    p = subprocess.run(cmd, cwd=str(ROOT))
+    if p.returncode != 0:
+        raise SystemExit(p.returncode)
+
+
+def rank_rows(path: Path):
+    from app.services.factors.factor_registry import FACTOR_IMPL
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rows = []
+    for k, v in data.items():
+        if isinstance(v, dict) and "sharpe" in v:
+            rows.append(
+                (
+                    k,
+                    FACTOR_IMPL.get(k, {}).get("name", k),
+                    v.get("total_return"),
+                    v.get("annual_return"),
+                    v.get("sharpe"),
+                    v.get("max_drawdown"),
+                    v.get("n_legs_accepted"),
+                )
+            )
+        elif isinstance(v, dict) and "error" in v:
+            print(f"[warn] {k}: {v['error']}", flush=True)
+    rows.sort(key=lambda x: -(x[4] if x[4] is not None else -999))
+    return rows
+
+
+def write_md(rows, path: Path, title: str) -> None:
+    md = [
+        title,
+        "",
+        "成本：佣金万一 + 印花税千一。本批侧重财务基本面（利润率/ROE/成长/股本），不用纯量价信号。",
+        "",
+        "| 排名 | 因子 | 名称 | 总收益 | 年化 | Sharpe | 最大回撤 | 腿数 |",
+        "|---:|---|---|---:|---:|---:|---:|---:|",
+    ]
+
+    def pct(x):
+        return f"{x:.1%}" if isinstance(x, (int, float)) else "—"
+
+    for i, (fid, name, ret, ann, sh, mdd, legs) in enumerate(rows, 1):
+        md.append(
+            f"| {i} | `{fid}` | {name} | {pct(ret)} | {pct(ann)} | **{sh:.2f}** | {pct(mdd)} | {legs} |"
+            if isinstance(sh, (int, float))
+            else f"| {i} | `{fid}` | {name} | {pct(ret)} | {pct(ann)} | {sh} | {pct(mdd)} | {legs} |"
+        )
+    good = [r for r in rows if isinstance(r[4], (int, float)) and r[4] >= 0.15]
+    weak = [r for r in rows if isinstance(r[4], (int, float)) and r[4] < 0.05]
+    md += ["", "## 建议入库", ""]
+    md += [f"- `{r[0]}` ({r[1]}) Sharpe={r[4]:.2f}" for r in good] or ["- （本批无 Sharpe≥0.15）"]
+    md += ["", "## 暂不入库 / 观察", ""]
+    md += [f"- `{r[0]}` Sharpe={r[4]:.2f}" for r in weak] or ["- （无）"]
+    path.write_text("\n".join(md) + "\n", encoding="utf-8")
+    print("\n".join(md), flush=True)
+
+
+def main() -> None:
+    only = ",".join(ONLY)
+    run(
+        [
+            str(PY),
+            "scripts/run_new_factors.py",
+            "--limit",
+            "40",
+            "--only",
+            only,
+            "--out",
+            "data/factors/wave6_smoke_summary.json",
+        ]
+    )
+    smoke = rank_rows(ROOT / "data/factors/wave6_smoke_summary.json")
+    print("\n=== SMOKE RANK ===", flush=True)
+    for r in smoke:
+        print(f"{r[0]:28} sharpe={r[4]} ret={r[2]} legs={r[6]}", flush=True)
+    keep = [r[0] for r in smoke if r[4] is not None and r[4] >= 0.05]
+    if len(keep) < 4:
+        keep = [r[0] for r in smoke if r[4] is not None][:8]
+    if not keep:
+        keep = ONLY[:]
+    print("FULL keep:", keep, flush=True)
+    run(
+        [
+            str(PY),
+            "scripts/run_new_factors.py",
+            "--limit",
+            "0",
+            "--only",
+            ",".join(keep),
+            "--out",
+            "data/factors/wave6_full_summary.json",
+        ]
+    )
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import pandas as pd
+
+        factors = ROOT / "data" / "factors"
+        for fid in keep:
+            csv = factors / f"{fid}_backtest.csv"
+            png = factors / f"{fid}_equity_curve.png"
+            if not csv.exists():
+                continue
+            df = pd.read_csv(csv, parse_dates=["date"])
+            if "equity" not in df.columns:
+                continue
+            fig, axes = plt.subplots(
+                2, 1, figsize=(12, 7), sharex=True, gridspec_kw={"height_ratios": [3, 1]}
+            )
+            axes[0].plot(df["date"], df["equity"], label=fid, color="#1f4e79")
+            if "bench_ret" in df.columns:
+                bh = (1 + df["bench_ret"].fillna(0)).cumprod()
+                axes[0].plot(df["date"], bh, label="bench", color="#999999", alpha=0.85)
+            axes[0].legend(loc="upper left")
+            axes[0].set_title(fid)
+            axes[0].grid(True, alpha=0.25)
+            if "position" in df.columns:
+                axes[1].fill_between(
+                    df["date"], 0, df["position"].fillna(0), color="#2a9d8f", alpha=0.55
+                )
+                axes[1].set_ylim(0, 1.05)
+            axes[1].grid(True, alpha=0.25)
+            fig.tight_layout()
+            fig.savefig(png, dpi=120)
+            plt.close(fig)
+            print(f"[ok] plot {png.name}", flush=True)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] plot batch: {exc}", flush=True)
+
+    rows = rank_rows(ROOT / "data/factors/wave6_full_summary.json")
+    write_md(rows, ROOT / "data/factors/wave6_rank.md", "# 第六波财务基本面全量回测（沪深300，2018–2026）")
+    good = [r[0] for r in rows if isinstance(r[4], (int, float)) and r[4] >= 0.15]
+    weak = [r[0] for r in rows if isinstance(r[4], (int, float)) and r[4] < 0.05]
+    smoke_data = json.loads((ROOT / "data/factors/wave6_smoke_summary.json").read_text(encoding="utf-8"))
+    for k, v in smoke_data.items():
+        if isinstance(v, dict) and ("error" in v or (v.get("sharpe") is not None and v["sharpe"] < 0.05)):
+            if k not in good:
+                weak.append(k)
+    weak = sorted(set(weak) - set(good))
+    (ROOT / "data/factors/wave6_keep.json").write_text(
+        json.dumps({"good": good, "weak": weak, "all": [r[0] for r in rows]}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print("GOOD", good, flush=True)
+    print("WEAK", weak, flush=True)
+
+
+if __name__ == "__main__":
+    main()

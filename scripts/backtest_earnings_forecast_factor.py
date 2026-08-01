@@ -132,7 +132,7 @@ def run_backtest(
         legs = build_trade_legs(events, params, price_end=end)
 
     # 组合层再筛一遍名额
-    daily, summary = run_portfolio_backtest(legs, params, start=start, end=end)
+    daily, summary, accepted = run_portfolio_backtest(legs, params, start=start, end=end)
     if daily.empty:
         print("[warn]", summary)
         return summary
@@ -142,8 +142,8 @@ def run_backtest(
     daily.to_csv(daily_path, index=False, encoding="utf-8-sig")
     print(f"[ok] wrote {daily_path}")
 
-    # 仅保留被组合接受的腿做操作历史：用 entry 是否落在有仓日近似
-    hist = _trade_history(legs)
+    # 仅保留组合实际入账腿（已按 start 过滤）
+    hist = _trade_history(accepted)
     hist_path = OUT / "earnings_forecast_trade_history.csv"
     hist.to_csv(hist_path, index=False, encoding="utf-8-sig")
     print(f"[ok] wrote {hist_path} n={len(hist)}")
