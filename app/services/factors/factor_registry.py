@@ -415,7 +415,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "high_margin_breakout": {
         "name": "高净利率突破",
         "category": "fundamental",
-        "description": "高净利率且动量不差，突破60日高。",
+        "description": "高毛利率突破：毛利≥12%；入场=60日高+MA20；持有20日；止损12%；无固定止盈。",
         "tags": ["自研", "净利率", "突破"],
         "title": "High margin breakout",
         "need_profit": True,
@@ -438,7 +438,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "roe_expand_breakout": {
         "name": "ROE扩张突破",
         "category": "fundamental",
-        "description": "ROE环比改善且水平不低，突破60日高。",
+        "description": "ROE 扩张突破：ROE≥10%；入场=60日高+MA20；持有20日；止损12%；无固定止盈。",
         "tags": ["自研", "ROE", "突破"],
         "title": "ROE expansion breakout",
         "need_profit": True,
@@ -758,7 +758,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_improve_breakout": {
         "name": "双改善突破",
         "category": "fundamental",
-        "description": "ROE与净利率同时改善后突破60日高。",
+        "description": "双改善突破：毛利环比升≥0.30%；入场=60日高+MA20；持有25日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual improve breakout",
         "need_profit": True,
@@ -803,7 +803,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_break": {
         "name": "毛利率扩张突破",
         "category": "fundamental",
-        "description": "毛利率环比改善且维持高位后，突破60日高。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.50%；财务热窗25日；入场=60日高+MA20；持有25日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross margin expand break",
         "need_profit": True,
@@ -914,7 +914,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_expand_break": {
         "name": "毛净利率双扩张突破",
         "category": "fundamental",
-        "description": "毛利率与净利率同时扩张后突破60日高。",
+        "description": "毛利/净利双扩张后突破：毛利环比升≥0.30%；净利环比升≥0.30%；入场=60日高+MA20；持有25日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP expand break",
         "need_profit": True,
@@ -972,7 +972,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_improve_base_break": {
         "name": "双改善横盘突破",
         "category": "fundamental",
-        "description": "ROE与净利率双改善后横盘突破。",
+        "description": "双改善横盘突破：毛利环比升≥0.30%；入场=60日高+MA20；振幅≤24%；持有25日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "横盘"],
         "title": "Dual improve base break",
         "need_profit": True,
@@ -983,7 +983,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_tight_break": {
         "name": "毛净利率严标准突破",
         "category": "fundamental",
-        "description": "更高改善阈值与水平过滤后的毛净利率双扩张突破。",
+        "description": "毛利/净利收紧扩张后突破：毛利≥20%；毛利环比升≥0.60%；净利≥6%；净利环比升≥0.50%；财务热窗20日；入场=60日高+MA20；持有25日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP tight break",
         "need_profit": True,
@@ -994,7 +994,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "contract_liab_yoy_break": {
         "name": "合同负债高同比突破",
         "category": "fundamental",
-        "description": "合同负债同比高增后突破60日高。",
+        "description": "合同负债高同比突破：合同负债同比≥20%；财务热窗25日；入场=60日高+MA20；持有25日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "合同负债"],
         "title": "Contract liab YOY break",
         "need_profit": False,
@@ -1110,7 +1110,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_expand_cheap_break": {
         "name": "毛利率扩张低估突破",
         "category": "fundamental",
-        "description": "毛利率扩张且估值不高时突破。",
+        "description": "毛利率扩张 + 低估突破：毛利≥18%；毛利环比升≥0.50%；财务热窗25日；入场=60日高+MA20；持有25日；止损12%；无固定止盈；PE分位≤45%。",
         "tags": ["基本面", "技术面", "毛利率", "估值"],
         "title": "Gross expand cheap break",
         "need_profit": True,
@@ -1121,7 +1121,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_confirm_break": {
         "name": "EPS加速净利率确认突破",
         "category": "fundamental",
-        "description": "EPS加速且净利率改善后突破。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥8%；增速加速≥5%；入场=60日高+MA20；持有25日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual confirm break",
         "need_profit": True,
@@ -1144,7 +1144,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_break_tight": {
         "name": "毛利率扩张突破(严)",
         "category": "fundamental",
-        "description": "更高毛利率改善阈值的扩张突破。",
+        "description": "毛利率扩张后突破：毛利≥22%；毛利环比升≥0.80%；财务热窗20日；入场=60日高+MA20；持有25日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand break tight",
         "need_profit": True,
@@ -1155,7 +1155,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_improve_breakout_wide": {
         "name": "双改善突破(宽)",
         "category": "fundamental",
-        "description": "更宽松改善阈值的双改善突破。",
+        "description": "双改善突破：毛利环比升≥0.20%；入场=60日高+MA20；持有30日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual improve breakout wide",
         "need_profit": True,
@@ -1166,7 +1166,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_improve_base_tight": {
         "name": "双改善横盘突破(严)",
         "category": "fundamental",
-        "description": "更严横盘振幅的双改善突破。",
+        "description": "双改善横盘突破：毛利环比升≥0.40%；入场=60日高+MA20；振幅≤18%；持有25日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual improve base tight",
         "need_profit": True,
@@ -1177,7 +1177,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_expand_lag": {
         "name": "毛净利率双扩张(严阈值)",
         "category": "fundamental",
-        "description": "更高改善阈值的毛净利率双扩张突破。",
+        "description": "毛利/净利双扩张后突破：毛利环比升≥0.50%；净利环比升≥0.50%；入场=60日高+MA20；持有25日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP expand stricter",
         "need_profit": True,
@@ -1212,7 +1212,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_improve_base_tight2": {
         "name": "双改善横盘突破(更严)",
         "category": "fundamental",
-        "description": "更高改善阈值 + 更窄横盘振幅。",
+        "description": "双改善横盘突破：毛利环比升≥0.50%；入场=60日高+MA20；振幅≤15%；持有25日；止损10%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual improve base tighter",
         "need_profit": True,
@@ -1234,7 +1234,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_wide_base": {
         "name": "宽双改善横盘突破",
         "category": "fundamental",
-        "description": "宽松双改善 + 横盘突破。",
+        "description": "双改善横盘突破：毛利环比升≥0.20%；入场=60日高+MA20；振幅≤24%；持有30日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Wide dual base break",
         "need_profit": True,
@@ -1318,7 +1318,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_mid_base": {
         "name": "双改善横盘突破(中)",
         "category": "fundamental",
-        "description": "介于宽松与严格之间的双改善横盘突破。",
+        "description": "双改善横盘突破：毛利环比升≥0.30%；入场=60日高+MA20；振幅≤20%；持有28日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual mid base",
         "need_profit": True,
@@ -1329,7 +1329,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_hold40": {
         "name": "毛利率扩张突破(持有加长)",
         "category": "fundamental",
-        "description": "顶优胜毛利率扩张突破，持有期加长。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.50%；财务热窗25日；入场=60日高+MA20；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand hold40",
         "need_profit": True,
@@ -1340,7 +1340,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag_hold35": {
         "name": "毛净利率严阈值突破(持有加长)",
         "category": "fundamental",
-        "description": "严阈值毛净利率双扩张，持有期加长。",
+        "description": "毛利/净利双扩张后突破：毛利环比升≥0.50%；净利环比升≥0.50%；入场=60日高+MA20；持有35日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP lag hold35",
         "need_profit": True,
@@ -1351,7 +1351,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_tight_hold35": {
         "name": "双改善严横盘突破(持有加长)",
         "category": "fundamental",
-        "description": "严横盘双改善突破，持有期加长。",
+        "description": "双改善横盘突破：毛利环比升≥0.40%；入场=60日高+MA20；振幅≤18%；持有35日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual tight hold35",
         "need_profit": True,
@@ -1363,7 +1363,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_mid_hold40": {
         "name": "双改善中档横盘(持有40)",
         "category": "fundamental",
-        "description": "中档双改善横盘突破，持有40日。",
+        "description": "双改善横盘突破：毛利环比升≥0.30%；入场=60日高+MA20；振幅≤20%；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual mid hold40",
         "need_profit": True,
@@ -1374,7 +1374,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_mid_amp22": {
         "name": "双改善中档横盘(振幅略宽)",
         "category": "fundamental",
-        "description": "中档改善阈值 + 略宽横盘振幅。",
+        "description": "双改善横盘突破：毛利环比升≥0.30%；入场=60日高+MA20；振幅≤22%；持有30日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual mid amp22",
         "need_profit": True,
@@ -1385,7 +1385,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag_hold45": {
         "name": "毛净利率严阈值(持有45)",
         "category": "fundamental",
-        "description": "严阈值毛净利率双扩张，持有再加长。",
+        "description": "毛利/净利双扩张后突破：毛利环比升≥0.50%；净利环比升≥0.50%；入场=60日高+MA20；持有45日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP lag hold45",
         "need_profit": True,
@@ -1417,7 +1417,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_hold50": {
         "name": "毛利率扩张突破(持有50)",
         "category": "fundamental",
-        "description": "毛利率扩张突破，持有期进一步加长。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.50%；财务热窗25日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand hold50",
         "need_profit": True,
@@ -1448,7 +1448,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_hold60": {
         "name": "毛利率扩张突破(持有60)",
         "category": "fundamental",
-        "description": "毛利率扩张突破，持有期再加长。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.50%；财务热窗25日；入场=60日高+MA20；持有60日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand hold60",
         "need_profit": True,
@@ -1459,7 +1459,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_tight_hold40": {
         "name": "毛利率严扩张(持有40)",
         "category": "fundamental",
-        "description": "更严毛利率改善 + 持有40日。",
+        "description": "毛利率扩张后突破：毛利≥22%；毛利环比升≥0.80%；财务热窗20日；入场=60日高+MA20；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand tight hold40",
         "need_profit": True,
@@ -1481,7 +1481,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_mid_hold50": {
         "name": "双改善中档横盘(持有50)",
         "category": "fundamental",
-        "description": "中档双改善横盘，持有再加长。",
+        "description": "双改善横盘突破：毛利环比升≥0.30%；入场=60日高+MA20；振幅≤20%；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual mid hold50",
         "need_profit": True,
@@ -1492,7 +1492,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag_hold60": {
         "name": "毛净利率严阈值(持有60)",
         "category": "fundamental",
-        "description": "严阈值毛净利率双扩张，持有60日。",
+        "description": "毛利/净利双扩张后突破：毛利环比升≥0.50%；净利环比升≥0.50%；入场=60日高+MA20；持有60日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP lag hold60",
         "need_profit": True,
@@ -1515,7 +1515,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_hold55": {
         "name": "毛利率扩张突破(持有55)",
         "category": "fundamental",
-        "description": "顶优胜 hold50 邻域，持有55日。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.50%；财务热窗25日；入场=60日高+MA20；持有55日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand hold55",
         "need_profit": True,
@@ -1526,7 +1526,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_mid_hold50": {
         "name": "毛利率中档扩张(持有50)",
         "category": "fundamental",
-        "description": "略严改善阈值 + 持有50。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗25日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand mid hold50",
         "need_profit": True,
@@ -1537,7 +1537,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_hold50_stop10": {
         "name": "毛利率扩张持有50(止损收紧)",
         "category": "fundamental",
-        "description": "hold50 优胜 + 更紧止损。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.50%；财务热窗25日；入场=60日高+MA20；持有50日；止损10%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand hold50 stop10",
         "need_profit": True,
@@ -1548,7 +1548,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_mid_hold45": {
         "name": "双改善中档横盘(持有45)",
         "category": "fundamental",
-        "description": "中档双改善横盘，持有45日。",
+        "description": "双改善横盘突破：毛利环比升≥0.30%；入场=60日高+MA20；振幅≤20%；持有45日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual mid hold45",
         "need_profit": True,
@@ -1559,7 +1559,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag_hold40": {
         "name": "毛净利率严阈值(持有40)",
         "category": "fundamental",
-        "description": "严阈值毛净利率，持有40（介于35与45）。",
+        "description": "毛利/净利双扩张后突破：毛利环比升≥0.50%；净利环比升≥0.50%；入场=60日高+MA20；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP lag hold40",
         "need_profit": True,
@@ -1570,7 +1570,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_mid_amp18": {
         "name": "双改善中档横盘(振幅略严)",
         "category": "fundamental",
-        "description": "中档改善 + 略严横盘振幅。",
+        "description": "双改善横盘突破：毛利环比升≥0.30%；入场=60日高+MA20；振幅≤18%；持有30日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual mid amp18",
         "need_profit": True,
@@ -1582,7 +1582,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_mid_hold55": {
         "name": "毛利率中档扩张(持有55)",
         "category": "fundamental",
-        "description": "中档改善 + 持有55（顶优胜邻域）。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗25日；入场=60日高+MA20；持有55日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand mid hold55",
         "need_profit": True,
@@ -1593,7 +1593,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_mid_hold45": {
         "name": "毛利率中档扩张(持有45)",
         "category": "fundamental",
-        "description": "中档改善 + 持有45。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗25日；入场=60日高+MA20；持有45日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand mid hold45",
         "need_profit": True,
@@ -1604,7 +1604,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_mid_stop10": {
         "name": "毛利率中档持有50(止损收紧)",
         "category": "fundamental",
-        "description": "中档改善 hold50 + 止损0.10。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗25日；入场=60日高+MA20；持有50日；止损10%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand mid stop10",
         "need_profit": True,
@@ -1615,7 +1615,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_hold52": {
         "name": "毛利率扩张突破(持有52)",
         "category": "fundamental",
-        "description": "介于 hold50 与 hold55 之间。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.50%；财务热窗25日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand hold52",
         "need_profit": True,
@@ -1626,7 +1626,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag_hold42": {
         "name": "毛净利率严阈值(持有42)",
         "category": "fundamental",
-        "description": "严阈值毛净利率，持有42。",
+        "description": "毛利/净利双扩张后突破：毛利环比升≥0.50%；净利环比升≥0.50%；入场=60日高+MA20；持有42日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP lag hold42",
         "need_profit": True,
@@ -1637,7 +1637,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_mid_hold42": {
         "name": "双改善中档横盘(持有42)",
         "category": "fundamental",
-        "description": "中档双改善横盘，持有42。",
+        "description": "双改善横盘突破：毛利环比升≥0.30%；入场=60日高+MA20；振幅≤20%；持有42日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual mid hold42",
         "need_profit": True,
@@ -1649,7 +1649,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_hold53": {
         "name": "毛利率扩张突破(持有53)",
         "category": "fundamental",
-        "description": "hold52 邻域微调。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.50%；财务热窗25日；入场=60日高+MA20；持有53日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand hold53",
         "need_profit": True,
@@ -1660,7 +1660,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_mid_hold48": {
         "name": "毛利率中档扩张(持有48)",
         "category": "fundamental",
-        "description": "中档改善 + 持有48。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗25日；入场=60日高+MA20；持有48日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand mid hold48",
         "need_profit": True,
@@ -1671,7 +1671,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_mid_lag20": {
         "name": "毛利率中档扩张(热窗20)",
         "category": "fundamental",
-        "description": "中档改善 hold50，财务热窗缩短至20。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗20日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand mid lag20",
         "need_profit": True,
@@ -1682,7 +1682,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_mid_m22": {
         "name": "毛利率中档扩张(水平0.22)",
         "category": "fundamental",
-        "description": "更高毛利率水平门槛 + hold50。",
+        "description": "毛利率扩张后突破：毛利≥22%；毛利环比升≥0.60%；财务热窗25日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand mid m22",
         "need_profit": True,
@@ -1712,7 +1712,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag_stop10": {
         "name": "毛净利率严阈值持有40(止损收紧)",
         "category": "fundamental",
-        "description": "gp_np_lag_hold40 + 止损0.10。",
+        "description": "毛利/净利双扩张后突破：毛利环比升≥0.50%；净利环比升≥0.50%；入场=60日高+MA20；持有40日；止损10%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP lag stop10",
         "need_profit": True,
@@ -1724,7 +1724,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_imp007": {
         "name": "毛利率扩张(改善0.007持有50)",
         "category": "fundamental",
-        "description": "更高改善阈值 + 顶优胜持有50。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.70%；财务热窗25日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand imp007",
         "need_profit": True,
@@ -1735,7 +1735,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag30": {
         "name": "毛利率中档扩张(热窗30)",
         "category": "fundamental",
-        "description": "中档改善 hold50，财务热窗拉长至30。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗30日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag30",
         "need_profit": True,
@@ -1746,7 +1746,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_expand_cheap_hold50": {
         "name": "毛利率低估扩张(持有50)",
         "category": "fundamental",
-        "description": "毛利率扩张 + 低估突破，持有加长。",
+        "description": "毛利率扩张 + 低估突破：毛利≥18%；毛利环比升≥0.50%；财务热窗25日；入场=60日高+MA20；持有50日；止损12%；无固定止盈；PE分位≤45%。",
         "tags": ["基本面", "技术面", "毛利率", "估值"],
         "title": "GP expand cheap hold50",
         "need_profit": True,
@@ -1757,7 +1757,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_break_hold50": {
         "name": "双改善突破(持有50)",
         "category": "fundamental",
-        "description": "双改善突破（非横盘），持有加长。",
+        "description": "双改善突破：毛利环比升≥0.30%；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE"],
         "title": "Dual break hold50",
         "need_profit": True,
@@ -1768,7 +1768,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_mid_hold50": {
         "name": "毛净利率中档(持有50)",
         "category": "fundamental",
-        "description": "中档毛净利率双扩张 + 持有50。",
+        "description": "毛利/净利双扩张后突破：毛利环比升≥0.40%；净利环比升≥0.40%；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP mid hold50",
         "need_profit": True,
@@ -1791,7 +1791,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag28": {
         "name": "毛利率中档扩张(热窗28)",
         "category": "fundamental",
-        "description": "lag30 邻域，热窗28 + hold50。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag28",
         "need_profit": True,
@@ -1802,7 +1802,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag32": {
         "name": "毛利率中档扩张(热窗32)",
         "category": "fundamental",
-        "description": "lag30 邻域，热窗32 + hold50。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗32日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag32",
         "need_profit": True,
@@ -1813,7 +1813,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag30_stop10": {
         "name": "毛利率热窗30(止损收紧)",
         "category": "fundamental",
-        "description": "lag30 优胜 + 止损0.10。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗30日；入场=60日高+MA20；持有50日；止损10%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag30 stop10",
         "need_profit": True,
@@ -1824,7 +1824,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag30_hold55": {
         "name": "毛利率热窗30(持有55)",
         "category": "fundamental",
-        "description": "lag30 + 持有55。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗30日；入场=60日高+MA20；持有55日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag30 hold55",
         "need_profit": True,
@@ -1835,7 +1835,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_break_mid_hold50": {
         "name": "双改善中档突破(持有50)",
         "category": "fundamental",
-        "description": "略严双改善突破 + 持有50。",
+        "description": "双改善突破：毛利环比升≥0.40%；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE"],
         "title": "Dual break mid hold50",
         "need_profit": True,
@@ -1846,7 +1846,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_cheap_mid_hold50": {
         "name": "毛利率中档低估(持有50)",
         "category": "fundamental",
-        "description": "中档毛利率改善 + 低估突破。",
+        "description": "毛利率扩张 + 低估突破：毛利≥20%；毛利环比升≥0.60%；财务热窗25日；入场=60日高+MA20；持有50日；止损12%；无固定止盈；PE分位≤40%。",
         "tags": ["基本面", "技术面", "毛利率", "估值"],
         "title": "GP cheap mid hold50",
         "need_profit": True,
@@ -1858,7 +1858,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag27": {
         "name": "毛利率中档扩张(热窗27)",
         "category": "fundamental",
-        "description": "lag28 邻域，热窗27。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗27日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag27",
         "need_profit": True,
@@ -1869,7 +1869,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag29": {
         "name": "毛利率中档扩张(热窗29)",
         "category": "fundamental",
-        "description": "lag28 邻域，热窗29。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗29日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag29",
         "need_profit": True,
@@ -1880,7 +1880,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag28_hold55": {
         "name": "毛利率热窗28(持有55)",
         "category": "fundamental",
-        "description": "lag28 + 持有55。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有55日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag28 hold55",
         "need_profit": True,
@@ -1891,7 +1891,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag28_stop10": {
         "name": "毛利率热窗28(止损收紧)",
         "category": "fundamental",
-        "description": "lag28 + 止损0.10。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有50日；止损10%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag28 stop10",
         "need_profit": True,
@@ -1902,7 +1902,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag28_hold52": {
         "name": "毛利率热窗28(持有52)",
         "category": "fundamental",
-        "description": "lag28 + 持有52。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag28 hold52",
         "need_profit": True,
@@ -1913,7 +1913,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_cheap_lag28": {
         "name": "毛利率低估热窗28",
         "category": "fundamental",
-        "description": "毛利率环比扩张且水平达标后，叠加 PE 历史分位低估过滤；财务事件后 28 个交易日热窗内，收盘突破 60 日高并站上 MA20。",
+        "description": "毛利率扩张 + 低估突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有50日；止损12%；无固定止盈；PE分位≤40%。",
         "tags": ["基本面", "技术面", "毛利率", "估值"],
         "title": "GP cheap lag28",
         "need_profit": True,
@@ -1925,7 +1925,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_mid_hold52": {
         "name": "双改善中档横盘(持有52)",
         "category": "fundamental",
-        "description": "顶优胜持有迁移到双改善中档横盘。",
+        "description": "双改善横盘突破：毛利环比升≥0.30%；入场=60日高+MA20；振幅≤20%；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual mid hold52",
         "need_profit": True,
@@ -1936,7 +1936,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag_hold52": {
         "name": "毛净利率严阈值(持有52)",
         "category": "fundamental",
-        "description": "严阈值毛净利率 + 持有52。",
+        "description": "毛利/净利双扩张后突破：毛利环比升≥0.50%；净利环比升≥0.50%；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP lag hold52",
         "need_profit": True,
@@ -1969,7 +1969,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "contract_yoy_hold50": {
         "name": "合同负债高同比(持有50)",
         "category": "fundamental",
-        "description": "合同负债高同比突破，持有加长。",
+        "description": "合同负债高同比(持有50)：合同负债同比≥15%；财务热窗25日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "合同负债"],
         "title": "Contract yoy hold50",
         "need_profit": False,
@@ -1981,7 +1981,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag29_hold52": {
         "name": "毛利率热窗29(持有52)",
         "category": "fundamental",
-        "description": "lag29 与 hold52 交叉。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗29日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag29 hold52",
         "need_profit": True,
@@ -1993,7 +1993,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag29_hold51": {
         "name": "毛利率热窗29(持有51)",
         "category": "fundamental",
-        "description": "lag29_hold52 邻域。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag29 hold51",
         "need_profit": True,
@@ -2004,7 +2004,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag29_hold53": {
         "name": "毛利率热窗29(持有53)",
         "category": "fundamental",
-        "description": "lag29_hold52 邻域。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗29日；入场=60日高+MA20；持有53日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag29 hold53",
         "need_profit": True,
@@ -2015,7 +2015,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag28_hold51": {
         "name": "毛利率热窗28(持有51)",
         "category": "fundamental",
-        "description": "lag28_hold52 邻域。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag28 hold51",
         "need_profit": True,
@@ -2026,7 +2026,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag29_stop10": {
         "name": "毛利率热窗29(止损收紧)",
         "category": "fundamental",
-        "description": "lag29 + hold52 + 止损0.10。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗29日；入场=60日高+MA20；持有52日；止损10%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag29 stop10",
         "need_profit": True,
@@ -2037,7 +2037,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_tight_hold52": {
         "name": "双改善严横盘(持有52)",
         "category": "fundamental",
-        "description": "严横盘双改善 + 持有52。",
+        "description": "双改善横盘突破：毛利环比升≥0.40%；入场=60日高+MA20；振幅≤18%；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual tight hold52",
         "need_profit": True,
@@ -2060,7 +2060,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag27_hold51": {
         "name": "毛利率热窗27(持有51)",
         "category": "fundamental",
-        "description": "新高 lag28_hold51 邻域。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗27日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag27 hold51",
         "need_profit": True,
@@ -2071,7 +2071,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag28_hold51_stop10": {
         "name": "毛利率热窗28持有51(止损收紧)",
         "category": "fundamental",
-        "description": "新高组合 + 止损0.10。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有51日；止损10%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag28 hold51 stop10",
         "need_profit": True,
@@ -2082,7 +2082,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag28_hold50_mid": {
         "name": "毛利率热窗28中档(持有50)",
         "category": "fundamental",
-        "description": "lag28 + 中档改善 + hold50，对齐旧榜首持有。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag28 hold50 mid",
         "need_profit": True,
@@ -2093,7 +2093,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag28_hold51_imp005": {
         "name": "毛利率热窗28持有51(改善0.005)",
         "category": "fundamental",
-        "description": "新高组合改用标准改善阈值。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.50%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag28 hold51 imp005",
         "need_profit": True,
@@ -2104,7 +2104,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_mid_hold51": {
         "name": "双改善中档横盘(持有51)",
         "category": "fundamental",
-        "description": "hold51 迁移到双改善中档。",
+        "description": "双改善横盘突破：毛利环比升≥0.30%；入场=60日高+MA20；振幅≤20%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual mid hold51",
         "need_profit": True,
@@ -2115,7 +2115,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag_hold51": {
         "name": "毛净利率严阈值(持有51)",
         "category": "fundamental",
-        "description": "严阈值毛净利率 + 持有51。",
+        "description": "毛利/净利双扩张后突破：毛利环比升≥0.50%；净利环比升≥0.50%；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP lag hold51",
         "need_profit": True,
@@ -2127,7 +2127,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag28_hold51_m18": {
         "name": "毛利率热窗28持有51(水平0.18)",
         "category": "fundamental",
-        "description": "新高组合降低毛利率水平门槛。",
+        "description": "毛利率扩张后突破：毛利≥18%；毛利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag28 hold51 m18",
         "need_profit": True,
@@ -2138,7 +2138,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_lag28_hold51_m22": {
         "name": "毛利率热窗28持有51(水平0.22)",
         "category": "fundamental",
-        "description": "新高组合提高毛利率水平门槛。",
+        "description": "毛利率扩张后突破：毛利≥22%；毛利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand lag28 hold51 m22",
         "need_profit": True,
@@ -2149,7 +2149,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_cheap_lag28_hold51": {
         "name": "毛利率低估热窗28持有51",
         "category": "fundamental",
-        "description": "新高参数 + 低估过滤。",
+        "description": "毛利率扩张 + 低估突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；PE分位≤40%。",
         "tags": ["基本面", "技术面", "毛利率", "估值"],
         "title": "GP cheap lag28 hold51",
         "need_profit": True,
@@ -2160,7 +2160,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_tight_hold51": {
         "name": "双改善严横盘(持有51)",
         "category": "fundamental",
-        "description": "严横盘双改善 + 持有51。",
+        "description": "双改善横盘突破：毛利环比升≥0.40%；入场=60日高+MA20；振幅≤18%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual tight hold51",
         "need_profit": True,
@@ -2182,7 +2182,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "high_margin_break_hold50": {
         "name": "高净利率突破(持有50)",
         "category": "fundamental",
-        "description": "高净利率突破，持有加长。",
+        "description": "高毛利率突破：毛利≥12%；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "净利率"],
         "title": "High margin break hold50",
         "need_profit": True,
@@ -2194,7 +2194,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_tight_hold50": {
         "name": "双改善严横盘(持有50)",
         "category": "fundamental",
-        "description": "严横盘双改善 + 持有50。",
+        "description": "双改善横盘突破：毛利环比升≥0.40%；入场=60日高+MA20；振幅≤18%；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual tight hold50",
         "need_profit": True,
@@ -2205,7 +2205,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_tight_hold53": {
         "name": "双改善严横盘(持有53)",
         "category": "fundamental",
-        "description": "严横盘双改善 + 持有53。",
+        "description": "双改善横盘突破：毛利环比升≥0.40%；入场=60日高+MA20；振幅≤18%；持有53日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual tight hold53",
         "need_profit": True,
@@ -2216,7 +2216,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_tight_amp16": {
         "name": "双改善更严横盘(持有51)",
         "category": "fundamental",
-        "description": "更窄振幅 + 持有51。",
+        "description": "双改善横盘突破：毛利环比升≥0.40%；入场=60日高+MA20；振幅≤16%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual tight amp16",
         "need_profit": True,
@@ -2227,7 +2227,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "high_margin_break_hold51": {
         "name": "高净利率突破(持有51)",
         "category": "fundamental",
-        "description": "高净利率突破 + 持有51。",
+        "description": "高毛利率突破：毛利≥12%；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "净利率"],
         "title": "High margin break hold51",
         "need_profit": True,
@@ -2238,7 +2238,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "high_margin_break_m15": {
         "name": "高净利率突破(门槛0.15持有50)",
         "category": "fundamental",
-        "description": "更高净利率门槛 + 持有50。",
+        "description": "高毛利率突破：毛利≥15%；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "净利率"],
         "title": "High margin break m15",
         "need_profit": True,
@@ -2249,7 +2249,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_tight_hold51": {
         "name": "毛净利率严阈值突破(持有51)",
         "category": "fundamental",
-        "description": "严毛净利率突破 + 持有51。",
+        "description": "毛利/净利收紧扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥5%；净利环比升≥0.60%；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP tight hold51",
         "need_profit": True,
@@ -2261,7 +2261,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_tight_lag28_hold51": {
         "name": "毛净利率严阈值(lag28持有51)",
         "category": "fundamental",
-        "description": "严毛净利率 + 财务热窗28 + 持有51。",
+        "description": "毛利/净利收紧扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥5%；净利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP tight lag28 hold51",
         "need_profit": True,
@@ -2272,7 +2272,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_tight_lag29_hold51": {
         "name": "毛净利率严阈值(lag29持有51)",
         "category": "fundamental",
-        "description": "严毛净利率 + 财务热窗29 + 持有51。",
+        "description": "毛利/净利收紧扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥5%；净利环比升≥0.60%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP tight lag29 hold51",
         "need_profit": True,
@@ -2283,7 +2283,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_tight_hold52": {
         "name": "毛净利率严阈值突破(持有52)",
         "category": "fundamental",
-        "description": "严毛净利率突破 + 持有52。",
+        "description": "毛利/净利收紧扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥5%；净利环比升≥0.60%；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP tight hold52",
         "need_profit": True,
@@ -2294,7 +2294,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_tight_lag28_hold52": {
         "name": "毛净利率严阈值(lag28持有52)",
         "category": "fundamental",
-        "description": "严毛净利率 + lag28 + 持有52。",
+        "description": "毛利/净利收紧扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥5%；净利环比升≥0.60%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP tight lag28 hold52",
         "need_profit": True,
@@ -2305,7 +2305,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_tight_amp16_hold52": {
         "name": "双改善更严横盘(持有52)",
         "category": "fundamental",
-        "description": "更窄振幅双改善 + 持有52。",
+        "description": "双改善横盘突破：毛利环比升≥0.40%；入场=60日高+MA20；振幅≤16%；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘"],
         "title": "Dual tight amp16 hold52",
         "need_profit": True,
@@ -2316,7 +2316,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "high_margin_m15_hold51": {
         "name": "高净利率门槛0.15(持有51)",
         "category": "fundamental",
-        "description": "高净利率门槛0.15 + 持有51。",
+        "description": "高毛利率突破：毛利≥15%；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "净利率"],
         "title": "High margin m15 hold51",
         "need_profit": True,
@@ -2328,7 +2328,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_tight_lag30_hold51": {
         "name": "毛净利率严阈值(lag30持有51)",
         "category": "fundamental",
-        "description": "严毛净利率 + lag30 + 持有51。",
+        "description": "毛利/净利收紧扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥5%；净利环比升≥0.60%；财务热窗30日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP tight lag30 hold51",
         "need_profit": True,
@@ -2339,7 +2339,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_tight_lag29_hold52": {
         "name": "毛净利率严阈值(lag29持有52)",
         "category": "fundamental",
-        "description": "严毛净利率 + lag29 + 持有52。",
+        "description": "毛利/净利收紧扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥5%；净利环比升≥0.60%；财务热窗29日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP tight lag29 hold52",
         "need_profit": True,
@@ -2350,7 +2350,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_tight_lag29_hold50": {
         "name": "毛净利率严阈值(lag29持有50)",
         "category": "fundamental",
-        "description": "严毛净利率 + lag29 + 持有50。",
+        "description": "毛利/净利收紧扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥5%；净利环比升≥0.60%；财务热窗29日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP tight lag29 hold50",
         "need_profit": True,
@@ -2361,7 +2361,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "high_margin_m15_hold52": {
         "name": "高净利率门槛0.15(持有52)",
         "category": "fundamental",
-        "description": "高净利率门槛0.15 + 持有52。",
+        "description": "高毛利率突破：毛利≥15%；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "净利率"],
         "title": "High margin m15 hold52",
         "need_profit": True,
@@ -2372,7 +2372,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "high_margin_m18_hold51": {
         "name": "高净利率门槛0.18(持有51)",
         "category": "fundamental",
-        "description": "更高净利率门槛 + 持有51。",
+        "description": "高毛利率突破：毛利≥18%；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "净利率"],
         "title": "High margin m18 hold51",
         "need_profit": True,
@@ -2383,7 +2383,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_cheap_lag29_hold51": {
         "name": "毛利率低估热窗29持有51",
         "category": "fundamental",
-        "description": "低估毛利率扩张 + lag29 + 持有51。",
+        "description": "毛利率扩张 + 低估突破：毛利≥20%；毛利环比升≥0.60%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；PE分位≤40%。",
         "tags": ["基本面", "技术面", "毛利率", "估值"],
         "title": "GP cheap lag29 hold51",
         "need_profit": True,
@@ -2395,7 +2395,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_tight_lag30_hold52": {
         "name": "毛净利率严阈值(lag30持有52)",
         "category": "fundamental",
-        "description": "严毛净利率 + lag30 + 持有52。",
+        "description": "毛利/净利收紧扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥5%；净利环比升≥0.60%；财务热窗30日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP tight lag30 hold52",
         "need_profit": True,
@@ -2406,7 +2406,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_tight_lag31_hold51": {
         "name": "毛净利率严阈值(lag31持有51)",
         "category": "fundamental",
-        "description": "严毛净利率 + lag31 + 持有51。",
+        "description": "毛利/净利收紧扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥5%；净利环比升≥0.60%；财务热窗31日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP+NP tight lag31 hold51",
         "need_profit": True,
@@ -2417,7 +2417,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "high_margin_m18_hold52": {
         "name": "高净利率门槛0.18(持有52)",
         "category": "fundamental",
-        "description": "高净利率门槛0.18 + 持有52。",
+        "description": "高毛利率突破：毛利≥18%；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "净利率"],
         "title": "High margin m18 hold52",
         "need_profit": True,
@@ -2484,7 +2484,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_hold51": {
         "name": "EPS加速净利率确认(持有51)",
         "category": "fundamental",
-        "description": "EPS双确认突破 + 持有51。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥8%；增速加速≥5%；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual hold51",
         "need_profit": True,
@@ -2506,7 +2506,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "roe_expand_hold51": {
         "name": "ROE扩张突破(持有51)",
         "category": "fundamental",
-        "description": "ROE扩张突破 + 持有51。",
+        "description": "ROE 扩张突破：ROE≥10%；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE"],
         "title": "ROE expand hold51",
         "need_profit": True,
@@ -2517,7 +2517,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "high_margin_m20_hold51": {
         "name": "高净利率门槛0.20(持有51)",
         "category": "fundamental",
-        "description": "更高净利率门槛 + 持有51。",
+        "description": "高毛利率突破：毛利≥20%；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "净利率"],
         "title": "High margin m20 hold51",
         "need_profit": True,
@@ -2529,7 +2529,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_hold52": {
         "name": "EPS加速净利率确认(持有52)",
         "category": "fundamental",
-        "description": "EPS双确认突破 + 持有52。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥8%；增速加速≥5%；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual hold52",
         "need_profit": True,
@@ -2540,7 +2540,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_hold50": {
         "name": "EPS加速净利率确认(持有50)",
         "category": "fundamental",
-        "description": "EPS双确认突破 + 持有50。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥8%；增速加速≥5%；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual hold50",
         "need_profit": True,
@@ -2551,7 +2551,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_accel08": {
         "name": "EPS加速净利率确认(加速0.08持有51)",
         "category": "fundamental",
-        "description": "更高EPS加速门槛 + 持有51。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥10%；增速加速≥8%；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual accel08",
         "need_profit": True,
@@ -2562,7 +2562,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "roe_expand_hold52": {
         "name": "ROE扩张突破(持有52)",
         "category": "fundamental",
-        "description": "ROE扩张突破 + 持有52。",
+        "description": "ROE 扩张突破：ROE≥10%；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE"],
         "title": "ROE expand hold52",
         "need_profit": True,
@@ -2573,7 +2573,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "roe_expand_r12_hold51": {
         "name": "ROE扩张突破(门槛0.12持有51)",
         "category": "fundamental",
-        "description": "更高ROE门槛 + 持有51。",
+        "description": "ROE 扩张突破：ROE≥12%；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE"],
         "title": "ROE expand r12 hold51",
         "need_profit": True,
@@ -2584,7 +2584,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "high_margin_m20_hold52": {
         "name": "高净利率门槛0.20(持有52)",
         "category": "fundamental",
-        "description": "高净利率门槛0.20 + 持有52。",
+        "description": "高毛利率突破：毛利≥20%；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "净利率"],
         "title": "High margin m20 hold52",
         "need_profit": True,
@@ -2596,7 +2596,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_lag28_hold51": {
         "name": "EPS双确认(lag28持有51)",
         "category": "fundamental",
-        "description": "EPS双确认 + 热窗28 + 持有51。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥8%；增速加速≥5%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual lag28 hold51",
         "need_profit": True,
@@ -2607,7 +2607,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_lag30_hold51": {
         "name": "EPS双确认(lag30持有51)",
         "category": "fundamental",
-        "description": "EPS双确认 + 热窗30 + 持有51。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥8%；增速加速≥5%；财务热窗30日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual lag30 hold51",
         "need_profit": True,
@@ -2618,7 +2618,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_lag28_hold51": {
         "name": "毛利率扩张高净利率(lag28持有51)",
         "category": "fundamental",
-        "description": "冠军毛利率线 × 高净利率过滤。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥8%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP lag28 hold51",
         "need_profit": True,
@@ -2629,7 +2629,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_lag28_hold51_np10": {
         "name": "毛利率扩张高净利率(np0.10持有51)",
         "category": "fundamental",
-        "description": "毛利率扩张 + 净利率≥0.10 + lag28。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np10 hold51",
         "need_profit": True,
@@ -2640,7 +2640,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_lag30_hold51": {
         "name": "毛利率扩张高净利率(lag30持有51)",
         "category": "fundamental",
-        "description": "毛利率扩张 × 高净利率 + lag30。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥8%；财务热窗30日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP lag30 hold51",
         "need_profit": True,
@@ -2651,7 +2651,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m22_hold51": {
         "name": "毛利率扩张高净利率(门槛0.22持有51)",
         "category": "fundamental",
-        "description": "更高毛利率门槛 × 高净利率。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥22%；毛利环比升≥0.60%；净利≥8%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m22 hold51",
         "need_profit": True,
@@ -2663,7 +2663,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_lag28_np09": {
         "name": "毛利率高净利率(lag28 np0.09持有51)",
         "category": "fundamental",
-        "description": "新冠军邻域：np_min=0.09。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥9%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP lag28 np09",
         "need_profit": True,
@@ -2674,7 +2674,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_lag28_np11": {
         "name": "毛利率高净利率(lag28 np0.11持有51)",
         "category": "fundamental",
-        "description": "新冠军邻域：np_min=0.11。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥11%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP lag28 np11",
         "need_profit": True,
@@ -2685,7 +2685,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_lag28_np12": {
         "name": "毛利率高净利率(lag28 np0.12持有51)",
         "category": "fundamental",
-        "description": "新冠军邻域：np_min=0.12。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥12%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP lag28 np12",
         "need_profit": True,
@@ -2696,7 +2696,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_lag29_np10": {
         "name": "毛利率高净利率(lag29 np0.10持有51)",
         "category": "fundamental",
-        "description": "新冠军邻域：lag29。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP lag29 np10",
         "need_profit": True,
@@ -2707,7 +2707,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_lag27_np10": {
         "name": "毛利率高净利率(lag27 np0.10持有51)",
         "category": "fundamental",
-        "description": "新冠军邻域：lag27。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗27日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP lag27 np10",
         "need_profit": True,
@@ -2718,7 +2718,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_lag28_np10_hold52": {
         "name": "毛利率高净利率(lag28 np0.10持有52)",
         "category": "fundamental",
-        "description": "新冠军邻域：持有52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP lag28 np10 hold52",
         "need_profit": True,
@@ -2730,7 +2730,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_np11_hold52": {
         "name": "毛利率高净利率(np0.11持有52)",
         "category": "fundamental",
-        "description": "wave37 双强交叉：np0.11 × hold52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥11%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np11 hold52",
         "need_profit": True,
@@ -2741,7 +2741,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_np10_hold53": {
         "name": "毛利率高净利率(np0.10持有53)",
         "category": "fundamental",
-        "description": "冠军基线持有拉长至53。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有53日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np10 hold53",
         "need_profit": True,
@@ -2752,7 +2752,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_np10_hold50": {
         "name": "毛利率高净利率(np0.10持有50)",
         "category": "fundamental",
-        "description": "冠军基线持有缩短至50。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np10 hold50",
         "need_profit": True,
@@ -2763,7 +2763,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_np11_hold53": {
         "name": "毛利率高净利率(np0.11持有53)",
         "category": "fundamental",
-        "description": "np0.11 × hold53。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥11%；财务热窗28日；入场=60日高+MA20；持有53日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np11 hold53",
         "need_profit": True,
@@ -2774,7 +2774,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_np10_m18": {
         "name": "毛利率高净利率(np0.10毛利门槛0.18)",
         "category": "fundamental",
-        "description": "冠军基线放宽毛利率门槛至0.18。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥18%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np10 m18",
         "need_profit": True,
@@ -2785,7 +2785,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_np10_imp005": {
         "name": "毛利率高净利率(np0.10改善0.005)",
         "category": "fundamental",
-        "description": "冠军基线放宽毛利率改善门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.50%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np10 imp005",
         "need_profit": True,
@@ -2797,7 +2797,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_np10_imp004": {
         "name": "毛利率高净利率(np0.10改善0.004)",
         "category": "fundamental",
-        "description": "imp005 邻域：更松改善门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.40%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np10 imp004",
         "need_profit": True,
@@ -2808,7 +2808,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_np10_imp0055": {
         "name": "毛利率高净利率(np0.10改善0.0055)",
         "category": "fundamental",
-        "description": "imp005 与冠军0.006之间插值。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.55%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np10 imp0055",
         "need_profit": True,
@@ -2819,7 +2819,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m18_imp005": {
         "name": "毛利率高净利率(m0.18改善0.005)",
         "category": "fundamental",
-        "description": "wave38 双强交叉：m18 × imp005。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥18%；毛利环比升≥0.50%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m18 imp005",
         "need_profit": True,
@@ -2830,7 +2830,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_np10_m19": {
         "name": "毛利率高净利率(np0.10毛利门槛0.19)",
         "category": "fundamental",
-        "description": "m18 与冠军0.20之间插值。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥19%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np10 m19",
         "need_profit": True,
@@ -2841,7 +2841,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_np10_m17": {
         "name": "毛利率高净利率(np0.10毛利门槛0.17)",
         "category": "fundamental",
-        "description": "m18 再放宽一档。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np10 m17",
         "need_profit": True,
@@ -2852,7 +2852,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_imp005_hold52": {
         "name": "毛利率高净利率(改善0.005持有52)",
         "category": "fundamental",
-        "description": "imp005 × hold52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.50%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP imp005 hold52",
         "need_profit": True,
@@ -2864,7 +2864,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_champ_stop10": {
         "name": "毛利率高净利率(冠军止损0.10)",
         "category": "fundamental",
-        "description": "冠军参数 + 更紧止损。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损10%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP champ stop10",
         "need_profit": True,
@@ -2875,7 +2875,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_champ_stop14": {
         "name": "毛利率高净利率(冠军止损0.14)",
         "category": "fundamental",
-        "description": "冠军参数 + 更松止损。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损14%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP champ stop14",
         "need_profit": True,
@@ -2886,7 +2886,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m17_imp0055": {
         "name": "毛利率高净利率(m0.17改善0.0055)",
         "category": "fundamental",
-        "description": "wave39 双强交叉：m17 × imp0055。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.55%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m17 imp0055",
         "need_profit": True,
@@ -2897,7 +2897,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m17_imp005": {
         "name": "毛利率高净利率(m0.17改善0.005)",
         "category": "fundamental",
-        "description": "m17 × imp005。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.50%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m17 imp005",
         "need_profit": True,
@@ -2908,7 +2908,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_imp0055_hold52": {
         "name": "毛利率高净利率(改善0.0055持有52)",
         "category": "fundamental",
-        "description": "imp0055 × hold52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.55%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP imp0055 hold52",
         "need_profit": True,
@@ -2919,7 +2919,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_np10_imp0065": {
         "name": "毛利率高净利率(np0.10改善0.0065)",
         "category": "fundamental",
-        "description": "imp0055 与冠军0.006之间再插值。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.65%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP np10 imp0065",
         "need_profit": True,
@@ -2931,7 +2931,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_lag28_hold51": {
         "name": "毛利率扩张净利率改善(lag28持有51)",
         "category": "fundamental",
-        "description": "毛利率扩张 + 净利率环比改善后突破。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥0%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP-up lag28 hold51",
         "need_profit": True,
@@ -2942,7 +2942,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_lag28_np08": {
         "name": "毛利率扩张净利率改善(np≥0.08)",
         "category": "fundamental",
-        "description": "净利率改善 + 净利率水平≥0.08。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥8%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP-up lag28 np08",
         "need_profit": True,
@@ -2953,7 +2953,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_lag28_np10": {
         "name": "毛利率扩张净利率改善(np≥0.10)",
         "category": "fundamental",
-        "description": "净利率改善 + 净利率水平≥0.10。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP-up lag28 np10",
         "need_profit": True,
@@ -2964,7 +2964,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_imp005": {
         "name": "毛利率扩张净利率改善(np改善0.005)",
         "category": "fundamental",
-        "description": "更严净利率改善门槛。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥8%；净利环比升≥0.50%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP-up imp005",
         "need_profit": True,
@@ -2975,7 +2975,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "catchup_break_lag28": {
         "name": "毛净利差收敛突破(lag28持有51)",
         "category": "fundamental",
-        "description": "高毛利下净利率追赶后突破。",
+        "description": "毛利扩张净利追赶突破：毛利≥25%；毛净利差缺口≥5%；毛利环比升≥0.50%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Catchup break lag28",
         "need_profit": True,
@@ -2986,7 +2986,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "catchup_break_lag28_hold52": {
         "name": "毛净利差收敛突破(lag28持有52)",
         "category": "fundamental",
-        "description": "毛净追赶突破 + 持有52。",
+        "description": "毛利扩张净利追赶突破：毛利≥25%；毛净利差缺口≥5%；毛利环比升≥0.50%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Catchup break lag28 hold52",
         "need_profit": True,
@@ -2998,7 +2998,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_np10_hold52": {
         "name": "毛利率净利率改善(np0.10持有52)",
         "category": "fundamental",
-        "description": "wave41 强支线：持有52。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP-up np10 hold52",
         "need_profit": True,
@@ -3009,7 +3009,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_np10_hold50": {
         "name": "毛利率净利率改善(np0.10持有50)",
         "category": "fundamental",
-        "description": "wave41 强支线：持有50。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP-up np10 hold50",
         "need_profit": True,
@@ -3020,7 +3020,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_np11": {
         "name": "毛利率净利率改善(np0.11)",
         "category": "fundamental",
-        "description": "np_min 提至 0.11。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥11%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP-up np11",
         "need_profit": True,
@@ -3031,7 +3031,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_np09": {
         "name": "毛利率净利率改善(np0.09)",
         "category": "fundamental",
-        "description": "np_min 放宽至 0.09。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥9%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP-up np09",
         "need_profit": True,
@@ -3042,7 +3042,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_np10_lag29": {
         "name": "毛利率净利率改善(np0.10 lag29)",
         "category": "fundamental",
-        "description": "热窗拉长至 lag29。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP-up np10 lag29",
         "need_profit": True,
@@ -3053,7 +3053,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_np10_nimp005": {
         "name": "毛利率净利率改善(np0.10改善0.005)",
         "category": "fundamental",
-        "description": "更严净利率改善门槛 × np0.10。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.50%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP-up np10 nimp005",
         "need_profit": True,
@@ -3065,7 +3065,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "contract_np_lag28_hold51": {
         "name": "合同负债同比×净利率(lag28持有51)",
         "category": "fundamental",
-        "description": "合同负债高同比 + 净利率过滤后突破。",
+        "description": "合同负债同比×净利率(lag28持有51)：净利≥8%；合同负债同比≥20%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "合同负债", "净利率"],
         "title": "Contract NP lag28 hold51",
         "need_profit": True,
@@ -3077,7 +3077,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "contract_np_lag28_np10": {
         "name": "合同负债同比×净利率0.10(lag28持有51)",
         "category": "fundamental",
-        "description": "合同负债同比 + 更高净利率门槛。",
+        "description": "合同负债同比×净利率0.10(lag28持有51)：净利≥10%；合同负债同比≥20%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "合同负债", "净利率"],
         "title": "Contract NP lag28 np10",
         "need_profit": True,
@@ -3089,7 +3089,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_lag28_hold51": {
         "name": "双改善突破(lag28持有51)",
         "category": "fundamental",
-        "description": "ROE×净利率双改善热窗拉长至28。",
+        "description": "双改善突破：毛利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual lag28 hold51",
         "need_profit": True,
@@ -3100,7 +3100,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_lag28_np10": {
         "name": "双改善突破(lag28 np0.10持有51)",
         "category": "fundamental",
-        "description": "双改善 + 净利率≥0.10。",
+        "description": "双改善突破：毛利环比升≥0.30%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual lag28 np10",
         "need_profit": True,
@@ -3111,7 +3111,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "roe_lag28_hold51": {
         "name": "ROE扩张(lag28持有51)",
         "category": "fundamental",
-        "description": "ROE扩张热窗28 + 持有51。",
+        "description": "ROE 扩张突破：ROE≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE"],
         "title": "ROE lag28 hold51",
         "need_profit": True,
@@ -3122,7 +3122,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "roe_lag28_np10": {
         "name": "ROE扩张×净利率0.10(lag28持有51)",
         "category": "fundamental",
-        "description": "ROE扩张 + 净利率过滤。",
+        "description": "ROE 扩张突破：净利≥10%；ROE≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "ROE lag28 np10",
         "need_profit": True,
@@ -3134,7 +3134,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_lag28_hold52": {
         "name": "双改善突破(lag28持有52)",
         "category": "fundamental",
-        "description": "dual_lag28 邻域：持有52。",
+        "description": "双改善突破：毛利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual lag28 hold52",
         "need_profit": True,
@@ -3145,7 +3145,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_lag28_hold50": {
         "name": "双改善突破(lag28持有50)",
         "category": "fundamental",
-        "description": "dual_lag28 邻域：持有50。",
+        "description": "双改善突破：毛利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual lag28 hold50",
         "need_profit": True,
@@ -3156,7 +3156,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_lag28_np08": {
         "name": "双改善突破(lag28 np0.08)",
         "category": "fundamental",
-        "description": "双改善 + 净利率≥0.08。",
+        "description": "双改善突破：毛利环比升≥0.30%；净利≥8%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual lag28 np08",
         "need_profit": True,
@@ -3167,7 +3167,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_lag28_np11": {
         "name": "双改善突破(lag28 np0.11)",
         "category": "fundamental",
-        "description": "双改善 + 净利率≥0.11。",
+        "description": "双改善突破：毛利环比升≥0.30%；净利≥11%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual lag28 np11",
         "need_profit": True,
@@ -3178,7 +3178,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_lag29_hold51": {
         "name": "双改善突破(lag29持有51)",
         "category": "fundamental",
-        "description": "热窗拉长至29。",
+        "description": "双改善突破：毛利环比升≥0.30%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual lag29 hold51",
         "need_profit": True,
@@ -3189,7 +3189,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_lag28_tight": {
         "name": "双改善突破(lag28更严门槛)",
         "category": "fundamental",
-        "description": "更严 ROE/净利率改善门槛。",
+        "description": "双改善突破：毛利环比升≥0.40%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual lag28 tight",
         "need_profit": True,
@@ -3201,7 +3201,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_ma60": {
         "name": "毛利率高净利率(站上MA60)",
         "category": "fundamental",
-        "description": "冠军基本面 + 趋势过滤改为MA60。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA60；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP ma60",
         "need_profit": True,
@@ -3212,7 +3212,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_ma60_cross": {
         "name": "毛利率高净利率(上穿MA60)",
         "category": "fundamental",
-        "description": "冠军基本面 + 收盘上穿MA60。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA60；需上穿MA60；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP ma60 cross",
         "need_profit": True,
@@ -3223,7 +3223,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_roe12": {
         "name": "毛利率高净利率(ROE≥0.12)",
         "category": "fundamental",
-        "description": "冠军基线 + ROE质量过滤。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；ROE≥12%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "ROE"],
         "title": "Gross high NP roe12",
         "need_profit": True,
@@ -3234,7 +3234,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_roe10": {
         "name": "毛利率高净利率(ROE≥0.10)",
         "category": "fundamental",
-        "description": "冠军基线 + 较低ROE门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；ROE≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "ROE"],
         "title": "Gross high NP roe10",
         "need_profit": True,
@@ -3245,7 +3245,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_ma60_roe12": {
         "name": "毛利率高净利率(MA60+ROE0.12)",
         "category": "fundamental",
-        "description": "MA60 趋势 × ROE 过滤交叉。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；ROE≥12%；财务热窗28日；入场=60日高+MA60；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "ROE"],
         "title": "Gross high NP ma60 roe12",
         "need_profit": True,
@@ -3256,7 +3256,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_imp005_roe12": {
         "name": "毛利率高净利率(imp0.005+ROE0.12)",
         "category": "fundamental",
-        "description": "近冠军 imp005 × ROE过滤。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.50%；净利≥10%；ROE≥12%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "ROE"],
         "title": "Gross high NP imp005 roe12",
         "need_profit": True,
@@ -3268,7 +3268,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_ma60_hold52": {
         "name": "毛利率高净利率(MA60持有52)",
         "category": "fundamental",
-        "description": "ma60 冠军邻域：持有52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA60；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP ma60 hold52",
         "need_profit": True,
@@ -3279,7 +3279,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_ma60_hold50": {
         "name": "毛利率高净利率(MA60持有50)",
         "category": "fundamental",
-        "description": "ma60 冠军邻域：持有50。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA60；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP ma60 hold50",
         "need_profit": True,
@@ -3290,7 +3290,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_ma60_imp005": {
         "name": "毛利率高净利率(MA60改善0.005)",
         "category": "fundamental",
-        "description": "ma60 × 近冠军 imp005。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.50%；净利≥10%；财务热窗28日；入场=60日高+MA60；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP ma60 imp005",
         "need_profit": True,
@@ -3301,7 +3301,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_ma60_m17": {
         "name": "毛利率高净利率(MA60毛利门槛0.17)",
         "category": "fundamental",
-        "description": "ma60 × m17。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA60；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP ma60 m17",
         "need_profit": True,
@@ -3312,7 +3312,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_ma60_np11": {
         "name": "毛利率高净利率(MA60 np0.11)",
         "category": "fundamental",
-        "description": "ma60 × np0.11。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥11%；财务热窗28日；入场=60日高+MA60；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP ma60 np11",
         "need_profit": True,
@@ -3323,7 +3323,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_ma60_hold53": {
         "name": "毛利率高净利率(MA60持有53)",
         "category": "fundamental",
-        "description": "ma60 冠军邻域：持有53。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA60；持有53日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP ma60 hold53",
         "need_profit": True,
@@ -3335,7 +3335,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_reclaim": {
         "name": "毛利率高净利率(回踩MA20)",
         "category": "fundamental",
-        "description": "冠军基本面 + 上穿MA20入场（非60日突破）。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=上穿MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP reclaim",
         "need_profit": True,
@@ -3346,7 +3346,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_reclaim_ma60": {
         "name": "毛利率高净利率(回踩MA60)",
         "category": "fundamental",
-        "description": "冠军基本面 + 上穿MA60入场。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=上穿MA60；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP reclaim ma60",
         "need_profit": True,
@@ -3357,7 +3357,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_either": {
         "name": "毛利率高净利率(突破或回踩)",
         "category": "fundamental",
-        "description": "60日突破或上穿MA20均可入场。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=突破或回踩(二选一)；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP either",
         "need_profit": True,
@@ -3368,7 +3368,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_amp22": {
         "name": "毛利率高净利率(横盘振幅0.22)",
         "category": "fundamental",
-        "description": "冠军突破 + 前一日横盘约束。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；振幅≤22%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP amp22",
         "need_profit": True,
@@ -3379,7 +3379,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_pb30": {
         "name": "毛利率高净利率(PB分位≤0.30)",
         "category": "fundamental",
-        "description": "冠军突破 + 低估过滤。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；PB分位≤30%。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "估值"],
         "title": "Gross high NP pb30",
         "need_profit": True,
@@ -3390,7 +3390,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_reclaim_hold52": {
         "name": "毛利率高净利率(回踩MA20持有52)",
         "category": "fundamental",
-        "description": "回踩入场 × 持有52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=上穿MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP reclaim hold52",
         "need_profit": True,
@@ -3402,7 +3402,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_g08": {
         "name": "毛利率高净利率(增长≥0.08)",
         "category": "fundamental",
-        "description": "冠军突破 + 增长过滤。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；同比≥8%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP g08",
         "need_profit": True,
@@ -3413,7 +3413,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_g12": {
         "name": "毛利率高净利率(增长≥0.12)",
         "category": "fundamental",
-        "description": "冠军突破 + 更高增长门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；同比≥12%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP g12",
         "need_profit": True,
@@ -3424,7 +3424,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_g15": {
         "name": "毛利率高净利率(增长≥0.15)",
         "category": "fundamental",
-        "description": "冠军突破 + 更严增长门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；同比≥15%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP g15",
         "need_profit": True,
@@ -3435,7 +3435,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_g08_hold52": {
         "name": "毛利率高净利率(增长0.08持有52)",
         "category": "fundamental",
-        "description": "增长过滤 × 持有52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；同比≥8%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP g08 hold52",
         "need_profit": True,
@@ -3446,7 +3446,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_g08_imp005": {
         "name": "毛利率高净利率(增长0.08改善0.005)",
         "category": "fundamental",
-        "description": "增长过滤 × 近冠军 imp005。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.50%；净利≥10%；同比≥8%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP g08 imp005",
         "need_profit": True,
@@ -3457,7 +3457,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_g08_m17": {
         "name": "毛利率高净利率(增长0.08毛利门槛0.17)",
         "category": "fundamental",
-        "description": "增长过滤 × m17。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；同比≥8%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP g08 m17",
         "need_profit": True,
@@ -3469,7 +3469,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_g03": {
         "name": "毛利率高净利率(增长≥0.03)",
         "category": "fundamental",
-        "description": "冠军突破 + 软增长门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；同比≥3%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP g03",
         "need_profit": True,
@@ -3480,7 +3480,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_g05": {
         "name": "毛利率高净利率(增长≥0.05)",
         "category": "fundamental",
-        "description": "冠军突破 + 轻度增长门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；同比≥5%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP g05",
         "need_profit": True,
@@ -3491,7 +3491,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_g03_m17": {
         "name": "毛利率高净利率(增长0.03毛利门槛0.17)",
         "category": "fundamental",
-        "description": "软增长 × wave48 最佳 m17。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；同比≥3%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP g03 m17",
         "need_profit": True,
@@ -3502,7 +3502,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_gacc05": {
         "name": "毛利率高净利率(增长加速0.05)",
         "category": "fundamental",
-        "description": "冠军突破 + 增长环比加速。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；同比≥5%；增速加速≥5%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP gacc05",
         "need_profit": True,
@@ -3513,7 +3513,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_gacc08": {
         "name": "毛利率高净利率(增长加速0.08)",
         "category": "fundamental",
-        "description": "冠军突破 + 更强增长加速。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；同比≥8%；增速加速≥8%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP gacc08",
         "need_profit": True,
@@ -3524,7 +3524,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_gacc05_m17": {
         "name": "毛利率高净利率(增长加速0.05毛利0.17)",
         "category": "fundamental",
-        "description": "增长加速 × m17。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；同比≥5%；增速加速≥5%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "增长"],
         "title": "Gross high NP gacc05 m17",
         "need_profit": True,
@@ -3536,7 +3536,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003": {
         "name": "毛利率高净利率(净利同步改善0.003)",
         "category": "fundamental",
-        "description": "冠军突破 + 净利率同步扩张。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003",
         "need_profit": True,
@@ -3547,7 +3547,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp005": {
         "name": "毛利率高净利率(净利同步改善0.005)",
         "category": "fundamental",
-        "description": "冠军突破 + 更强净利同步扩张。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.50%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp005",
         "need_profit": True,
@@ -3558,7 +3558,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003_m17": {
         "name": "毛利率高净利率(净利改善0.003毛利0.17)",
         "category": "fundamental",
-        "description": "净利同步扩张 × m17。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003 m17",
         "need_profit": True,
@@ -3569,7 +3569,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003_hold52": {
         "name": "毛利率高净利率(净利改善0.003持有52)",
         "category": "fundamental",
-        "description": "净利同步扩张 × hold52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003 hold52",
         "need_profit": True,
@@ -3580,7 +3580,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_pe45": {
         "name": "毛利率高净利率(PE分位≤0.45)",
         "category": "fundamental",
-        "description": "冠军突破 + PE低估过滤。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；PE分位≤45%。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "估值"],
         "title": "Gross high NP pe45",
         "need_profit": True,
@@ -3591,7 +3591,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_pe55": {
         "name": "毛利率高净利率(PE分位≤0.55)",
         "category": "fundamental",
-        "description": "冠军突破 + 轻度PE过滤。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；PE分位≤55%。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "估值"],
         "title": "Gross high NP pe55",
         "need_profit": True,
@@ -3603,7 +3603,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp002_m17": {
         "name": "毛利率高净利率(净利改善0.002毛利0.17)",
         "category": "fundamental",
-        "description": "wave50 最佳邻域：更轻净利同步扩张。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.20%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp002 m17",
         "need_profit": True,
@@ -3614,7 +3614,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp004_m17": {
         "name": "毛利率高净利率(净利改善0.004毛利0.17)",
         "category": "fundamental",
-        "description": "wave50 最佳邻域：稍严净利同步。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.40%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp004 m17",
         "need_profit": True,
@@ -3625,7 +3625,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003_m16": {
         "name": "毛利率高净利率(净利改善0.003毛利0.16)",
         "category": "fundamental",
-        "description": "nimp003 × 更低毛利门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥16%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003 m16",
         "need_profit": True,
@@ -3636,7 +3636,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003_m18": {
         "name": "毛利率高净利率(净利改善0.003毛利0.18)",
         "category": "fundamental",
-        "description": "nimp003 × 稍高毛利门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥18%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003 m18",
         "need_profit": True,
@@ -3647,7 +3647,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003_m17_imp005": {
         "name": "毛利率高净利率(净利0.003毛利0.17改善0.005)",
         "category": "fundamental",
-        "description": "nimp003_m17 × 近冠军 imp005。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.50%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003 m17 imp005",
         "need_profit": True,
@@ -3658,7 +3658,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003_m17_hold52": {
         "name": "毛利率高净利率(净利0.003毛利0.17持有52)",
         "category": "fundamental",
-        "description": "nimp003_m17 × hold52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003 m17 hold52",
         "need_profit": True,
@@ -3670,7 +3670,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003_m15": {
         "name": "毛利率高净利率(净利改善0.003毛利0.15)",
         "category": "fundamental",
-        "description": "wave51 最佳 m16 邻域：更低毛利门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥15%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003 m15",
         "need_profit": True,
@@ -3681,7 +3681,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp002_m16": {
         "name": "毛利率高净利率(净利改善0.002毛利0.16)",
         "category": "fundamental",
-        "description": "m16 × 更轻净利同步。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥16%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.20%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp002 m16",
         "need_profit": True,
@@ -3692,7 +3692,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003_m16_imp005": {
         "name": "毛利率高净利率(净利0.003毛利0.16改善0.005)",
         "category": "fundamental",
-        "description": "m16 × imp005。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥16%；毛利环比升≥0.50%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003 m16 imp005",
         "need_profit": True,
@@ -3703,7 +3703,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003_m16_hold52": {
         "name": "毛利率高净利率(净利0.003毛利0.16持有52)",
         "category": "fundamental",
-        "description": "m16 × hold52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥16%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003 m16 hold52",
         "need_profit": True,
@@ -3714,7 +3714,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003_m16_lag27": {
         "name": "毛利率高净利率(净利0.003毛利0.16滞后27)",
         "category": "fundamental",
-        "description": "m16 × lag27。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥16%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗27日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003 m16 lag27",
         "need_profit": True,
@@ -3725,7 +3725,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_nimp003_m16_lag29": {
         "name": "毛利率高净利率(净利0.003毛利0.16滞后29)",
         "category": "fundamental",
-        "description": "m16 × lag29。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥16%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP nimp003 m16 lag29",
         "need_profit": True,
@@ -3737,7 +3737,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk40": {
         "name": "毛利率高净利率(突破40日高)",
         "category": "fundamental",
-        "description": "冠军基本面 × 更短突破窗口。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=40日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk40",
         "need_profit": True,
@@ -3748,7 +3748,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk50": {
         "name": "毛利率高净利率(突破50日高)",
         "category": "fundamental",
-        "description": "冠军基本面 × 50日突破。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=50日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk50",
         "need_profit": True,
@@ -3759,7 +3759,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80": {
         "name": "毛利率高净利率(突破80日高)",
         "category": "fundamental",
-        "description": "冠军基本面 × 更长突破窗口。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80",
         "need_profit": True,
@@ -3770,7 +3770,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m16_imp005_brk50": {
         "name": "毛利率高净利率(m16+imp005突破50)",
         "category": "fundamental",
-        "description": "wave52 最佳基本面 × 50日突破。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥16%；毛利环比升≥0.50%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=50日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m16 imp005 brk50",
         "need_profit": True,
@@ -3781,7 +3781,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m16_imp005_brk40": {
         "name": "毛利率高净利率(m16+imp005突破40)",
         "category": "fundamental",
-        "description": "wave52 最佳基本面 × 40日突破。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥16%；毛利环比升≥0.50%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=40日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m16 imp005 brk40",
         "need_profit": True,
@@ -3792,7 +3792,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_champ_brk50": {
         "name": "毛利率高净利率(冠军参突破50)",
         "category": "fundamental",
-        "description": "冠军参数 × 50日突破。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=50日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP champ brk50",
         "need_profit": True,
@@ -3804,7 +3804,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk70": {
         "name": "毛利率高净利率(突破70日高)",
         "category": "fundamental",
-        "description": "wave53 最佳 brk80 邻域。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=70日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk70",
         "need_profit": True,
@@ -3815,7 +3815,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk90": {
         "name": "毛利率高净利率(突破90日高)",
         "category": "fundamental",
-        "description": "brk80 邻域：更长突破。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=90日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk90",
         "need_profit": True,
@@ -3826,7 +3826,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk100": {
         "name": "毛利率高净利率(突破100日高)",
         "category": "fundamental",
-        "description": "更长突破窗口。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=100日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk100",
         "need_profit": True,
@@ -3837,7 +3837,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_hold52": {
         "name": "毛利率高净利率(突破80持有52)",
         "category": "fundamental",
-        "description": "brk80 × hold52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=80日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 hold52",
         "need_profit": True,
@@ -3848,7 +3848,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_imp005": {
         "name": "毛利率高净利率(突破80改善0.005)",
         "category": "fundamental",
-        "description": "brk80 × imp005。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥20%；毛利环比升≥0.50%；净利≥10%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 imp005",
         "need_profit": True,
@@ -3859,7 +3859,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_m17": {
         "name": "毛利率高净利率(突破80毛利门槛0.17)",
         "category": "fundamental",
-        "description": "brk80 × m17。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 m17",
         "need_profit": True,
@@ -3871,7 +3871,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_m16": {
         "name": "毛利率高净利率(突破80毛利门槛0.16)",
         "category": "fundamental",
-        "description": "wave54 最佳邻域：更低毛利门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥16%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 m16",
         "need_profit": True,
@@ -3882,7 +3882,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_m18": {
         "name": "毛利率高净利率(突破80毛利门槛0.18)",
         "category": "fundamental",
-        "description": "brk80 × 稍高毛利门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥18%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 m18",
         "need_profit": True,
@@ -3893,7 +3893,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk75_m17": {
         "name": "毛利率高净利率(突破75毛利门槛0.17)",
         "category": "fundamental",
-        "description": "m17 × 稍短突破窗口。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=75日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk75 m17",
         "need_profit": True,
@@ -3904,7 +3904,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk85_m17": {
         "name": "毛利率高净利率(突破85毛利门槛0.17)",
         "category": "fundamental",
-        "description": "m17 × 稍长突破窗口。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=85日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk85 m17",
         "need_profit": True,
@@ -3915,7 +3915,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_m17_imp005": {
         "name": "毛利率高净利率(突破80毛利0.17改善0.005)",
         "category": "fundamental",
-        "description": "brk80_m17 × imp005。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.50%；净利≥10%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 m17 imp005",
         "need_profit": True,
@@ -3926,7 +3926,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_m17_hold52": {
         "name": "毛利率高净利率(突破80毛利0.17持有52)",
         "category": "fundamental",
-        "description": "brk80_m17 × hold52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=80日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 m17 hold52",
         "need_profit": True,
@@ -3938,7 +3938,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_m17_nimp003": {
         "name": "毛利率高净利率(突破80毛利0.17净利同步0.003)",
         "category": "fundamental",
-        "description": "当前最佳突破线 × 净利同步扩张。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 m17 nimp003",
         "need_profit": True,
@@ -3949,7 +3949,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_m17_nimp002": {
         "name": "毛利率高净利率(突破80毛利0.17净利同步0.002)",
         "category": "fundamental",
-        "description": "brk80_m17 × 轻净利同步。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.20%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 m17 nimp002",
         "need_profit": True,
@@ -3960,7 +3960,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_m17_np09": {
         "name": "毛利率高净利率(突破80毛利0.17净利≥0.09)",
         "category": "fundamental",
-        "description": "brk80_m17 × 稍低净利门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥9%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 m17 np09",
         "need_profit": True,
@@ -3971,7 +3971,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_m17_np11": {
         "name": "毛利率高净利率(突破80毛利0.17净利≥0.11)",
         "category": "fundamental",
-        "description": "brk80_m17 × 稍高净利门槛。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥11%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 m17 np11",
         "need_profit": True,
@@ -3982,7 +3982,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_m17_lag27": {
         "name": "毛利率高净利率(突破80毛利0.17滞后27)",
         "category": "fundamental",
-        "description": "brk80_m17 × lag27。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗27日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 m17 lag27",
         "need_profit": True,
@@ -3993,7 +3993,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_brk80_m17_lag29": {
         "name": "毛利率高净利率(突破80毛利0.17滞后29)",
         "category": "fundamental",
-        "description": "brk80_m17 × lag29。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP brk80 m17 lag29",
         "need_profit": True,
@@ -4005,7 +4005,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_lag28_brk80": {
         "name": "EPS双确认(滞后28突破80)",
         "category": "fundamental",
-        "description": "EPS加速+净利确认 × 80日突破。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥8%；增速加速≥5%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual lag28 brk80",
         "need_profit": True,
@@ -4016,7 +4016,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_lag28_brk60": {
         "name": "EPS双确认(滞后28突破60)",
         "category": "fundamental",
-        "description": "EPS加速+净利确认 × 60日突破。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥8%；增速加速≥5%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual lag28 brk60",
         "need_profit": True,
@@ -4027,7 +4027,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_lag28_np10_brk80": {
         "name": "EPS双确认(净利≥0.10突破80)",
         "category": "fundamental",
-        "description": "EPS双确认 × 高净利 × 80突破。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；净利≥10%；同比≥8%；增速加速≥5%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual lag28 np10 brk80",
         "need_profit": True,
@@ -4038,7 +4038,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_lag28_brk80_hold52": {
         "name": "EPS双确认(突破80持有52)",
         "category": "fundamental",
-        "description": "EPS双确认 × brk80 × hold52。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥8%；增速加速≥5%；财务热窗28日；入场=80日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual lag28 brk80 hold52",
         "need_profit": True,
@@ -4049,7 +4049,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_lag28_accel08_brk80": {
         "name": "EPS双确认(加速0.08突破80)",
         "category": "fundamental",
-        "description": "更强EPS加速 × brk80。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥8%；增速加速≥8%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual lag28 accel08 brk80",
         "need_profit": True,
@@ -4060,7 +4060,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "eps_dual_lag30_brk80": {
         "name": "EPS双确认(滞后30突破80)",
         "category": "fundamental",
-        "description": "lag30 × brk80。",
+        "description": "EPS 双确认突破：毛利环比升≥0.30%；同比≥8%；增速加速≥5%；财务热窗30日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "EPS", "净利率"],
         "title": "EPS dual lag30 brk80",
         "need_profit": True,
@@ -4072,7 +4072,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk80": {
         "name": "毛利率净利率改善(突破80)",
         "category": "fundamental",
-        "description": "互补主线 np_up × 80日突破。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk80",
         "need_profit": True,
@@ -4083,7 +4083,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk70": {
         "name": "毛利率净利率改善(突破70)",
         "category": "fundamental",
-        "description": "np_up × 70日突破。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=70日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk70",
         "need_profit": True,
@@ -4094,7 +4094,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk80_m17": {
         "name": "毛利率净利率改善(突破80毛利0.17)",
         "category": "fundamental",
-        "description": "np_up × brk80 × m17。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk80 m17",
         "need_profit": True,
@@ -4105,7 +4105,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk80_hold52": {
         "name": "毛利率净利率改善(突破80持有52)",
         "category": "fundamental",
-        "description": "np_up × brk80 × hold52。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=80日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk80 hold52",
         "need_profit": True,
@@ -4116,7 +4116,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk80_imp005": {
         "name": "毛利率净利率改善(突破80改善0.005)",
         "category": "fundamental",
-        "description": "np_up × brk80 × imp005。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.50%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk80 imp005",
         "need_profit": True,
@@ -4127,7 +4127,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk80_nimp005": {
         "name": "毛利率净利率改善(突破80净利改善0.005)",
         "category": "fundamental",
-        "description": "np_up × brk80 × 更强净利改善。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.50%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk80 nimp005",
         "need_profit": True,
@@ -4139,7 +4139,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk75": {
         "name": "毛利率净利率改善(突破75)",
         "category": "fundamental",
-        "description": "np_up × 75日突破。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=75日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk75",
         "need_profit": True,
@@ -4150,7 +4150,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk85": {
         "name": "毛利率净利率改善(突破85)",
         "category": "fundamental",
-        "description": "np_up × 85日突破。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=85日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk85",
         "need_profit": True,
@@ -4161,7 +4161,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk90": {
         "name": "毛利率净利率改善(突破90)",
         "category": "fundamental",
-        "description": "np_up × 90日突破。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗28日；入场=90日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk90",
         "need_profit": True,
@@ -4172,7 +4172,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk80_lag27": {
         "name": "毛利率净利率改善(突破80滞后27)",
         "category": "fundamental",
-        "description": "np_up × brk80 × lag27。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗27日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk80 lag27",
         "need_profit": True,
@@ -4183,7 +4183,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk80_lag29": {
         "name": "毛利率净利率改善(突破80滞后29)",
         "category": "fundamental",
-        "description": "np_up × brk80 × lag29。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗29日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk80 lag29",
         "need_profit": True,
@@ -4194,7 +4194,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk80_np09": {
         "name": "毛利率净利率改善(突破80净利0.09)",
         "category": "fundamental",
-        "description": "np_up × brk80 × np09。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥9%；净利环比升≥0.30%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk80 np09",
         "need_profit": True,
@@ -4205,7 +4205,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_brk80_np11": {
         "name": "毛利率净利率改善(突破80净利0.11)",
         "category": "fundamental",
-        "description": "np_up × brk80 × np11。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥20%；毛利环比升≥0.60%；净利≥11%；净利环比升≥0.30%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up brk80 np11",
         "need_profit": True,
@@ -4217,7 +4217,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "catchup_brk80": {
         "name": "毛净利差收敛(突破80)",
         "category": "fundamental",
-        "description": "catchup × 80日突破。",
+        "description": "毛利扩张净利追赶突破：毛利≥25%；毛净利差缺口≥5%；毛利环比升≥0.50%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Catchup brk80",
         "need_profit": True,
@@ -4228,7 +4228,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "catchup_brk70": {
         "name": "毛净利差收敛(突破70)",
         "category": "fundamental",
-        "description": "catchup × 70日突破。",
+        "description": "毛利扩张净利追赶突破：毛利≥25%；毛净利差缺口≥5%；毛利环比升≥0.50%；财务热窗28日；入场=70日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Catchup brk70",
         "need_profit": True,
@@ -4239,7 +4239,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "catchup_brk90": {
         "name": "毛净利差收敛(突破90)",
         "category": "fundamental",
-        "description": "catchup × 90日突破。",
+        "description": "毛利扩张净利追赶突破：毛利≥25%；毛净利差缺口≥5%；毛利环比升≥0.50%；财务热窗28日；入场=90日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Catchup brk90",
         "need_profit": True,
@@ -4250,7 +4250,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "catchup_brk80_gp22": {
         "name": "毛净利差收敛(突破80毛利0.22)",
         "category": "fundamental",
-        "description": "catchup × brk80 × 更宽毛利门槛。",
+        "description": "毛利扩张净利追赶突破：毛利≥22%；毛净利差缺口≥5%；毛利环比升≥0.50%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Catchup brk80 gp22",
         "need_profit": True,
@@ -4261,7 +4261,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "catchup_brk80_gap04": {
         "name": "毛净利差收敛(突破80利差0.04)",
         "category": "fundamental",
-        "description": "catchup × brk80 × 更小利差。",
+        "description": "毛利扩张净利追赶突破：毛利≥25%；毛净利差缺口≥4%；毛利环比升≥0.50%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Catchup brk80 gap04",
         "need_profit": True,
@@ -4272,7 +4272,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_brk80_lag28": {
         "name": "双改善突破(突破80滞后28)",
         "category": "fundamental",
-        "description": "ROE+净利双改善 × brk80 × lag28。",
+        "description": "双改善突破：毛利环比升≥0.30%；净利≥8%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual improve brk80 lag28",
         "need_profit": True,
@@ -4284,7 +4284,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80": {
         "name": "毛利率扩张(突破80)",
         "category": "fundamental",
-        "description": "历史强支线 gross_expand × 80日突破。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand brk80",
         "need_profit": True,
@@ -4295,7 +4295,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk90": {
         "name": "毛利率扩张(突破90)",
         "category": "fundamental",
-        "description": "gross_expand × 90日突破。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=90日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand brk90",
         "need_profit": True,
@@ -4306,7 +4306,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk70": {
         "name": "毛利率扩张(突破70)",
         "category": "fundamental",
-        "description": "gross_expand × 70日突破。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；财务热窗28日；入场=70日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand brk70",
         "need_profit": True,
@@ -4317,7 +4317,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80_m17": {
         "name": "毛利率扩张(突破80毛利0.17)",
         "category": "fundamental",
-        "description": "gross_expand × brk80 × m17。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand brk80 m17",
         "need_profit": True,
@@ -4328,7 +4328,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80_imp005": {
         "name": "毛利率扩张(突破80改善0.005)",
         "category": "fundamental",
-        "description": "gross_expand × brk80 × imp005。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.50%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand brk80 imp005",
         "need_profit": True,
@@ -4339,7 +4339,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "roe_expand_brk80_np10": {
         "name": "ROE扩张(突破80净利0.10)",
         "category": "fundamental",
-        "description": "ROE扩张 × brk80 × 高净利过滤。",
+        "description": "ROE 扩张突破：净利≥10%；ROE≥10%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "ROE expand brk80 np10",
         "need_profit": True,
@@ -4351,7 +4351,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80_m16": {
         "name": "毛利率扩张(突破80毛利0.16)",
         "category": "fundamental",
-        "description": "brk80 × m16。",
+        "description": "毛利率扩张后突破：毛利≥16%；毛利环比升≥0.60%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand brk80 m16",
         "need_profit": True,
@@ -4362,7 +4362,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80_m18": {
         "name": "毛利率扩张(突破80毛利0.18)",
         "category": "fundamental",
-        "description": "brk80 × m18。",
+        "description": "毛利率扩张后突破：毛利≥18%；毛利环比升≥0.60%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand brk80 m18",
         "need_profit": True,
@@ -4373,7 +4373,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk85_m17": {
         "name": "毛利率扩张(突破85毛利0.17)",
         "category": "fundamental",
-        "description": "brk85 × m17。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；财务热窗28日；入场=85日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand brk85 m17",
         "need_profit": True,
@@ -4384,7 +4384,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk75_m17": {
         "name": "毛利率扩张(突破75毛利0.17)",
         "category": "fundamental",
-        "description": "brk75 × m17。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；财务热窗28日；入场=75日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand brk75 m17",
         "need_profit": True,
@@ -4395,7 +4395,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80_m17_imp005": {
         "name": "毛利率扩张(突破80毛利0.17改善0.005)",
         "category": "fundamental",
-        "description": "brk80_m17 × imp005。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.50%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand brk80 m17 imp005",
         "need_profit": True,
@@ -4406,7 +4406,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80_m17_lag29": {
         "name": "毛利率扩张(突破80毛利0.17滞后29)",
         "category": "fundamental",
-        "description": "brk80_m17 × lag29。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；财务热窗29日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand brk80 m17 lag29",
         "need_profit": True,
@@ -4418,7 +4418,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80_m17_np08": {
         "name": "毛利率扩张(突破80毛利0.17净利0.08)",
         "category": "fundamental",
-        "description": "expand峰 × 净利门槛0.08。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥8%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk80 m17 np08",
         "need_profit": True,
@@ -4429,7 +4429,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80_m17_np10": {
         "name": "毛利率扩张(突破80毛利0.17净利0.10)",
         "category": "fundamental",
-        "description": "expand峰 × 冠军同款净利0.10。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk80 m17 np10",
         "need_profit": True,
@@ -4440,7 +4440,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80_m17_np12": {
         "name": "毛利率扩张(突破80毛利0.17净利0.12)",
         "category": "fundamental",
-        "description": "expand峰 × 更严净利0.12。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥12%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk80 m17 np12",
         "need_profit": True,
@@ -4451,7 +4451,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80_np10": {
         "name": "毛利率扩张(突破80净利0.10)",
         "category": "fundamental",
-        "description": "expand × brk80 × np10（毛利仍0.20）。",
+        "description": "毛利率扩张后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=80日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk80 np10",
         "need_profit": True,
@@ -4462,7 +4462,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10)",
         "category": "fundamental",
-        "description": "接近冠军结构：expand × brk60 × m17 × np10。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10",
         "need_profit": True,
@@ -4473,7 +4473,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk80_m17_np10_hold50": {
         "name": "毛利率扩张(突破80毛利0.17净利0.10持有50)",
         "category": "fundamental",
-        "description": "m17_np10 × hold50。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=80日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk80 m17 np10 hold50",
         "need_profit": True,
@@ -4485,7 +4485,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m16_np10": {
         "name": "毛利率扩张(突破60毛利0.16净利0.10)",
         "category": "fundamental",
-        "description": "新挑战峰邻域 m16。",
+        "description": "毛利率扩张后突破：毛利≥16%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m16 np10",
         "need_profit": True,
@@ -4496,7 +4496,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m18_np10": {
         "name": "毛利率扩张(突破60毛利0.18净利0.10)",
         "category": "fundamental",
-        "description": "新挑战峰邻域 m18。",
+        "description": "毛利率扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m18 np10",
         "need_profit": True,
@@ -4507,7 +4507,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np09": {
         "name": "毛利率扩张(突破60毛利0.17净利0.09)",
         "category": "fundamental",
-        "description": "挑战峰 × np09。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥9%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np09",
         "need_profit": True,
@@ -4518,7 +4518,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np11": {
         "name": "毛利率扩张(突破60毛利0.17净利0.11)",
         "category": "fundamental",
-        "description": "挑战峰 × np11。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥11%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np11",
         "need_profit": True,
@@ -4529,7 +4529,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_hold52": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10持有52)",
         "category": "fundamental",
-        "description": "挑战峰 × hold52。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 hold52",
         "need_profit": True,
@@ -4540,7 +4540,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_imp005": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10改善0.005)",
         "category": "fundamental",
-        "description": "挑战峰 × imp005。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.50%；净利≥10%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 imp005",
         "need_profit": True,
@@ -4551,7 +4551,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29)",
         "category": "fundamental",
-        "description": "挑战峰 × lag29。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29",
         "need_profit": True,
@@ -4563,7 +4563,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag27": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后27)",
         "category": "fundamental",
-        "description": "新冠邻域 lag27。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗27日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag27",
         "need_profit": True,
@@ -4574,7 +4574,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag30": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后30)",
         "category": "fundamental",
-        "description": "新冠邻域 lag30。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗30日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag30",
         "need_profit": True,
@@ -4585,7 +4585,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag31": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后31)",
         "category": "fundamental",
-        "description": "新冠邻域 lag31。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗31日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag31",
         "need_profit": True,
@@ -4596,7 +4596,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m16_np10_lag29": {
         "name": "毛利率扩张(突破60毛利0.16净利0.10滞后29)",
         "category": "fundamental",
-        "description": "lag29 × m16。",
+        "description": "毛利率扩张后突破：毛利≥16%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m16 np10 lag29",
         "need_profit": True,
@@ -4607,7 +4607,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m18_np10_lag29": {
         "name": "毛利率扩张(突破60毛利0.18净利0.10滞后29)",
         "category": "fundamental",
-        "description": "lag29 × m18。",
+        "description": "毛利率扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m18 np10 lag29",
         "need_profit": True,
@@ -4618,7 +4618,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_imp005": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29改善0.005)",
         "category": "fundamental",
-        "description": "lag29 × imp005。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.50%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 imp005",
         "need_profit": True,
@@ -4629,7 +4629,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np11_lag29": {
         "name": "毛利率扩张(突破60毛利0.17净利0.11滞后29)",
         "category": "fundamental",
-        "description": "lag29 × np11。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥11%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np11 lag29",
         "need_profit": True,
@@ -4641,7 +4641,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_hold52": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29持有52)",
         "category": "fundamental",
-        "description": "新冠 × hold52。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 hold52",
         "need_profit": True,
@@ -4652,7 +4652,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_hold50": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29持有50)",
         "category": "fundamental",
-        "description": "新冠 × hold50。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有50日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 hold50",
         "need_profit": True,
@@ -4663,7 +4663,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_stop10": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29止损0.10)",
         "category": "fundamental",
-        "description": "新冠 × stop10。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损10%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 stop10",
         "need_profit": True,
@@ -4674,7 +4674,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m19_np10_lag29": {
         "name": "毛利率扩张(突破60毛利0.19净利0.10滞后29)",
         "category": "fundamental",
-        "description": "lag29 × m19。",
+        "description": "毛利率扩张后突破：毛利≥19%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m19 np10 lag29",
         "need_profit": True,
@@ -4685,7 +4685,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m17_lag29_np10": {
         "name": "毛利率高净利率(毛利0.17滞后29净利0.10)",
         "category": "fundamental",
-        "description": "把 expand 新冠参数迁回 high_np 信号。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m17 lag29 np10",
         "need_profit": True,
@@ -4696,7 +4696,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m18_lag29_np10": {
         "name": "毛利率高净利率(毛利0.18滞后29净利0.10)",
         "category": "fundamental",
-        "description": "high_np × m18 × lag29。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥18%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m18 lag29 np10",
         "need_profit": True,
@@ -4707,7 +4707,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m17_lag30_np10": {
         "name": "毛利率高净利率(毛利0.17滞后30净利0.10)",
         "category": "fundamental",
-        "description": "high_np × m17 × lag30。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗30日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m17 lag30 np10",
         "need_profit": True,
@@ -4719,7 +4719,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_ma60": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29均线60)",
         "category": "fundamental",
-        "description": "新冠 × MA60 趋势过滤。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA60；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 ma60",
         "need_profit": True,
@@ -4730,7 +4730,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_hold53": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29持有53)",
         "category": "fundamental",
-        "description": "新冠 × hold53。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有53日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 hold53",
         "need_profit": True,
@@ -4741,7 +4741,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m17_lag30_np10_hold52": {
         "name": "毛利率高净利率(毛利0.17滞后30净利0.10持有52)",
         "category": "fundamental",
-        "description": "近冠 high_np lag30 × hold52。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗30日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m17 lag30 np10 hold52",
         "need_profit": True,
@@ -4752,7 +4752,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m16_lag30_np10": {
         "name": "毛利率高净利率(毛利0.16滞后30净利0.10)",
         "category": "fundamental",
-        "description": "high_np × m16 × lag30。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥16%；毛利环比升≥0.60%；净利≥10%；财务热窗30日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m16 lag30 np10",
         "need_profit": True,
@@ -4763,7 +4763,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m17_lag30_imp005_np10": {
         "name": "毛利率高净利率(毛利0.17滞后30改善0.005净利0.10)",
         "category": "fundamental",
-        "description": "high_np lag30 × imp005。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.50%；净利≥10%；财务热窗30日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m17 lag30 imp005 np10",
         "need_profit": True,
@@ -4774,7 +4774,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_np_up_m17_lag29_np10": {
         "name": "毛利率净利率改善(毛利0.17滞后29净利0.10)",
         "category": "fundamental",
-        "description": "np_up 线迁移新冠参数。",
+        "description": "毛利率扩张 + 净利率改善后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross NP up m17 lag29 np10",
         "need_profit": True,
@@ -4786,7 +4786,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m17_lag29_reclaim": {
         "name": "毛利率高净利率(毛利0.17滞后29回踩)",
         "category": "fundamental",
-        "description": "新冠参数 × reclaim 入场。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=上穿MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m17 lag29 reclaim",
         "need_profit": True,
@@ -4797,7 +4797,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m17_lag29_either": {
         "name": "毛利率高净利率(毛利0.17滞后29突破或回踩)",
         "category": "fundamental",
-        "description": "新冠参数 × either 入场。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=突破或回踩(二选一)；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m17 lag29 either",
         "need_profit": True,
@@ -4808,7 +4808,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m17_lag29_amp18": {
         "name": "毛利率高净利率(毛利0.17滞后29振幅0.18)",
         "category": "fundamental",
-        "description": "新冠参数 × 横盘振幅过滤。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；振幅≤18%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m17 lag29 amp18",
         "need_profit": True,
@@ -4819,7 +4819,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_m17_lag29_amp22": {
         "name": "毛利率高净利率(毛利0.17滞后29振幅0.22)",
         "category": "fundamental",
-        "description": "新冠参数 × 更宽振幅。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；振幅≤22%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross high NP m17 lag29 amp22",
         "need_profit": True,
@@ -4830,7 +4830,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_stop14": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29止损0.14)",
         "category": "fundamental",
-        "description": "新冠 × 更宽止损。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损14%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 stop14",
         "need_profit": True,
@@ -4841,7 +4841,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "dual_m17_lag29_np10": {
         "name": "双改善(毛利门不适用ROE改善滞后29净利0.10)",
         "category": "fundamental",
-        "description": "双改善线迁移 lag29×np10。",
+        "description": "双改善突破：毛利环比升≥0.30%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "ROE", "净利率"],
         "title": "Dual lag29 np10",
         "need_profit": True,
@@ -4853,7 +4853,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_nimp002": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29净利改善0.002)",
         "category": "fundamental",
-        "description": "新冠 × 要求净利率同步改善。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.20%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 nimp002",
         "need_profit": True,
@@ -4864,7 +4864,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_nimp003": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29净利改善0.003)",
         "category": "fundamental",
-        "description": "新冠 × nimp003。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 nimp003",
         "need_profit": True,
@@ -4875,7 +4875,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_nimp005": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29净利改善0.005)",
         "category": "fundamental",
-        "description": "新冠 × nimp005。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.50%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 nimp005",
         "need_profit": True,
@@ -4886,7 +4886,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "contract_np_lag29_np10": {
         "name": "合同负债同比×净利率0.10(lag29持有51)",
         "category": "fundamental",
-        "description": "合同负债支线迁移 lag29×np10。",
+        "description": "合同负债同比×净利率0.10(lag29持有51)：净利≥10%；合同负债同比≥20%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "合同负债", "净利率"],
         "title": "Contract NP lag29 np10",
         "need_profit": True,
@@ -4898,7 +4898,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "contract_np_lag29_np08": {
         "name": "合同负债同比×净利率0.08(lag29持有51)",
         "category": "fundamental",
-        "description": "合同负债 × lag29 × np08。",
+        "description": "合同负债同比×净利率0.08(lag29持有51)：净利≥8%；合同负债同比≥20%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "合同负债", "净利率"],
         "title": "Contract NP lag29 np08",
         "need_profit": True,
@@ -4910,7 +4910,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "contract_np_lag29_yoy25": {
         "name": "合同负债同比0.25×净利率0.10(lag29)",
         "category": "fundamental",
-        "description": "合同负债更高同比门槛。",
+        "description": "合同负债同比0.25×净利率0.10(lag29)：净利≥10%；合同负债同比≥25%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "合同负债", "净利率"],
         "title": "Contract NP lag29 yoy25",
         "need_profit": True,
@@ -4923,7 +4923,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m175_np10_lag29": {
         "name": "毛利率扩张(突破60毛利0.175净利0.10滞后29)",
         "category": "fundamental",
-        "description": "新冠微网格 m175。",
+        "description": "毛利率扩张后突破：毛利≥17.50%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m175 np10 lag29",
         "need_profit": True,
@@ -4934,7 +4934,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np095_lag29": {
         "name": "毛利率扩张(突破60毛利0.17净利0.095滞后29)",
         "category": "fundamental",
-        "description": "新冠微网格 np095。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥9.50%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np095 lag29",
         "need_profit": True,
@@ -4945,7 +4945,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np105_lag29": {
         "name": "毛利率扩张(突破60毛利0.17净利0.105滞后29)",
         "category": "fundamental",
-        "description": "新冠微网格 np105。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10.50%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np105 lag29",
         "need_profit": True,
@@ -4956,7 +4956,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_imp0055": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29改善0.0055)",
         "category": "fundamental",
-        "description": "新冠微网格 imp0055。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.55%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 imp0055",
         "need_profit": True,
@@ -4967,7 +4967,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_imp0065": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29改善0.0065)",
         "category": "fundamental",
-        "description": "新冠微网格 imp0065。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.65%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 imp0065",
         "need_profit": True,
@@ -4978,7 +4978,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_stop13": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29止损0.13)",
         "category": "fundamental",
-        "description": "新冠微网格 stop13。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损13%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 stop13",
         "need_profit": True,
@@ -4990,7 +4990,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk55_m17_np10_lag29": {
         "name": "毛利率扩张(突破55毛利0.17净利0.10滞后29)",
         "category": "fundamental",
-        "description": "新冠 × brk55。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=55日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk55 m17 np10 lag29",
         "need_profit": True,
@@ -5001,7 +5001,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk65_m17_np10_lag29": {
         "name": "毛利率扩张(突破65毛利0.17净利0.10滞后29)",
         "category": "fundamental",
-        "description": "新冠 × brk65。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=65日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk65 m17 np10 lag29",
         "need_profit": True,
@@ -5012,7 +5012,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk58_m17_np10_lag29": {
         "name": "毛利率扩张(突破58毛利0.17净利0.10滞后29)",
         "category": "fundamental",
-        "description": "新冠 × brk58。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=58日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk58 m17 np10 lag29",
         "need_profit": True,
@@ -5023,7 +5023,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk62_m17_np10_lag29": {
         "name": "毛利率扩张(突破62毛利0.17净利0.10滞后29)",
         "category": "fundamental",
-        "description": "新冠 × brk62。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=62日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk62 m17 np10 lag29",
         "need_profit": True,
@@ -5034,7 +5034,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_hold49": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29持有49)",
         "category": "fundamental",
-        "description": "新冠 × hold49。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有49日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 hold49",
         "need_profit": True,
@@ -5045,7 +5045,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_brk60_m17_np10_lag29_hold54": {
         "name": "毛利率扩张(突破60毛利0.17净利0.10滞后29持有54)",
         "category": "fundamental",
-        "description": "新冠 × hold54。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有54日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "Gross expand brk60 m17 np10 lag29 hold54",
         "need_profit": True,
@@ -5057,7 +5057,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_roe10": {
         "name": "毛利率扩张新冠(ROE≥0.10)",
         "category": "fundamental",
-        "description": "新冠参数 × ROE过滤。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；ROE≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "ROE"],
         "title": "Gross expand champ roe10",
         "need_profit": True,
@@ -5068,7 +5068,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_roe12": {
         "name": "毛利率扩张新冠(ROE≥0.12)",
         "category": "fundamental",
-        "description": "新冠参数 × 更高ROE。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；ROE≥12%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "ROE"],
         "title": "Gross expand champ roe12",
         "need_profit": True,
@@ -5079,7 +5079,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_pe45": {
         "name": "毛利率扩张新冠(PE分位≤0.45)",
         "category": "fundamental",
-        "description": "新冠参数 × 低估PE。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；PE分位≤45%。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "估值"],
         "title": "Gross expand champ pe45",
         "need_profit": True,
@@ -5090,7 +5090,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_pe55": {
         "name": "毛利率扩张新冠(PE分位≤0.55)",
         "category": "fundamental",
-        "description": "新冠参数 × 中低估PE。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；PE分位≤55%。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "估值"],
         "title": "Gross expand champ pe55",
         "need_profit": True,
@@ -5101,7 +5101,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_pb40": {
         "name": "毛利率扩张新冠(PB分位≤0.40)",
         "category": "fundamental",
-        "description": "新冠参数 × 低估PB。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；PB分位≤40%。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "估值"],
         "title": "Gross expand champ pb40",
         "need_profit": True,
@@ -5112,7 +5112,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_roe10_pe55": {
         "name": "毛利率扩张新冠(ROE0.10×PE0.55)",
         "category": "fundamental",
-        "description": "新冠 × ROE+PE 双过滤。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；ROE≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；PE分位≤55%。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "ROE", "估值"],
         "title": "Gross expand champ roe10 pe55",
         "need_profit": True,
@@ -5124,7 +5124,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag29_m17_np10": {
         "name": "毛净双扩张(滞后29毛利0.17净利0.10)",
         "category": "fundamental",
-        "description": "双扩张线迁移新冠参数。",
+        "description": "毛利/净利双扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP NP lag29 m17 np10",
         "need_profit": True,
@@ -5135,7 +5135,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag29_m17_np10_imp005": {
         "name": "毛净双扩张(滞后29毛利0.17净利改善0.005)",
         "category": "fundamental",
-        "description": "双扩张 × 更强净利改善。",
+        "description": "毛利/净利双扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.50%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP NP lag29 m17 nimp005",
         "need_profit": True,
@@ -5146,7 +5146,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag29_m20_np10": {
         "name": "毛净双扩张(滞后29毛利0.20净利0.10)",
         "category": "fundamental",
-        "description": "双扩张 × 更高毛利门槛。",
+        "description": "毛利/净利双扩张后突破：毛利≥20%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.30%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP NP lag29 m20 np10",
         "need_profit": True,
@@ -5157,7 +5157,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_cheap_lag29_m17_np10": {
         "name": "毛利率扩张低估(滞后29毛利0.17净利0.10)",
         "category": "fundamental",
-        "description": "低估扩张线 × 新冠参数。",
+        "description": "毛利率扩张 + 低估突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；PE分位≤55%。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "估值"],
         "title": "GP cheap lag29 m17 np10",
         "need_profit": True,
@@ -5168,7 +5168,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_cheap_lag29_m17_pe60": {
         "name": "毛利率扩张低估(滞后29毛利0.17 PE0.60)",
         "category": "fundamental",
-        "description": "低估扩张 × 更宽PE。",
+        "description": "毛利率扩张 + 低估突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；PE分位≤60%。",
         "tags": ["基本面", "技术面", "毛利率", "估值"],
         "title": "GP cheap lag29 m17 pe60",
         "need_profit": True,
@@ -5179,7 +5179,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_cheap_lag29_m17_np10_hold52": {
         "name": "毛利率扩张低估(滞后29毛利0.17净利0.10持有52)",
         "category": "fundamental",
-        "description": "低估扩张 × hold52。",
+        "description": "毛利率扩张 + 低估突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有52日；止损12%；无固定止盈；PE分位≤55%。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "估值"],
         "title": "GP cheap lag29 m17 np10 hold52",
         "need_profit": True,
@@ -5191,7 +5191,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag29_m17_nimp004": {
         "name": "毛净双扩张(滞后29毛利0.17净利改善0.004)",
         "category": "fundamental",
-        "description": "gp_np峰邻域 nimp004。",
+        "description": "毛利/净利双扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.40%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP NP lag29 m17 nimp004",
         "need_profit": True,
@@ -5202,7 +5202,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag29_m17_nimp006": {
         "name": "毛净双扩张(滞后29毛利0.17净利改善0.006)",
         "category": "fundamental",
-        "description": "gp_np峰邻域 nimp006。",
+        "description": "毛利/净利双扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.60%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP NP lag29 m17 nimp006",
         "need_profit": True,
@@ -5213,7 +5213,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag28_m17_nimp005": {
         "name": "毛净双扩张(滞后28毛利0.17净利改善0.005)",
         "category": "fundamental",
-        "description": "gp_np峰 × lag28。",
+        "description": "毛利/净利双扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.50%；财务热窗28日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP NP lag28 m17 nimp005",
         "need_profit": True,
@@ -5224,7 +5224,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag30_m17_nimp005": {
         "name": "毛净双扩张(滞后30毛利0.17净利改善0.005)",
         "category": "fundamental",
-        "description": "gp_np峰 × lag30。",
+        "description": "毛利/净利双扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.50%；财务热窗30日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP NP lag30 m17 nimp005",
         "need_profit": True,
@@ -5235,7 +5235,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag29_m16_nimp005": {
         "name": "毛净双扩张(滞后29毛利0.16净利改善0.005)",
         "category": "fundamental",
-        "description": "gp_np峰 × m16。",
+        "description": "毛利/净利双扩张后突破：毛利≥16%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.50%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP NP lag29 m16 nimp005",
         "need_profit": True,
@@ -5246,7 +5246,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_lag29_m17_nimp005_hold52": {
         "name": "毛净双扩张(滞后29毛利0.17净利改善0.005持有52)",
         "category": "fundamental",
-        "description": "gp_np峰 × hold52。",
+        "description": "毛利/净利双扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.50%；财务热窗29日；入场=60日高+MA20；持有52日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "净利率"],
         "title": "GP NP lag29 m17 nimp005 hold52",
         "need_profit": True,
@@ -5258,7 +5258,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_gp2": {
         "name": "毛利率连续扩张(新冠军参数)",
         "category": "fundamental",
-        "description": "冠军参数 × 连续两期毛利改善。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；毛利连续两期改善；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand champ gp2",
         "need_profit": True,
@@ -5269,7 +5269,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_gp2_imp005": {
         "name": "毛利率连续扩张(改善0.005)",
         "category": "fundamental",
-        "description": "连续毛利改善 × imp005。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.50%；毛利连续两期改善；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand champ gp2 imp005",
         "need_profit": True,
@@ -5280,7 +5280,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_gp2_m18": {
         "name": "毛利率连续扩张(毛利≥0.18)",
         "category": "fundamental",
-        "description": "连续毛利改善 × m18。",
+        "description": "毛利率扩张后突破：毛利≥18%；毛利环比升≥0.60%；毛利连续两期改善；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand champ gp2 m18",
         "need_profit": True,
@@ -5369,7 +5369,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_yoy03": {
         "name": "毛利率扩张(新冠军+净利同比≥3%)",
         "category": "fundamental",
-        "description": "冠军参数 × 软增长过滤。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；合同负债同比≥3%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "增长"],
         "title": "Gross expand champ yoy03",
         "need_profit": True,
@@ -5380,7 +5380,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_yoy05": {
         "name": "毛利率扩张(新冠军+净利同比≥5%)",
         "category": "fundamental",
-        "description": "冠军参数 × 软增长5%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；合同负债同比≥5%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "增长"],
         "title": "Gross expand champ yoy05",
         "need_profit": True,
@@ -5392,7 +5392,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_yoy0": {
         "name": "毛利率扩张(新冠军+非负增长)",
         "category": "fundamental",
-        "description": "冠军参数 × 仅排除负增长。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；合同负债同比≥0%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "增长"],
         "title": "Gross expand champ yoy0",
         "need_profit": True,
@@ -5403,7 +5403,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_ret20_15": {
         "name": "毛利率扩张(新冠军+20日涨幅≤15%)",
         "category": "fundamental",
-        "description": "冠军参数 × 避免追高。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；20日涨幅≤15%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand champ ret20≤15%",
         "need_profit": True,
@@ -5414,7 +5414,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_ret20_20": {
         "name": "毛利率扩张(新冠军+20日涨幅≤20%)",
         "category": "fundamental",
-        "description": "冠军参数 × 温和动量帽。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；20日涨幅≤20%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand champ ret20≤20%",
         "need_profit": True,
@@ -5425,7 +5425,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_amtdry60": {
         "name": "毛利率扩张(新冠军+前日缩量)",
         "category": "fundamental",
-        "description": "冠军突破前要求成交额萎缩。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；缩量≤均量60%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率", "量能"],
         "title": "Gross expand champ amt dry60",
         "need_profit": True,
@@ -5459,7 +5459,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_soft98": {
         "name": "毛利率扩张(新冠军近突破98%)",
         "category": "fundamental",
-        "description": "冠军参数 × 接近60日高即可入场。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高×0.98+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand champ soft98",
         "need_profit": True,
@@ -5470,7 +5470,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_soft99": {
         "name": "毛利率扩张(新冠军近突破99%)",
         "category": "fundamental",
-        "description": "冠军参数 × 近高99%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高×0.99+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand champ soft99",
         "need_profit": True,
@@ -5481,7 +5481,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_dd03": {
         "name": "毛利率扩张(新冠军+回撤≥3%)",
         "category": "fundamental",
-        "description": "冠军热窗内要求浅回撤后再突破。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；回撤过滤3%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand champ dd03",
         "need_profit": True,
@@ -5492,7 +5492,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_ret20_30": {
         "name": "毛利率扩张(新冠军+20日涨幅≤30%)",
         "category": "fundamental",
-        "description": "更宽松动量帽。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；20日涨幅≤30%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand champ ret20≤30%",
         "need_profit": True,
@@ -5527,7 +5527,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_soft97": {
         "name": "毛利率扩张(新冠军近突破97%)",
         "category": "fundamental",
-        "description": "冠军参数 × 近高97%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高×0.97+MA20；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand champ soft97",
         "need_profit": True,
@@ -5538,7 +5538,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_dd05": {
         "name": "毛利率扩张(新冠军+回撤≥5%)",
         "category": "fundamental",
-        "description": "冠军热窗内更深回撤过滤。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；回撤过滤5%；持有51日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "毛利率"],
         "title": "Gross expand champ dd05",
         "need_profit": True,
@@ -5550,7 +5550,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp15": {
         "name": "毛利率扩张(新冠军止盈15%)",
         "category": "fundamental",
-        "description": "冠军入场 × 止盈15%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈15%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp15",
         "need_profit": True,
@@ -5561,7 +5561,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp20": {
         "name": "毛利率扩张(新冠军止盈20%)",
         "category": "fundamental",
-        "description": "冠军入场 × 止盈20%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈20%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp20",
         "need_profit": True,
@@ -5572,7 +5572,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp25": {
         "name": "毛利率扩张(新冠军止盈25%)",
         "category": "fundamental",
-        "description": "冠军入场 × 止盈25%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈25%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp25",
         "need_profit": True,
@@ -5583,7 +5583,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp30": {
         "name": "毛利率扩张(新冠军止盈30%)",
         "category": "fundamental",
-        "description": "冠军入场 × 止盈30%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈30%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp30",
         "need_profit": True,
@@ -5594,7 +5594,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp20_hold60": {
         "name": "毛利率扩张(止盈20%持有60)",
         "category": "fundamental",
-        "description": "止盈20% × 更长持有上限。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有60日；止损12%；止盈20%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp20 hold60",
         "need_profit": True,
@@ -5605,7 +5605,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gp_np_peak_tp20": {
         "name": "毛净双扩张峰(止盈20%)",
         "category": "fundamental",
-        "description": "gp_np次峰 × 止盈20%。",
+        "description": "毛利/净利双扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；净利环比升≥0.50%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈20%。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "出场"],
         "title": "GP NP peak tp20",
         "need_profit": True,
@@ -5617,7 +5617,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp35": {
         "name": "毛利率扩张(通宵冠军止盈35%)",
         "category": "fundamental",
-        "description": "通宵挖掘冠军：毛利率扩张突破 + 净利率过滤 + 止盈35%。Sharpe≈1.82（含费，2018–2026）。详见 docs/features/guides/gross_expand_champ_tp35.md",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场", "通宵冠军"],
         "title": "Gross expand overnight champ tp35",
         "need_profit": True,
@@ -5628,7 +5628,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp40": {
         "name": "毛利率扩张(新冠军止盈40%)",
         "category": "fundamental",
-        "description": "止盈放宽到40%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈40%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp40",
         "need_profit": True,
@@ -5639,7 +5639,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp50": {
         "name": "毛利率扩张(新冠军止盈50%)",
         "category": "fundamental",
-        "description": "止盈放宽到50%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈50%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp50",
         "need_profit": True,
@@ -5650,7 +5650,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_trail10": {
         "name": "毛利率扩张(新冠军移动止损10%)",
         "category": "fundamental",
-        "description": "自高点回撤10%离场。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；移动止盈回撤10%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ trail10",
         "need_profit": True,
@@ -5661,7 +5661,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_trail12": {
         "name": "毛利率扩张(新冠军移动止损12%)",
         "category": "fundamental",
-        "description": "自高点回撤12%离场。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；移动止盈回撤12%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ trail12",
         "need_profit": True,
@@ -5672,7 +5672,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_trail15": {
         "name": "毛利率扩张(新冠军移动止损15%)",
         "category": "fundamental",
-        "description": "自高点回撤15%离场。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；无固定止盈；移动止盈回撤15%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ trail15",
         "need_profit": True,
@@ -5684,7 +5684,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp32": {
         "name": "毛利率扩张(新冠军止盈32%)",
         "category": "fundamental",
-        "description": "tp35峰邻域 32%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈32%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp32",
         "need_profit": True,
@@ -5695,7 +5695,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp34": {
         "name": "毛利率扩张(新冠军止盈34%)",
         "category": "fundamental",
-        "description": "tp35峰邻域 34%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈34%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp34",
         "need_profit": True,
@@ -5706,7 +5706,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp36": {
         "name": "毛利率扩张(新冠军止盈36%)",
         "category": "fundamental",
-        "description": "tp35峰邻域 36%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈36%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp36",
         "need_profit": True,
@@ -5717,7 +5717,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp38": {
         "name": "毛利率扩张(新冠军止盈38%)",
         "category": "fundamental",
-        "description": "tp35峰邻域 38%。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈38%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp38",
         "need_profit": True,
@@ -5728,7 +5728,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp35_hold55": {
         "name": "毛利率扩张(止盈35%持有55)",
         "category": "fundamental",
-        "description": "tp35 × hold55。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有55日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp35 hold55",
         "need_profit": True,
@@ -5739,7 +5739,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp35_trail15": {
         "name": "毛利率扩张(止盈35%+移动止损15%)",
         "category": "fundamental",
-        "description": "tp35 × trail15 组合出场。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈35%；移动止盈回撤15%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp35 trail15",
         "need_profit": True,
@@ -5751,7 +5751,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_m18_lag29_tp35": {
         "name": "毛利率扩张(毛利0.18滞后29止盈35%)",
         "category": "fundamental",
-        "description": "近冠 m18 × tp35。",
+        "description": "毛利率扩张后突破：毛利≥18%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand m18 lag29 tp35",
         "need_profit": True,
@@ -5762,7 +5762,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_ma60_tp35": {
         "name": "毛利率扩张(MA60止盈35%)",
         "category": "fundamental",
-        "description": "近冠 ma60 × tp35。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA60；持有51日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand ma60 tp35",
         "need_profit": True,
@@ -5773,7 +5773,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_imp0065_tp35": {
         "name": "毛利率扩张(改善0.0065止盈35%)",
         "category": "fundamental",
-        "description": "近冠 imp0065 × tp35。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.65%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand imp0065 tp35",
         "need_profit": True,
@@ -5784,7 +5784,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_high_np_lag30_tp35": {
         "name": "高净利毛利扩张(滞后30止盈35%)",
         "category": "fundamental",
-        "description": "高原 high_np × tp35。",
+        "description": "毛利率扩张 + 高净利率后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗30日；入场=60日高+MA20；持有51日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "净利率", "出场"],
         "title": "Gross high NP lag30 tp35",
         "need_profit": True,
@@ -5795,7 +5795,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp35_stop10": {
         "name": "毛利率扩张(止盈35%止损10%)",
         "category": "fundamental",
-        "description": "tp35冠 × 更紧止损。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损10%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp35 stop10",
         "need_profit": True,
@@ -5806,7 +5806,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp35_stop14": {
         "name": "毛利率扩张(止盈35%止损14%)",
         "category": "fundamental",
-        "description": "tp35冠 × 更宽止损。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有51日；止损14%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp35 stop14",
         "need_profit": True,
@@ -5818,7 +5818,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp35_hold49": {
         "name": "毛利率扩张(止盈35%持有49)",
         "category": "fundamental",
-        "description": "tp35冠 × hold49。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有49日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp35 hold49",
         "need_profit": True,
@@ -5829,7 +5829,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp35_hold50": {
         "name": "毛利率扩张(止盈35%持有50)",
         "category": "fundamental",
-        "description": "tp35冠 × hold50。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有50日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp35 hold50",
         "need_profit": True,
@@ -5840,7 +5840,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp35_hold52": {
         "name": "毛利率扩张(止盈35%持有52)",
         "category": "fundamental",
-        "description": "tp35冠 × hold52。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有52日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp35 hold52",
         "need_profit": True,
@@ -5851,7 +5851,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp35_hold53": {
         "name": "毛利率扩张(止盈35%持有53)",
         "category": "fundamental",
-        "description": "tp35冠 × hold53。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥10%；财务热窗29日；入场=60日高+MA20；持有53日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp35 hold53",
         "need_profit": True,
@@ -5862,7 +5862,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp35_np09": {
         "name": "毛利率扩张(止盈35%净利≥0.09)",
         "category": "fundamental",
-        "description": "tp35冠 × np09。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥9%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp35 np09",
         "need_profit": True,
@@ -5873,7 +5873,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "gross_expand_champ_tp35_np11": {
         "name": "毛利率扩张(止盈35%净利≥0.11)",
         "category": "fundamental",
-        "description": "tp35冠 × np11。",
+        "description": "毛利率扩张后突破：毛利≥17%；毛利环比升≥0.60%；净利≥11%；财务热窗29日；入场=60日高+MA20；持有51日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "毛利率", "出场"],
         "title": "Gross expand champ tp35 np11",
         "need_profit": True,
@@ -5921,7 +5921,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "demand_pricing_break": {
         "name": "需求定价双确认突破",
         "category": "fundamental",
-        "description": "合同负债扩张（需求）× 毛利率扩张（定价）后突破。",
+        "description": "需求定价双确认突破：毛利≥15%；毛利环比升≥0.50%；合同负债同比≥12%；合同负债环比≥8%；财务热窗28日；入场=60日高+MA20；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "合同负债", "毛利率", "新结构"],
         "title": "Demand × pricing break",
         "need_profit": True,
@@ -5933,7 +5933,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "demand_pricing_np": {
         "name": "需求定价双确认(净利)",
         "category": "fundamental",
-        "description": "需求×定价突破 + 净利率≥6%。",
+        "description": "需求定价双确认(净利)：毛利≥15%；毛利环比升≥0.50%；净利≥6%；合同负债同比≥12%；合同负债环比≥8%；财务热窗28日；入场=60日高+MA20；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "合同负债", "毛利率", "新结构"],
         "title": "Demand pricing + NP",
         "need_profit": True,
@@ -6026,7 +6026,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "demand_pricing_base": {
         "name": "需求定价×横盘突破",
         "category": "fundamental",
-        "description": "合同负债扩张×毛利率扩张热窗口内，横盘收窄后箱体突破。",
+        "description": "需求定价×横盘突破：毛利≥15%；毛利环比升≥0.50%；合同负债同比≥12%；合同负债环比≥8%；财务热窗28日；入场=横盘突破(振幅≤24%)；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘", "突破", "合同负债", "毛利率"],
         "title": "Demand pricing base break",
         "need_profit": True,
@@ -6049,7 +6049,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "demand_pricing_pullback": {
         "name": "需求定价×趋势回踩",
         "category": "fundamental",
-        "description": "需求×定价热窗口内，MA60上行趋势中回踩站上MA20。",
+        "description": "需求定价×趋势回踩：毛利≥15%；毛利环比升≥0.50%；净利≥6%；合同负债同比≥12%；合同负债环比≥8%；财务热窗30日；入场=趋势回踩；回撤过滤3%；持有35日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "回踩", "趋势", "合同负债", "毛利率"],
         "title": "Demand pricing pullback",
         "need_profit": True,
@@ -6157,7 +6157,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "demand_pricing_base_np": {
         "name": "需求定价×横盘突破(净利)",
         "category": "fundamental",
-        "description": "需求×定价×净利率 + 横盘箱体突破。",
+        "description": "需求定价×横盘突破(净利)：毛利≥17%；毛利环比升≥0.50%；净利≥8%；合同负债同比≥12%；合同负债环比≥8%；财务热窗29日；入场=横盘突破(振幅≤22%)；持有51日；止损12%；止盈35%。",
         "tags": ["基本面", "技术面", "横盘", "突破", "合同负债", "毛利率"],
         "title": "Demand pricing base + NP",
         "need_profit": True,
@@ -6182,7 +6182,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "demand_pricing_base_tight": {
         "name": "需求定价×紧横盘突破",
         "category": "fundamental",
-        "description": "需求×定价 + 更紧振幅横盘突破。",
+        "description": "需求定价×紧横盘突破：毛利≥15%；毛利环比升≥0.50%；净利≥6%；合同负债同比≥15%；合同负债环比≥8%；财务热窗28日；入场=横盘突破(振幅≤20%)；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘", "突破", "合同负债", "毛利率"],
         "title": "Demand pricing tight base",
         "need_profit": True,
@@ -6290,7 +6290,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "np_regime_break": {
         "name": "净利率连续扩张突破",
         "category": "fundamental",
-        "description": "净利率连续两期扩张且达水平后突破（毛利率主线对照）。",
+        "description": "净利率连续扩张突破：毛利环比升≥0.30%；净利≥8%；财务热窗28日；入场=60日高+MA20；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "净利率", "非毛利", "新结构"],
         "title": "NP regime break",
         "need_profit": True,
@@ -6309,7 +6309,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "np_regime_roe": {
         "name": "净利率连续扩张(ROE)",
         "category": "fundamental",
-        "description": "净利率连续扩张 + ROE 底线后突破。",
+        "description": "净利率连续扩张(ROE)：毛利环比升≥0.30%；净利≥8%；ROE≥8%；财务热窗28日；入场=60日高+MA20；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "净利率", "ROE", "非毛利", "新结构"],
         "title": "NP regime + ROE",
         "need_profit": True,
@@ -6692,7 +6692,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "np_regime_base": {
         "name": "净利率连续扩张×横盘突破",
         "category": "fundamental",
-        "description": "净利率连续扩张热窗口内横盘箱体突破。",
+        "description": "净利率连续扩张×横盘突破：毛利环比升≥0.30%；净利≥8%；财务热窗28日；入场=横盘突破(振幅≤24%)；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘", "净利率", "非毛利", "新结构"],
         "title": "NP regime base",
         "need_profit": True,
@@ -6712,7 +6712,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "np_regime_pullback": {
         "name": "净利率连续扩张×趋势回踩",
         "category": "fundamental",
-        "description": "净利率连续扩张热窗口内趋势回踩。",
+        "description": "净利率连续扩张×趋势回踩：毛利环比升≥0.30%；净利≥8%；财务热窗30日；入场=趋势回踩；回撤过滤3%；持有35日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "回踩", "净利率", "非毛利", "新结构"],
         "title": "NP regime pullback",
         "need_profit": True,
@@ -7178,7 +7178,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "np_regime_amp": {
         "name": "净利率扩张×收窄突破",
         "category": "fundamental",
-        "description": "净利率连续扩张 + 振幅收窄后突破。",
+        "description": "净利率扩张×收窄突破：毛利环比升≥0.30%；净利≥8%；ROE≥6%；财务热窗28日；入场=60日高+MA20；振幅≤22%；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "横盘", "净利率", "非毛利", "新结构"],
         "title": "NP regime amp break",
         "need_profit": True,
@@ -7200,7 +7200,7 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
     "np_regime_ma60": {
         "name": "净利率扩张×MA60突破",
         "category": "fundamental",
-        "description": "净利率连续扩张热窗口内，突破并站上 MA60。",
+        "description": "净利率扩张×MA60突破：毛利环比升≥0.30%；净利≥8%；财务热窗28日；入场=60日高+MA60；持有40日；止损12%；无固定止盈。",
         "tags": ["基本面", "技术面", "均线", "净利率", "非毛利", "新结构"],
         "title": "NP regime MA60 break",
         "need_profit": True,
@@ -7239,6 +7239,396 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
             stop_loss=0.12,
         ),
     },
+    # ----- wave95+：更大结构差异（股本/绝对利润/TTM/股权利差/预收/量能）-----
+    "rev_per_share_accel": {
+        "name": "每股营收再加速突破",
+        "category": "fundamental",
+        "description": "营收/总股本连续两期环比上升后突破（规模效率，非利润率）。",
+        "tags": ["基本面", "技术面", "每股营收", "结构差异", "新结构"],
+        "title": "Rev/share accel break",
+        "need_profit": True,
+        "need_growth": False,
+        "signal": sig.signal_rev_per_share_accel_break,
+        "params": _p(qoq_min=0.06, roe_min=0.08, funda_lag=28, entry="break", break_days=60, hold_days=40, stop_loss=0.12),
+    },
+    "rev_per_share_accel_base": {
+        "name": "每股营收再加速×横盘突破",
+        "category": "fundamental",
+        "description": "每股营收再加速热窗口内横盘箱体突破。",
+        "tags": ["基本面", "技术面", "横盘", "每股营收", "结构差异", "新结构"],
+        "title": "Rev/share accel base",
+        "need_profit": True,
+        "need_growth": False,
+        "signal": sig.signal_rev_per_share_accel_break,
+        "params": _p(
+            qoq_min=0.06,
+            roe_min=0.08,
+            funda_lag=28,
+            entry="base_break",
+            base_window=60,
+            amp_max=0.24,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "float_concentration_break": {
+        "name": "流通盘收紧突破",
+        "category": "fundamental",
+        "description": "流通股本占比下降（筹码集中）后突破。",
+        "tags": ["基本面", "技术面", "流通盘", "结构差异", "新结构"],
+        "title": "Float concentration break",
+        "need_profit": True,
+        "need_growth": False,
+        "signal": sig.signal_float_concentration_break,
+        "params": _p(
+            float_shrink=0.01,
+            require_liqa_down=True,
+            roe_min=0.08,
+            funda_lag=40,
+            entry="break",
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "float_concentration_growth": {
+        "name": "流通盘收紧×成长",
+        "category": "fundamental",
+        "description": "流通盘收紧 + YOYNI 高增后突破。",
+        "tags": ["基本面", "技术面", "流通盘", "成长", "结构差异", "新结构"],
+        "title": "Float concentration + growth",
+        "need_profit": True,
+        "need_growth": True,
+        "signal": sig.signal_float_concentration_break,
+        "params": _p(
+            float_shrink=0.01,
+            require_liqa_down=True,
+            growth_min=0.12,
+            roe_min=0.06,
+            funda_lag=40,
+            entry="break",
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "float_concentration_reclaim": {
+        "name": "流通盘收紧收复",
+        "category": "fundamental",
+        "description": "流通盘收紧热窗口内上穿均线。",
+        "tags": ["基本面", "技术面", "流通盘", "结构差异", "新结构"],
+        "title": "Float concentration reclaim",
+        "need_profit": True,
+        "need_growth": False,
+        "signal": sig.signal_float_concentration_break,
+        "params": _p(
+            float_shrink=0.01,
+            require_liqa_down=True,
+            roe_min=0.08,
+            funda_lag=40,
+            entry="reclaim",
+            hold_days=35,
+            stop_loss=0.12,
+        ),
+    },
+    "netprofit_accel_break": {
+        "name": "绝对净利二阶加速",
+        "category": "fundamental",
+        "description": "netProfit 连续两期环比上升后突破（非利润率）。",
+        "tags": ["基本面", "技术面", "净利", "结构差异", "新结构"],
+        "title": "NetProfit accel break",
+        "need_profit": True,
+        "need_growth": False,
+        "signal": sig.signal_netprofit_accel_break,
+        "params": _p(qoq_min=0.08, pe_pct_max=0.50, funda_lag=28, entry="break", break_days=60, hold_days=40, stop_loss=0.12),
+    },
+    "netprofit_accel_roe": {
+        "name": "绝对净利加速(ROE)",
+        "category": "fundamental",
+        "description": "绝对净利二阶加速 + ROE 底线。",
+        "tags": ["基本面", "技术面", "净利", "ROE", "结构差异", "新结构"],
+        "title": "NetProfit accel + ROE",
+        "need_profit": True,
+        "need_growth": False,
+        "signal": sig.signal_netprofit_accel_break,
+        "params": _p(
+            qoq_min=0.08,
+            pe_pct_max=0.55,
+            roe_min=0.08,
+            funda_lag=28,
+            entry="break",
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "eps_ttm_mom_cheap": {
+        "name": "EPSTTM动量低估突破",
+        "category": "fundamental",
+        "description": "epsTTM 连续两期上升 + PE 分位偏低后突破。",
+        "tags": ["基本面", "技术面", "EPS", "低估", "结构差异", "新结构"],
+        "title": "EPS TTM mom cheap",
+        "need_profit": True,
+        "need_growth": False,
+        "signal": sig.signal_eps_ttm_mom_cheap_break,
+        "params": _p(
+            eps_qoq_min=0.03,
+            pe_pct_max=0.45,
+            funda_lag=28,
+            entry="break",
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "eps_ttm_mom_base": {
+        "name": "EPSTTM动量×横盘突破",
+        "category": "fundamental",
+        "description": "EPS TTM 动量低估热窗口内横盘突破。",
+        "tags": ["基本面", "技术面", "横盘", "EPS", "结构差异", "新结构"],
+        "title": "EPS TTM mom base",
+        "need_profit": True,
+        "need_growth": False,
+        "signal": sig.signal_eps_ttm_mom_cheap_break,
+        "params": _p(
+            eps_qoq_min=0.03,
+            pe_pct_max=0.45,
+            roe_min=0.06,
+            funda_lag=28,
+            entry="base_break",
+            base_window=60,
+            amp_max=0.24,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "equity_outrun_break": {
+        "name": "归属跑赢净资产突破",
+        "category": "fundamental",
+        "description": "YOYPNI 显著高于 YOYEquity 后突破（稀释克制）。",
+        "tags": ["基本面", "技术面", "股权利差", "结构差异", "新结构"],
+        "title": "Equity outrun break",
+        "need_profit": False,
+        "need_growth": True,
+        "signal": sig.signal_equity_outrun_break,
+        "params": _p(
+            equity_gap=0.10,
+            growth_min=0.12,
+            funda_lag=28,
+            entry="break",
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "equity_outrun_quality": {
+        "name": "归属跑赢净资产(质量)",
+        "category": "fundamental",
+        "description": "股权利差 + ROE/PE 过滤。",
+        "tags": ["基本面", "技术面", "股权利差", "ROE", "结构差异", "新结构"],
+        "title": "Equity outrun quality",
+        "need_profit": True,
+        "need_growth": True,
+        "signal": sig.signal_equity_outrun_break,
+        "params": _p(
+            equity_gap=0.10,
+            growth_min=0.12,
+            roe_min=0.08,
+            pe_pct_max=0.55,
+            funda_lag=28,
+            entry="break",
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "equity_outrun_pullback": {
+        "name": "归属跑赢净资产×趋势回踩",
+        "category": "fundamental",
+        "description": "股权利差热窗口内趋势回踩。",
+        "tags": ["基本面", "技术面", "回踩", "股权利差", "结构差异", "新结构"],
+        "title": "Equity outrun pullback",
+        "need_profit": True,
+        "need_growth": True,
+        "signal": sig.signal_equity_outrun_break,
+        "params": _p(
+            equity_gap=0.10,
+            growth_min=0.12,
+            roe_min=0.06,
+            funda_lag=30,
+            entry="pullback",
+            dd_need=0.03,
+            hold_days=35,
+            stop_loss=0.12,
+        ),
+    },
+    "advance_recv_lead_break": {
+        "name": "预收领先营收突破",
+        "category": "fundamental",
+        "description": "预收款扩张而营收尚未同幅跟上后突破（需求领先）。",
+        "tags": ["基本面", "技术面", "预收", "结构差异", "新结构"],
+        "title": "Advance receivable lead",
+        "need_profit": True,
+        "need_growth": False,
+        "need_balance": True,
+        "signal": sig.signal_advance_recv_lead_break,
+        "params": _p(
+            ar_qoq_min=0.10,
+            rev_qoq_max=0.08,
+            funda_lag=28,
+            entry="break",
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "advance_recv_lead_roe": {
+        "name": "预收领先(ROE)",
+        "category": "fundamental",
+        "description": "预收领先需求 + ROE 底线。",
+        "tags": ["基本面", "技术面", "预收", "ROE", "结构差异", "新结构"],
+        "title": "Advance recv lead + ROE",
+        "need_profit": True,
+        "need_growth": False,
+        "need_balance": True,
+        "signal": sig.signal_advance_recv_lead_break,
+        "params": _p(
+            ar_qoq_min=0.10,
+            rev_qoq_max=0.08,
+            roe_min=0.08,
+            funda_lag=28,
+            entry="break",
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "advance_recv_lead_base": {
+        "name": "预收领先×横盘突破",
+        "category": "fundamental",
+        "description": "预收领先热窗口内横盘箱体突破。",
+        "tags": ["基本面", "技术面", "横盘", "预收", "结构差异", "新结构"],
+        "title": "Advance recv lead base",
+        "need_profit": True,
+        "need_growth": False,
+        "need_balance": True,
+        "signal": sig.signal_advance_recv_lead_break,
+        "params": _p(
+            ar_qoq_min=0.10,
+            rev_qoq_max=0.08,
+            roe_min=0.06,
+            funda_lag=28,
+            entry="base_break",
+            base_window=60,
+            amp_max=0.24,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "turn_dry_growth_break": {
+        "name": "缩量蓄势成长突破",
+        "category": "fundamental",
+        "description": "换手先缩后放 + YOYNI 高增后突破（量能×成长交叉）。",
+        "tags": ["基本面", "技术面", "换手", "成长", "结构差异", "新结构"],
+        "title": "Turn dry × growth",
+        "need_profit": False,
+        "need_growth": True,
+        "signal": sig.signal_turn_dry_growth_break,
+        "params": _p(
+            dry_ratio=0.60,
+            surge_ratio=1.15,
+            growth_min=0.15,
+            funda_lag=40,
+            entry="break",
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "turn_dry_growth_roe": {
+        "name": "缩量蓄势成长(ROE)",
+        "category": "fundamental",
+        "description": "缩量蓄势×成长 + ROE。",
+        "tags": ["基本面", "技术面", "换手", "ROE", "结构差异", "新结构"],
+        "title": "Turn dry growth + ROE",
+        "need_profit": True,
+        "need_growth": True,
+        "signal": sig.signal_turn_dry_growth_break,
+        "params": _p(
+            dry_ratio=0.60,
+            surge_ratio=1.15,
+            growth_min=0.15,
+            roe_min=0.08,
+            funda_lag=40,
+            entry="break",
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "turn_dry_growth_reclaim": {
+        "name": "缩量蓄势成长收复",
+        "category": "fundamental",
+        "description": "缩量蓄势×成长后上穿均线。",
+        "tags": ["基本面", "技术面", "换手", "成长", "结构差异", "新结构"],
+        "title": "Turn dry growth reclaim",
+        "need_profit": False,
+        "need_growth": True,
+        "signal": sig.signal_turn_dry_growth_break,
+        "params": _p(
+            dry_ratio=0.55,
+            surge_ratio=1.20,
+            growth_min=0.15,
+            funda_lag=40,
+            entry="reclaim",
+            hold_days=35,
+            stop_loss=0.12,
+        ),
+    },
+    "amount_coil_outrun": {
+        "name": "成交收缩×股权利差",
+        "category": "fundamental",
+        "description": "成交额先缩后放 + 归属跑赢净资产后突破。",
+        "tags": ["基本面", "技术面", "成交额", "股权利差", "结构差异", "新结构"],
+        "title": "Amount coil × equity outrun",
+        "need_profit": False,
+        "need_growth": True,
+        "signal": sig.signal_amount_coil_outrun_break,
+        "params": _p(
+            coil_ratio=0.70,
+            wake_ratio=1.20,
+            equity_gap=0.08,
+            growth_min=0.10,
+            funda_lag=35,
+            entry="break",
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
+    "amount_coil_outrun_base": {
+        "name": "成交收缩股权利差×横盘",
+        "category": "fundamental",
+        "description": "成交收缩×股权利差热窗口内横盘突破。",
+        "tags": ["基本面", "技术面", "横盘", "成交额", "结构差异", "新结构"],
+        "title": "Amount coil outrun base",
+        "need_profit": True,
+        "need_growth": True,
+        "signal": sig.signal_amount_coil_outrun_break,
+        "params": _p(
+            coil_ratio=0.70,
+            wake_ratio=1.20,
+            equity_gap=0.08,
+            growth_min=0.10,
+            roe_min=0.06,
+            funda_lag=35,
+            entry="base_break",
+            base_window=60,
+            amp_max=0.24,
+            hold_days=40,
+            stop_loss=0.12,
+        ),
+    },
 }
 
 
@@ -7254,5 +7644,6 @@ def compute_factor_signal(factor_id: str, params: Dict[str, Any] | None = None, 
         need_profit=meta["need_profit"],
         need_growth=meta["need_growth"],
         need_balance=bool(meta.get("need_balance")),
+        need_fin_db=bool(meta.get("need_fin_db")),
         asof=asof,
     )

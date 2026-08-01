@@ -53,6 +53,120 @@ def _num(v: Any) -> str:
     return f"{x:g}"
 
 
+_SIG_LABELS = {
+    "signal_gross_high_np_break": "毛利率扩张 + 高净利率后突破",
+    "signal_gross_expand_break": "毛利率扩张后突破",
+    "signal_gross_np_up_break": "毛利率扩张 + 净利率改善后突破",
+    "signal_gp_np_expand_break": "毛利/净利双扩张后突破",
+    "signal_gp_np_tight_break": "毛利/净利收紧扩张后突破",
+    "signal_dual_improve_base_break": "双改善横盘突破",
+    "signal_dual_improve_breakout": "双改善突破",
+    "signal_eps_dual_confirm_break": "EPS 双确认突破",
+    "signal_high_margin_breakout": "高毛利率突破",
+    "signal_gp_expand_cheap_break": "毛利率扩张 + 低估突破",
+    "signal_roe_expand_breakout": "ROE 扩张突破",
+    "signal_gross_net_catchup_break": "毛利扩张净利追赶突破",
+}
+
+
+def _fmt_level(v: Any) -> str:
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return str(v)
+    if abs(x) <= 1.5:
+        return f"{x:.0%}" if abs(x * 100 - round(x * 100)) < 1e-6 else f"{x:.2%}".rstrip("0").rstrip(".")
+    return _num(x)
+
+
+def variant_overview(meta: Dict[str, Any]) -> str:
+    """按实际 params 生成可区分的一句话说明（参数网格变体专用）。"""
+    p = dict(meta.get("params") or {})
+    sig = getattr(meta.get("signal"), "__name__", "") or ""
+    head = _SIG_LABELS.get(sig) or (meta.get("name") and str(meta["name"])) or "规则变体"
+
+    bits: List[str] = []
+    if p.get("margin_min") is not None:
+        bits.append(f"毛利≥{_fmt_level(p['margin_min'])}")
+    elif p.get("gp_min") is not None:
+        bits.append(f"毛利≥{_fmt_level(p['gp_min'])}")
+    if p.get("gap_min") is not None:
+        bits.append(f"毛净利差缺口≥{_fmt_level(p['gap_min'])}")
+    if p.get("margin_improve") is not None or p.get("gp_improve") is not None:
+        imp = p.get("margin_improve", p.get("gp_improve"))
+        bits.append(f"毛利环比升≥{_fmt_level(imp)}")
+    if p.get("gp_consec"):
+        bits.append("毛利连续两期改善")
+    if p.get("np_min") is not None:
+        bits.append(f"净利≥{_fmt_level(p['np_min'])}")
+    if p.get("np_improve") is not None:
+        bits.append(f"净利环比升≥{_fmt_level(p['np_improve'])}")
+    if p.get("roe_min") is not None:
+        bits.append(f"ROE≥{_fmt_level(p['roe_min'])}")
+    if p.get("growth_min") is not None:
+        bits.append(f"同比≥{_fmt_level(p['growth_min'])}")
+    if p.get("growth_accel") is not None or p.get("accel_min") is not None:
+        acc = p.get("growth_accel", p.get("accel_min"))
+        bits.append(f"增速加速≥{_fmt_level(acc)}")
+    if p.get("yoy_min") is not None:
+        bits.append(f"合同负债同比≥{_fmt_level(p['yoy_min'])}")
+    if p.get("qoq_min") is not None:
+        bits.append(f"合同负债环比≥{_fmt_level(p['qoq_min'])}")
+    if p.get("funda_lag") is not None:
+        bits.append(f"财务热窗{int(p['funda_lag'])}日")
+    entry = str(p.get("entry") or "")
+    brk = int(p.get("break_days") or 60)
+    ma_days = int(p.get("ma_days") or 20)
+    if entry == "reclaim":
+        bits.append(f"入场=上穿MA{ma_days}")
+    elif entry == "pullback":
+        bits.append("入场=趋势回踩")
+    elif entry in ("either", "or"):
+        bits.append(f"入场=突破或回踩(二选一)")
+    elif entry == "base_break" or (p.get("amp_max") is not None and entry == "base_break"):
+        bits.append(f"入场=横盘突破(振幅≤{_fmt_level(p.get('amp_max') or 0.24)})")
+    else:
+        soft = p.get("brk_soft")
+        if soft is not None and float(soft) != 1.0:
+            bits.append(f"入场={brk}日高×{float(soft):g}+MA{ma_days}")
+        else:
+            bits.append(f"入场={brk}日高+MA{ma_days}")
+    if p.get("ma_cross"):
+        bits.append(f"需上穿MA{ma_days}")
+    if p.get("amp_max") is not None and entry != "base_break":
+        bits.append(f"振幅≤{_fmt_level(p['amp_max'])}")
+    if p.get("dd_need") is not None:
+        bits.append(f"回撤过滤{_fmt_level(abs(float(p['dd_need'])))}")
+    if p.get("ret20_max") is not None:
+        bits.append(f"20日涨幅≤{_fmt_level(p['ret20_max'])}")
+    if p.get("amt_dry_ratio") is not None:
+        bits.append(f"缩量≤均量{_fmt_level(p['amt_dry_ratio'])}")
+    if p.get("hold_days") is not None:
+        bits.append(f"持有{int(p['hold_days'])}日")
+    if p.get("stop_loss") is not None:
+        bits.append(f"止损{_fmt_level(abs(float(p['stop_loss'])))}")
+    if p.get("take_profit") is not None:
+        bits.append(f"止盈{_fmt_level(p['take_profit'])}")
+    else:
+        bits.append("无固定止盈")
+    if p.get("trail_stop") is not None:
+        bits.append(f"移动止盈回撤{_fmt_level(p['trail_stop'])}")
+    if p.get("pe_pct_max") is not None:
+        bits.append(f"PE分位≤{_fmt_level(p['pe_pct_max'])}")
+    if p.get("pb_pct_max") is not None:
+        bits.append(f"PB分位≤{_fmt_level(p['pb_pct_max'])}")
+    if p.get("lead_min") is not None:
+        bits.append(f"归属领先≥{_fmt_level(p['lead_min'])}")
+    if p.get("cl_rev_min") is not None:
+        bits.append(f"合同负债/营收≥{_fmt_level(p['cl_rev_min'])}")
+    if p.get("asset_yoy_max") is not None:
+        bits.append(f"资产同比≤{_fmt_level(p['asset_yoy_max'])}")
+
+    if not bits:
+        return (meta.get("description") or head or "").strip()
+    return f"{head}：{'；'.join(bits)}。"
+
+
 def selection_steps(params: Dict[str, Any], meta: Dict[str, Any]) -> List[str]:
     """根据注册参数生成「同时满足才买入」的步骤列表。"""
     p = params or {}
@@ -331,9 +445,12 @@ def render_guide_markdown(
     params = dict(meta.get("params") or {})
     tags = meta.get("tags") or []
 
+    overview = variant_overview(meta)
     lines: List[str] = [f"# {name}（{factor_id}）", ""]
-    if desc:
-        lines += [desc, ""]
+    if overview:
+        lines += [overview, ""]
+    if desc and desc.rstrip("。") not in overview:
+        lines += [f"备注：{desc}", ""]
     if tags:
         lines.append("标签：" + " · ".join(f"`{t}`" for t in tags))
         lines.append("")

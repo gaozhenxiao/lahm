@@ -595,7 +595,10 @@ def build_trade_legs(
         if len(e_idx_list) == 0:
             continue
         e_i = int(e_idx_list[0])
-        exit_i = min(e_i + hold_days, len(b) - 1)
+        last_i = len(b) - 1
+        target_exit_i = e_i + int(hold_days)
+        truncated = target_exit_i > last_i
+        exit_i = min(target_exit_i, last_i)
         reason = "hold_end"
         exit_px = float(b.loc[exit_i, "close"])
         exit_dt = pd.Timestamp(b.loc[exit_i, "date"])
@@ -608,7 +611,13 @@ def build_trade_legs(
                 exit_px = float(cl)
                 exit_dt = pd.Timestamp(b.loc[j, "date"])
                 reason = "stop_loss"
+                truncated = False
                 break
+        if reason == "hold_end" and truncated:
+            # 行情不够持满：不在回测末日强制平仓
+            reason = "open"
+            exit_px = float(b.loc[last_i, "close"])
+            exit_dt = pd.Timestamp(b.loc[last_i, "date"]) + pd.Timedelta(days=1)
         legs.append(
             TradeLeg(
                 code=code,
@@ -714,10 +723,12 @@ def run_portfolio_backtest(
         active.append(row.to_dict())
     if not accepted:
         return pd.DataFrame(), {"error": "no_accepted_legs"}, empty_legs
-    acc = pd.DataFrame(accepted)
+    acc = pd.DataFrame(accepted).reset_index(drop=True)
+    # 按腿占名额（同股可多腿重叠）；不可用 code 做持仓键
+    acc["_leg_id"] = np.arange(len(acc), dtype=np.int64)
 
     rows = []
-    open_pos: Dict[str, dict] = {}
+    open_pos: Dict[Any, dict] = {}  # leg_id -> leg info
     equity = 1.0
     for dt in calendar:
         cost_today = 0.0
@@ -726,27 +737,30 @@ def run_portfolio_backtest(
         asset_ret = 0.0
         if overnight:
             w = 1.0 / len(overnight)
-            for code in overnight:
+            for lid in overnight:
+                code = str(open_pos[lid]["code"])
                 r = code_ret.get(code)
                 if r is None or dt not in r.index or pd.isna(r.loc[dt]):
                     continue
                 asset_ret += w * float(r.loc[dt])
 
-        # 收盘平仓（持有日含 exit_date 当日收益）
-        to_close = [c for c, info in open_pos.items() if pd.Timestamp(info["exit_date"]) == dt]
-        for code in to_close:
+        # 收盘平仓（持有日含 exit_date 当日收益）；open=行情末日未到期，不强制平
+        to_close = [
+            lid
+            for lid, info in open_pos.items()
+            if pd.Timestamp(info["exit_date"]) == dt and str(info.get("reason") or "") != "open"
+        ]
+        for lid in to_close:
             cost_today += (commission + stamp) * (1.0 / max_pos)
-            open_pos.pop(code, None)
+            open_pos.pop(lid, None)
 
         # 收盘开仓
         to_open = acc[acc["entry_date"] == dt]
         for _, row in to_open.iterrows():
             if len(open_pos) >= max_pos:
                 break
-            code = str(row["code"])
-            if code in open_pos:
-                continue
-            open_pos[code] = row.to_dict()
+            lid = int(row["_leg_id"])
+            open_pos[lid] = row.to_dict()
             cost_today += commission * (1.0 / max_pos)
 
         n_mark = len(overnight)  # 当日暴露按隔夜仓计
@@ -819,7 +833,7 @@ def run_portfolio_backtest(
         "trade_end": end,
         "note": "追高综合：超预期幅度+中长期位置+短期涨幅；否则等回调",
     }
-    return daily, summary, acc
+    return daily, summary, acc.drop(columns=["_leg_id"], errors="ignore")
 
 
 def compute_earnings_forecast_signal(

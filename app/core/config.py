@@ -232,6 +232,12 @@ class Settings(BaseSettings):
     QUOTES_BACKFILL_ON_STARTUP: bool = Field(default=True)
     QUOTES_BACKFILL_ON_OFFHOURS: bool = Field(default=True)
 
+    # 本地 Wind 风格 A 股财务 SQLite（三大表/预告/快报）；空则自动找项目根 1.0_*.db
+    ASHARE_FIN_DB: str = Field(
+        default="",
+        description="本地 A 股财务数据库路径（如 D:/data/1.0_A股财务数据库.db）",
+    )
+
     # 国家队因子：启动刷新 + 定时刷新（点信号写入 Mongo）
     NATIONAL_TEAM_FACTOR_REFRESH_ON_STARTUP: bool = Field(
         default=True,

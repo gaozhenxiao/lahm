@@ -60,10 +60,16 @@ def build_legs_from_entries(
     take_profit: float | None = None,
     trail_stop: float | None = None,
 ) -> List[dict]:
+    """由入场点生成交易腿。
+
+    持有期超出行情末日时不强制平仓（reason=open，exit_date 落在末日之后），
+    回测净值继续盯市，交易史不写清仓。
+    """
     if entries is None or entries.empty:
         return []
     p = price.sort_values("date").reset_index(drop=True)
     by_date = {pd.Timestamp(r["date"]): i for i, r in p.iterrows()}
+    last_i = len(p) - 1
     legs = []
     for _, e in entries.iterrows():
         dt = pd.Timestamp(e["date"])
@@ -71,7 +77,9 @@ def build_legs_from_entries(
             continue
         i = by_date[dt]
         entry_px = float(p.loc[i, "close"])
-        exit_i = min(i + hold_days, len(p) - 1)
+        target_exit_i = i + int(hold_days)
+        truncated = target_exit_i > last_i
+        exit_i = min(target_exit_i, last_i)
         reason = "hold_end"
         exit_px = float(p.loc[exit_i, "close"])
         exit_dt = pd.Timestamp(p.loc[exit_i, "date"])
@@ -88,19 +96,27 @@ def build_legs_from_entries(
                 exit_px = clf
                 exit_dt = pd.Timestamp(p.loc[j, "date"])
                 reason = "stop_loss"
+                truncated = False
                 break
             if take_profit is not None and clf >= entry_px * (1.0 + float(take_profit)):
                 exit_i = j
                 exit_px = clf
                 exit_dt = pd.Timestamp(p.loc[j, "date"])
                 reason = "take_profit"
+                truncated = False
                 break
             if trail_stop is not None and clf <= peak * (1.0 - float(trail_stop)):
                 exit_i = j
                 exit_px = clf
                 exit_dt = pd.Timestamp(p.loc[j, "date"])
                 reason = "trail_stop"
+                truncated = False
                 break
+        if reason == "hold_end" and truncated:
+            # 行情不够持满：保持持仓，不在末日伪造清仓
+            reason = "open"
+            exit_px = float(p.loc[last_i, "close"])
+            exit_dt = pd.Timestamp(p.loc[last_i, "date"]) + pd.Timedelta(days=1)
         legs.append(
             {
                 "code": str(e.get("code") or p.loc[i, "code"]),
@@ -279,9 +295,6 @@ def legs_to_trade_history(legs: pd.DataFrame, *, max_positions: int = 8) -> pd.D
         entry_date = pd.Timestamp(r["entry_date"]).strftime("%Y-%m-%d")
         exit_date = pd.Timestamp(r["exit_date"]).strftime("%Y-%m-%d")
         reason = str(r.get("reason") or "").strip()
-        sell_note = f"买入{entry_date} 成本价{entry:.4f}"
-        if reason:
-            sell_note = f"{reason}；{sell_note}"
         rows.append(
             {
                 "date": entry_date,
@@ -294,6 +307,12 @@ def legs_to_trade_history(legs: pd.DataFrame, *, max_positions: int = 8) -> pd.D
                 "note": r.get("note") or "",
             }
         )
+        # 末日未平仓：只保留开仓，不写伪造清仓
+        if reason == "open":
+            continue
+        sell_note = f"买入{entry_date} 成本价{entry:.4f}"
+        if reason:
+            sell_note = f"{reason}；{sell_note}"
         rows.append(
             {
                 "date": exit_date,
@@ -315,23 +334,58 @@ def enrich_with_balance(
     params: Dict[str, Any],
     cache_dir: Path,
 ) -> Dict[str, pd.DataFrame]:
-    """合并合同负债/预收款。"""
+    """合并合同负债/预收款。本地 A 股财务库优先，缺失再回退东财。"""
+    from app.services.factors import ashare_fin_db as fin_db
+
     limiter = kit.RateLimiter(float(params.get("request_interval_sec") or 0.35))
+    use_local = fin_db.db_available()
+    if use_local:
+        print(f"[balance] prefer local fin db: {fin_db.resolve_db_path()}", flush=True)
     out = {}
     n = len(price_map)
+    bal_cols = ["contract_liab", "advance_recv", "contract_liab_raw", "contract_liab_yoy"]
     for i, (code, px) in enumerate(price_map.items(), 1):
         try:
-            bal = kit.fetch_contract_liab(code, cache_dir, limiter=limiter)
-            out[code] = merge_asof_funda(
-                px,
-                bal,
-                ["contract_liab", "advance_recv", "contract_liab_raw", "contract_liab_yoy"],
-            )
+            bal = pd.DataFrame()
+            if use_local:
+                try:
+                    bal = fin_db.fetch_contract_bundle(code)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("local balance %s: %s", code, exc)
+                    bal = pd.DataFrame()
+            if bal is None or bal.empty or "contract_liab" not in getattr(bal, "columns", []):
+                bal = kit.fetch_contract_liab(code, cache_dir, limiter=limiter)
+            out[code] = merge_asof_funda(px, bal, bal_cols)
         except Exception as exc:  # noqa: BLE001
             logger.warning("balance merge %s: %s", code, exc)
             out[code] = px
         if i % 10 == 0 or i == n:
             print(f"[balance] {i}/{n}", flush=True)
+    return out
+
+
+def enrich_with_ashare_fin(
+    price_map: Dict[str, pd.DataFrame],
+    params: Dict[str, Any],
+    cache_dir: Path,
+) -> Dict[str, pd.DataFrame]:
+    """合并本地 Wind 风格三大表 + 预告/快报宽表。"""
+    from app.services.factors import ashare_fin_db as fin_db
+
+    if not fin_db.db_available():
+        print("[fin_db] unavailable, skip", flush=True)
+        return price_map
+    print(f"[fin_db] enrich from {fin_db.resolve_db_path()}", flush=True)
+    out = {}
+    n = len(price_map)
+    for i, (code, px) in enumerate(price_map.items(), 1):
+        try:
+            out[code] = fin_db.enrich_price_with_fin_db(px, code)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("fin_db merge %s: %s", code, exc)
+            out[code] = px
+        if i % 10 == 0 or i == n:
+            print(f"[fin_db] {i}/{n}", flush=True)
     return out
 
 
@@ -344,6 +398,7 @@ def run_factor_pipeline(
     need_profit: bool = False,
     need_growth: bool = False,
     need_balance: bool = False,
+    need_fin_db: bool = False,
     limit: int = 0,
     start: str = "2018-01-01",
     price_map: Optional[Dict[str, pd.DataFrame]] = None,
@@ -366,15 +421,20 @@ def run_factor_pipeline(
             price_map = enrich_with_profit(price_map, params, cache_dir)
         if need_growth:
             price_map = enrich_with_growth(price_map, params, cache_dir)
-        if need_balance:
-            price_map = enrich_with_balance(price_map, params, cache_dir)
-    else:
-        print(f"[{factor_id}] reuse panel n={len(price_map)}", flush=True)
-        # 共享面板可能尚未含 balance
+        if need_fin_db:
+            price_map = enrich_with_ashare_fin(price_map, params, cache_dir)
         if need_balance:
             sample = next(iter(price_map.values()), pd.DataFrame())
-            if sample is None or "contract_liab" not in sample.columns:
+            if sample is None or "contract_liab" not in getattr(sample, "columns", []):
                 price_map = enrich_with_balance(price_map, params, cache_dir)
+    else:
+        print(f"[{factor_id}] reuse panel n={len(price_map)}", flush=True)
+        sample = next(iter(price_map.values()), pd.DataFrame())
+        if need_fin_db and (sample is None or "fin_oper_rev" not in getattr(sample, "columns", [])):
+            price_map = enrich_with_ashare_fin(price_map, params, cache_dir)
+            sample = next(iter(price_map.values()), pd.DataFrame())
+        if need_balance and (sample is None or "contract_liab" not in getattr(sample, "columns", [])):
+            price_map = enrich_with_balance(price_map, params, cache_dir)
 
     legs = collect_legs(price_map, signal_fn, params)
     print(f"[{factor_id}] legs={len(legs)}", flush=True)
@@ -412,6 +472,7 @@ def prepare_shared_panel(
     need_profit: bool = False,
     need_growth: bool = False,
     need_balance: bool = False,
+    need_fin_db: bool = False,
     limit: int = 0,
 ) -> Dict[str, pd.DataFrame]:
     """批量跑多个因子时先准备一次面板。"""
@@ -422,7 +483,8 @@ def prepare_shared_panel(
     if limit and limit > 0:
         codes = codes[:limit]
     print(
-        f"[panel] codes={len(codes)} profit={need_profit} growth={need_growth} balance={need_balance}",
+        f"[panel] codes={len(codes)} profit={need_profit} growth={need_growth} "
+        f"balance={need_balance} fin_db={need_fin_db}",
         flush=True,
     )
     price_map = load_or_fetch_universe_prices(codes, params, cache_dir)
@@ -430,8 +492,12 @@ def prepare_shared_panel(
         price_map = enrich_with_profit(price_map, params, cache_dir)
     if need_growth:
         price_map = enrich_with_growth(price_map, params, cache_dir)
+    if need_fin_db:
+        price_map = enrich_with_ashare_fin(price_map, params, cache_dir)
     if need_balance:
-        price_map = enrich_with_balance(price_map, params, cache_dir)
+        sample = next(iter(price_map.values()), pd.DataFrame())
+        if sample is None or "contract_liab" not in getattr(sample, "columns", []):
+            price_map = enrich_with_balance(price_map, params, cache_dir)
     return price_map
 
 
@@ -443,10 +509,13 @@ def latest_candidates(
     need_profit: bool = False,
     need_growth: bool = False,
     need_balance: bool = False,
+    need_fin_db: bool = False,
     asof: Optional[str] = None,
     lookback_codes: int = 80,
 ) -> Dict[str, Any]:
     """用缓存粗算今日信号（限速：只扫部分有缓存的股票）。"""
+    from app.services.factors import ashare_fin_db as fin_db
+
     cache_dir = kit.shared_cache_dir()
     asof_dt = pd.Timestamp(asof) if asof else pd.Timestamp(datetime.now().date())
     daily_dir = cache_dir / "daily"
@@ -493,8 +562,17 @@ def latest_candidates(
             )
             cols = [c for c in growth.columns if c not in ("code", "pubDate", "statDate")]
             px = merge_asof_funda(px, growth, cols[:8])
-        if need_balance:
-            bal = kit.fetch_contract_liab(code, cache_dir, limiter=kit.RateLimiter(0.05))
+        if need_fin_db and fin_db.db_available():
+            px = fin_db.enrich_price_with_fin_db(px, code)
+        if need_balance and "contract_liab" not in px.columns:
+            bal = pd.DataFrame()
+            if fin_db.db_available():
+                try:
+                    bal = fin_db.fetch_contract_bundle(code)
+                except Exception:  # noqa: BLE001
+                    bal = pd.DataFrame()
+            if bal is None or bal.empty:
+                bal = kit.fetch_contract_liab(code, cache_dir, limiter=kit.RateLimiter(0.05))
             px = merge_asof_funda(
                 px,
                 bal,

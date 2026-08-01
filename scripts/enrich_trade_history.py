@@ -11,6 +11,24 @@ ROOT = Path(__file__).resolve().parents[1]
 FACTORS = ROOT / "data" / "factors"
 
 _ENTRY_NOTE_RE = re.compile(r"[；;]?\s*买入\d{4}-\d{2}-\d{2}\s*成本价[\d.]+")
+_BUY_DATE_FROM_NOTE_RE = re.compile(r"买入(\d{4}-\d{2}-\d{2})")
+
+
+def _parse_buy_date_from_note(note: str) -> str | None:
+    m = _BUY_DATE_FROM_NOTE_RE.search(str(note or ""))
+    return m.group(1) if m else None
+
+
+def _take_stack_entry(stack: list | None, note: str = "") -> dict | None:
+    """同股重叠腿可能后开先平：优先按清仓备注中的买入日配对，否则 FIFO。"""
+    if not stack:
+        return None
+    buy_date = _parse_buy_date_from_note(note)
+    if buy_date:
+        for i, ent in enumerate(stack):
+            if ent.get("date") == buy_date:
+                return stack.pop(i)
+    return stack.pop(0)
 
 
 def _parse_pct(v) -> float | None:
@@ -144,17 +162,19 @@ def enrich_legs(df: pd.DataFrame, weight: float) -> pd.DataFrame:
             )
         elif action == "清仓":
             out.at[i, "buy_position"] = f"{weight:.4f}"
-            ent = stacks.get(code) or []
-            entry = ent.pop(0) if ent else None
-            ret = _parse_pct(out.at[i, "day_ret"])
-            if ret is None and entry and entry["price"] and pd.notna(price) and entry["price"] > 0:
-                ret = float(price) / entry["price"] - 1.0
+            note = str(out.at[i, "note"] or "")
+            entry = _take_stack_entry(stacks.get(code), note)
+            ret = None
+            if entry and entry.get("price") and pd.notna(price) and entry["price"] > 0:
+                ret = float(price) / float(entry["price"]) - 1.0
+            if ret is None:
+                ret = _parse_pct(out.at[i, "day_ret"])
             w = (entry["w"] if entry else weight) or weight
             if ret is not None:
                 out.at[i, "nav_pnl"] = _fmt_pct(ret * w)
             if entry and entry.get("date") and entry.get("price") is not None:
                 out.at[i, "note"] = _with_entry_note(
-                    str(out.at[i, "note"] or ""),
+                    note,
                     entry["date"],
                     float(entry["price"]),
                 )

@@ -505,36 +505,43 @@ def run_equal_weight_backtest(
         active.append(row.to_dict())
     if not accepted:
         return pd.DataFrame(), {"error": "no_accepted_legs"}, empty_legs
-    acc = pd.DataFrame(accepted)
+    acc = pd.DataFrame(accepted).reset_index(drop=True)
+    # 按腿占名额（同股可多腿重叠）；不可用 code 做持仓键，否则重叠腿被丢弃
+    acc["_leg_id"] = np.arange(len(acc), dtype=np.int64)
 
     rows = []
-    open_pos: Dict[str, dict] = {}
+    open_pos: Dict[Any, dict] = {}  # leg_id -> leg info
     equity = 1.0
     for dt in calendar:
         cost_today = 0.0
         overnight = list(open_pos.keys())
         asset_ret = 0.0
         if overnight:
+            # 持仓等权：隔夜腿数分权（少仓时等价集中暴露，非固定 1/max_pos）
             w = 1.0 / len(overnight)
-            for code in overnight:
+            for lid in overnight:
+                code = str(open_pos[lid]["code"])
                 r = code_ret.get(code)
                 if r is None or dt not in r.index or pd.isna(r.loc[dt]):
                     continue
                 asset_ret += w * float(r.loc[dt])
 
-        to_close = [c for c, info in open_pos.items() if pd.Timestamp(info["exit_date"]) == dt]
-        for code in to_close:
+        # reason=open：行情末日未到期，不强制平仓（继续占用名额、盯市至日历结束）
+        to_close = [
+            lid
+            for lid, info in open_pos.items()
+            if pd.Timestamp(info["exit_date"]) == dt and str(info.get("reason") or "") != "open"
+        ]
+        for lid in to_close:
             cost_today += (commission + stamp) * (1.0 / max_pos)
-            open_pos.pop(code, None)
+            open_pos.pop(lid, None)
 
         to_open = acc[acc["entry_date"] == dt]
         for _, row in to_open.iterrows():
             if len(open_pos) >= max_pos:
                 break
-            code = str(row["code"])
-            if code in open_pos:
-                continue
-            open_pos[code] = row.to_dict()
+            lid = int(row["_leg_id"])
+            open_pos[lid] = row.to_dict()
             cost_today += commission * (1.0 / max_pos)
 
         n_mark = len(overnight)
@@ -583,7 +590,7 @@ def run_equal_weight_backtest(
         "trade_start": start,
         "trade_end": end,
     }
-    return daily, summary, acc
+    return daily, summary, acc.drop(columns=["_leg_id"], errors="ignore")
 
 
 _STOCK_NAME_MAP: Optional[Dict[str, str]] = None

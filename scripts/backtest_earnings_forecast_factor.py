@@ -86,6 +86,9 @@ def _trade_history(legs: pd.DataFrame) -> pd.DataFrame:
                 "note": note_open,
             }
         )
+        # 行情末日未到期：不写伪造清仓
+        if str(r.get("reason") or "") == "open":
+            continue
         rows.append(
             {
                 "date": pd.Timestamp(r["exit_date"]).strftime("%Y-%m-%d"),

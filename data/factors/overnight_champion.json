@@ -1,0 +1,65 @@
+{
+  "asof": "2026-08-02",
+  "source": "nav_bug_followup rebuild 590/590 (eod_rebalance_hold_earns_day)",
+  "metric": "sharpe",
+  "costs": {
+    "commission_rate": 0.0001,
+    "stamp_tax_sell": 0.001,
+    "universe": "hs300",
+    "max_positions": 8,
+    "bench_code": "sh.000300"
+  },
+  "accounting": {
+    "trade_start": "2018-01-01",
+    "first_bar": "2018-01-02",
+    "note": "交易自起点日起才开仓；不结转起点前持仓；交易历史仅写入账腿"
+  },
+  "champion": {
+    "id": "gross_high_np_np10_m18",
+    "name": "毛利率高净利率(np0.10毛利门槛0.18)",
+    "signal": "signal_gross_high_np_break",
+    "sharpe": 1.1873,
+    "total_return": 20.4322,
+    "annual_return": 0.4497,
+    "annual_vol": 0.3787,
+    "max_drawdown": -0.3828,
+    "legs": 225,
+    "backtest_start": "2018-01-02",
+    "backtest_end": "2026-07-30",
+    "params": {
+      "margin_improve": 0.006,
+      "margin_min": 0.18,
+      "np_min": 0.10,
+      "funda_lag": 28,
+      "hold_days": 51,
+      "stop_loss": 0.12
+    },
+    "artifacts": {
+      "backtest_json": "data/factors/gross_high_np_np10_m18_backtest.json",
+      "equity_curve": "data/factors/gross_high_np_np10_m18_equity_curve.png",
+      "trade_history": "data/factors/gross_high_np_np10_m18_trade_history.csv"
+    }
+  },
+  "previous_champion": {
+    "id": "gross_expand_champ_tp35",
+    "name": "毛利率扩张(通宵冠军止盈35%)",
+    "sharpe": 1.4412,
+    "total_return": 25.353,
+    "legs": 257,
+    "rank_under_trade_start": 57,
+    "note": "旧口径结转2016仓时 Sharpe≈1.95；交易起点修正后掉出前列"
+  },
+  "runner_up": [
+    {"id": "gross_expand_m16_tp35", "sharpe": 1.7075},
+    {"id": "gross_expand_lag28_tp35", "sharpe": 1.5238},
+    {"id": "gross_expand_m18_lag29_tp35", "sharpe": 1.4478},
+    {"id": "gross_expand_imp0065_tp35", "sharpe": 1.4411}
+  ],
+  "findings": [
+    "本轮 nav bug 全量重算 590/590 完成；指标已对齐当前 _backtest.json",
+    "无独立「按 Sharpe 重选冠军」脚本；业务仍冻结冠军 id=gross_high_np_np10_m18",
+    "按当前产物纯 Sharpe 排序：冠军 rank≈21；最高为 gross_expand_m16_tp35（sharpe≈1.7075）",
+    "runner_up 已改为本轮产物 Sharpe 前列（供对照，未自动换冠）",
+    "抽样验证 8/8 通过；冻结提醒：高原细调仍有过拟合风险"
+  ]
+}

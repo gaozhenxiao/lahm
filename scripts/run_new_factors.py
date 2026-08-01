@@ -46,6 +46,7 @@ def main() -> None:
     need_profit = any(FACTOR_IMPL[i]["need_profit"] for i in ids)
     need_growth = any(FACTOR_IMPL[i]["need_growth"] for i in ids)
     need_balance = any(bool(FACTOR_IMPL[i].get("need_balance")) for i in ids)
+    need_fin_db = any(bool(FACTOR_IMPL[i].get("need_fin_db")) for i in ids)
     base_params = dict(next(iter(FACTOR_IMPL.values()))["params"])
 
     price_map = None
@@ -55,6 +56,7 @@ def main() -> None:
             need_profit=need_profit,
             need_growth=need_growth,
             need_balance=need_balance,
+            need_fin_db=need_fin_db,
             limit=args.limit,
         )
 
@@ -71,6 +73,7 @@ def main() -> None:
                 need_profit=meta["need_profit"],
                 need_growth=meta["need_growth"],
                 need_balance=bool(meta.get("need_balance")),
+                need_fin_db=bool(meta.get("need_fin_db")),
                 limit=args.limit,
                 start=args.start,
                 price_map=price_map,

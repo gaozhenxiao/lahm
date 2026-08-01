@@ -22,6 +22,7 @@ from app.services.factors.factor_registry import FACTOR_IMPL, compute_factor_sig
 from app.services.factors.guide_builder import (
     pick_trade_example,
     selection_steps,
+    variant_overview,
 )
 
 logger = logging.getLogger("webapi")
@@ -253,11 +254,17 @@ def build_factor_guide_markdown(factor: Dict[str, Any], *, file_guide: Optional[
     params = factor.get("params") or {}
     meta = FACTOR_IMPL.get(factor_id) or {}
 
+    overview = variant_overview(meta) if meta else ""
     lines: List[str] = [f"# {name}", ""]
-    if desc:
-        lines += ["## 思路概览", "", desc, ""]
+    lines += ["## 思路概览", ""]
+    if overview:
+        lines += [overview, ""]
+        if desc and desc.rstrip("。") not in overview:
+            lines += [f"备注（挖掘记录）：{desc}", ""]
+    elif desc:
+        lines += [desc, ""]
     else:
-        lines += ["## 思路概览", "", "暂无文字描述，请结合下方参数与回测理解该因子。", ""]
+        lines += ["暂无文字描述，请结合下方参数与回测理解该因子。", ""]
 
     meta_bits = []
     if category:
@@ -276,7 +283,9 @@ def build_factor_guide_markdown(factor: Dict[str, Any], *, file_guide: Optional[
     if meta.get("need_growth"):
         lines.append("- **成长依赖**：需要成长表字段（如 YOYNI / YOYEPS / YOYPNI）")
     if meta.get("need_balance"):
-        lines.append("- **资产负债表**：需要合同负债 / 预收款（东财合并口径）")
+        lines.append("- **资产负债表**：需要合同负债 / 预收款（本地财务库优先，否则东财合并口径）")
+    if meta.get("need_fin_db"):
+        lines.append("- **本地财务库**：合并利润表/资产负债表/现金流量表及业绩预告、快报字段")
     if not meta.get("need_profit") and not meta.get("need_growth") and factor_id in FACTOR_IMPL:
         lines.append("- **财务依赖**：主要使用价量 / 估值分位，不强制合并利润或成长表")
     lines.append("- **仓位模型**：等权持仓；到期或触发止损/止盈后换仓（详见参数）")
@@ -404,19 +413,28 @@ def build_factor_guide_markdown(factor: Dict[str, Any], *, file_guide: Optional[
                 substantive = substantive.split(marker)[0]
         if len(substantive.strip()) >= 280:
             # 丰富文档：正文 + 自动回测/参数附录（避免重复标题）
-            appendix = "\n".join(
-                [
-                    "",
-                    "---",
-                    "",
-                    "## 参数与回测（系统汇总）",
-                    "",
-                    auto_body.split("## 基本信息", 1)[-1]
-                    if "## 基本信息" in auto_body
-                    else auto_body,
-                ]
-            )
-            # 若原文已有回测章节则只补参数表较啰嗦；简化为附上回测表现段
+            # 参数网格因子的旧 guide 开篇备注常雷同：在标题后注入可区分要点
+            body = raw
+            if overview:
+                raw_lines = raw.splitlines()
+                if raw_lines and raw_lines[0].startswith("# "):
+                    rest = "\n".join(raw_lines[1:]).lstrip("\n")
+                    # 去掉旧开篇短备注（直到空行或「标签」/二级标题），避免与要点重复
+                    rest_lines = rest.splitlines()
+                    i = 0
+                    while i < len(rest_lines) and not rest_lines[i].strip():
+                        i += 1
+                    if i < len(rest_lines) and not rest_lines[i].startswith("#") and not rest_lines[i].startswith("标签"):
+                        # 单段旧 description
+                        j = i + 1
+                        while j < len(rest_lines) and rest_lines[j].strip():
+                            j += 1
+                        old_para = "\n".join(rest_lines[i:j]).strip()
+                        if old_para and (old_para == desc or len(old_para) < 80):
+                            rest = "\n".join(rest_lines[j:]).lstrip("\n")
+                    body = f"{raw_lines[0]}\n\n## 本变体要点\n\n{overview}\n\n{rest}".rstrip() + "\n"
+                else:
+                    body = f"## 本变体要点\n\n{overview}\n\n{raw}".rstrip() + "\n"
             bt_only = []
             capturing = False
             for line in auto_body.splitlines():
@@ -426,7 +444,7 @@ def build_factor_guide_markdown(factor: Dict[str, Any], *, file_guide: Optional[
                     bt_only.append(line)
                 if capturing and line.startswith("## 使用提示"):
                     break
-            content = raw + "\n\n---\n\n" + "\n".join(bt_only).strip() + "\n"
+            content = body + "\n---\n\n" + "\n".join(bt_only).strip() + "\n"
             return {
                 "factor_id": factor_id,
                 "title": file_guide.get("title") or name,

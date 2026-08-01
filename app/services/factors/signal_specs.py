@@ -3178,3 +3178,200 @@ def signal_ni_quality_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.Data
     out = px.loc[m, ["date", "close"]].copy()
     out["note"] = "净利质量高增突破"
     return out
+
+
+# ---------------------------------------------------------------------------
+# 更大结构差异：每股营收 / 流通盘 / 绝对净利 / EPS TTM / 股权利差 / 预收领先 / 量能×基本面
+# （不用 gpMargin，也不做净利率/毛利率扩张细网格）
+# ---------------------------------------------------------------------------
+
+
+def signal_rev_per_share_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """每股营收再加速：MBRevenue/totalShare 连续两期环比上升后入场。"""
+    if "MBRevenue" not in px.columns or "totalShare" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    rev = pd.to_numeric(px["MBRevenue"], errors="coerce")
+    sh = pd.to_numeric(px["totalShare"], errors="coerce").replace(0, pd.NA)
+    rps = rev / sh
+    qoq_min = float(params.get("qoq_min") or 0.06)
+    evt = _funda_event(rev) | _funda_event(sh)
+    up1 = rps.notna() & rps.shift(1).notna() & (rps >= rps.shift(1) * (1.0 + qoq_min))
+    up2 = rps.shift(1).notna() & rps.shift(2).notna() & (
+        rps.shift(1) >= rps.shift(2) * (1.0 + qoq_min)
+    )
+    hot = _funda_hot_window(evt & up1 & up2, int(params.get("funda_lag") or 28))
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0))
+    m = hot & _entry_tech(px, params)
+    out = px.loc[m, ["date", "close"]].copy()
+    out["note"] = "每股营收再加速"
+    return out
+
+
+def signal_float_concentration_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """流通盘收紧：流通股本占比下降（筹码集中）后入场。"""
+    if "totalShare" not in px.columns or "liqaShare" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    tot = pd.to_numeric(px["totalShare"], errors="coerce")
+    liq = pd.to_numeric(px["liqaShare"], errors="coerce")
+    ratio = liq / tot.replace(0, pd.NA)
+    step = float(params.get("float_shrink") or 0.01)
+    evt = _funda_event(liq) | _funda_event(tot)
+    tighten = ratio.notna() & ratio.shift(1).notna() & ((ratio.shift(1) - ratio) >= step)
+    # 可选：流通股本绝对下降
+    if params.get("require_liqa_down"):
+        tighten = tighten & liq.notna() & liq.shift(1).notna() & (liq < liq.shift(1))
+    hot = _funda_hot_window(evt & tighten, int(params.get("funda_lag") or 40))
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0))
+    if params.get("growth_min") is not None and "YOYNI" in px.columns:
+        hot = hot & _g_ok(px["YOYNI"], float(params.get("growth_min") or 0.0))
+    m = hot & _entry_tech(px, params)
+    out = px.loc[m, ["date", "close"]].copy()
+    out["note"] = "流通盘收紧突破"
+    return out
+
+
+def signal_netprofit_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """绝对净利二阶加速：netProfit 环比连续两期改善（非利润率、非同比）。"""
+    if "netProfit" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    npv = pd.to_numeric(px["netProfit"], errors="coerce")
+    qoq_min = float(params.get("qoq_min") or 0.08)
+    evt = _funda_event(npv)
+    pos = npv > 0
+    up1 = npv.notna() & npv.shift(1).notna() & (npv >= npv.shift(1) * (1.0 + qoq_min))
+    up2 = npv.shift(1).notna() & npv.shift(2).notna() & (
+        npv.shift(1) >= npv.shift(2) * (1.0 + qoq_min)
+    )
+    hot = _funda_hot_window(evt & pos & up1 & up2, int(params.get("funda_lag") or 28))
+    if params.get("pe_pct_max") is not None and "pe_pct" in px.columns:
+        hot = hot & px["pe_pct"].notna() & (px["pe_pct"] <= float(params.get("pe_pct_max") or 0.50))
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0))
+    m = hot & _entry_tech(px, params)
+    out = px.loc[m, ["date", "close"]].copy()
+    out["note"] = "绝对净利二阶加速"
+    return out
+
+
+def signal_eps_ttm_mom_cheap_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """EPS TTM 动量×低估：epsTTM 连续两期上升且 PE 分位偏低后入场。"""
+    if "epsTTM" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    eps = pd.to_numeric(px["epsTTM"], errors="coerce")
+    step = float(params.get("eps_improve") or 0.0)
+    # 相对改善：至少非降，或绝对改善幅度
+    rel = float(params.get("eps_qoq_min") or 0.03)
+    evt = _funda_event(eps)
+    up1 = eps.notna() & eps.shift(1).notna() & (eps > 0) & (
+        (eps - eps.shift(1) >= step) & (eps >= eps.shift(1) * (1.0 + rel))
+    )
+    up2 = eps.shift(1).notna() & eps.shift(2).notna() & (
+        eps.shift(1) >= eps.shift(2) * (1.0 + rel)
+    )
+    hot = _funda_hot_window(evt & up1 & up2, int(params.get("funda_lag") or 28))
+    if "pe_pct" in px.columns:
+        hot = hot & px["pe_pct"].notna() & (px["pe_pct"] <= float(params.get("pe_pct_max") or 0.45))
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0))
+    m = hot & _entry_tech(px, params)
+    out = px.loc[m, ["date", "close"]].copy()
+    out["note"] = "EPSTTM动量低估"
+    return out
+
+
+def signal_equity_outrun_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """股权利差：归属净利增速显著跑赢净资产增速（稀释克制下的利润扩张）。"""
+    if "YOYPNI" not in px.columns or "YOYEquity" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    pni = _to_dec(px["YOYPNI"])
+    eq = _to_dec(px["YOYEquity"])
+    gap = float(params.get("equity_gap") or 0.10)
+    gmin = float(params.get("growth_min") or 0.12)
+    evt = _funda_event(px["YOYPNI"]) | _funda_event(px["YOYEquity"])
+    outrun = pni.notna() & eq.notna() & ((pni - eq) >= gap) & (pni >= gmin)
+    hot = _funda_hot_window(evt & outrun, int(params.get("funda_lag") or 28))
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0))
+    if params.get("pe_pct_max") is not None and "pe_pct" in px.columns:
+        hot = hot & (px["pe_pct"].isna() | (px["pe_pct"] <= float(params.get("pe_pct_max") or 0.60)))
+    m = hot & _entry_tech(px, params)
+    out = px.loc[m, ["date", "close"]].copy()
+    out["note"] = "归属增速跑赢净资产"
+    return out
+
+
+def signal_advance_recv_lead_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """预收领先需求：advance_recv 环比扩张，而营收尚未同幅跟上（需求领先指标）。"""
+    ar_col = "advance_recv" if "advance_recv" in px.columns else None
+    if ar_col is None and "contract_liab_raw" in px.columns:
+        ar_col = "contract_liab_raw"
+    if ar_col is None or "MBRevenue" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    ar = pd.to_numeric(px[ar_col], errors="coerce")
+    rev = pd.to_numeric(px["MBRevenue"], errors="coerce")
+    ar_qoq = float(params.get("ar_qoq_min") or 0.10)
+    rev_cap = float(params.get("rev_qoq_max") or 0.08)
+    evt = _funda_event(ar)
+    ar_up = ar.notna() & ar.shift(1).notna() & (ar > 0) & (ar >= ar.shift(1) * (1.0 + ar_qoq))
+    # 营收未同步爆发：环比低于阈值或缺失
+    rev_lag = rev.isna() | rev.shift(1).isna() | (rev < rev.shift(1) * (1.0 + rev_cap))
+    hot = _funda_hot_window(evt & ar_up & rev_lag, int(params.get("funda_lag") or 28))
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0))
+    m = hot & _entry_tech(px, params)
+    out = px.loc[m, ["date", "close"]].copy()
+    out["note"] = "预收领先营收突破"
+    return out
+
+
+def signal_turn_dry_growth_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """缩量蓄势×成长：换手低于均线后放量，且同比成长达标。"""
+    if "turn" not in px.columns or "YOYNI" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    turn = pd.to_numeric(px["turn"], errors="coerce")
+    tma = turn.rolling(int(params.get("turn_ma") or 20), min_periods=10).mean()
+    dry = turn.shift(1).notna() & tma.shift(1).notna() & (
+        turn.shift(1) <= tma.shift(1) * float(params.get("dry_ratio") or 0.60)
+    )
+    surge = turn.notna() & tma.notna() & (turn >= tma * float(params.get("surge_ratio") or 1.15))
+    g_ok = _g_ok(px["YOYNI"], float(params.get("growth_min") or 0.15))
+    # 成长热窗：披露后若干日仍有效
+    g_hot = _funda_hot_window(_funda_event(px["YOYNI"]) & g_ok, int(params.get("funda_lag") or 40))
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        g_hot = g_hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0))
+    tech = _entry_tech(px, params)
+    m = dry.fillna(False) & surge.fillna(False) & g_hot & tech
+    out = px.loc[m, ["date", "close"]].copy()
+    out["note"] = "缩量蓄势成长突破"
+    return out
+
+
+def signal_amount_coil_outrun_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """成交额收缩×股权利差：近窗成交额萎缩后放量，叠加归属跑赢净资产。"""
+    if "amount" not in px.columns or "YOYPNI" not in px.columns or "YOYEquity" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    amt = pd.to_numeric(px["amount"], errors="coerce")
+    win = int(params.get("amt_window") or 20)
+    ama = amt.rolling(win, min_periods=max(8, win // 2)).mean()
+    coil = ama.shift(1).notna() & amt.shift(1).notna() & (
+        amt.shift(1) <= ama.shift(1) * float(params.get("coil_ratio") or 0.70)
+    )
+    wake = amt.notna() & ama.notna() & (amt >= ama * float(params.get("wake_ratio") or 1.20))
+    pni = _to_dec(px["YOYPNI"])
+    eq = _to_dec(px["YOYEquity"])
+    gap = float(params.get("equity_gap") or 0.08)
+    gmin = float(params.get("growth_min") or 0.10)
+    funda = _funda_hot_window(
+        (_funda_event(px["YOYPNI"]) | _funda_event(px["YOYEquity"]))
+        & pni.notna()
+        & eq.notna()
+        & ((pni - eq) >= gap)
+        & (pni >= gmin),
+        int(params.get("funda_lag") or 35),
+    )
+    m = coil.fillna(False) & wake.fillna(False) & funda & _entry_tech(px, params)
+    out = px.loc[m, ["date", "close"]].copy()
+    out["note"] = "成交收缩股权利差突破"
+    return out

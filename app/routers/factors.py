@@ -28,6 +28,14 @@ async def list_factors(current_user: dict = Depends(get_current_user)):
     return ok({"total": len(items), "items": items})
 
 
+@router.get("/meta/ashare-fin")
+async def ashare_fin_status(current_user: dict = Depends(get_current_user)):
+    """本地 A 股财务库是否可用及表行数摘要。"""
+    from app.services.factors import ashare_fin_db as fin_db
+
+    return ok(fin_db.summary())
+
+
 @router.get("/{factor_id}")
 async def get_factor(factor_id: str, current_user: dict = Depends(get_current_user)):
     item = await factors_service.get_factor(factor_id)

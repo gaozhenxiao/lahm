@@ -1091,6 +1091,51 @@ WAVES: list[dict] = [
         ],
         "need_balance": False,
     },
+    # ----- 更大结构差异：股本/绝对利润/TTM/股权利差/预收/量能×基本面 -----
+    {
+        "name": "wave95_struct_scale_float",
+        "ids": [
+            "rev_per_share_accel",
+            "rev_per_share_accel_base",
+            "float_concentration_break",
+            "float_concentration_growth",
+            "float_concentration_reclaim",
+            "netprofit_accel_break",
+            "netprofit_accel_roe",
+        ],
+        "need_balance": False,
+    },
+    {
+        "name": "wave96_struct_ttm_equity",
+        "ids": [
+            "eps_ttm_mom_cheap",
+            "eps_ttm_mom_base",
+            "equity_outrun_break",
+            "equity_outrun_quality",
+            "equity_outrun_pullback",
+        ],
+        "need_balance": False,
+    },
+    {
+        "name": "wave97_struct_advance_recv",
+        "ids": [
+            "advance_recv_lead_break",
+            "advance_recv_lead_roe",
+            "advance_recv_lead_base",
+        ],
+        "need_balance": True,
+    },
+    {
+        "name": "wave98_struct_micro_funda",
+        "ids": [
+            "turn_dry_growth_break",
+            "turn_dry_growth_roe",
+            "turn_dry_growth_reclaim",
+            "amount_coil_outrun",
+            "amount_coil_outrun_base",
+        ],
+        "need_balance": False,
+    },
 ]
 
 
