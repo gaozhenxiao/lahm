@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict
 
 from app.services.strategies import (
     bond_etf_arb,
+    cm_big4_grid,
     covered_call,
     dual_low,
     etf_grid,
@@ -21,6 +22,7 @@ from app.services.strategies import registry as reg
 _SCANNERS: Dict[str, Callable[..., Dict[str, Any]]] = {
     "dual_low": dual_low.get_scan,
     "etf_grid": etf_grid.get_scan,
+    "cm_big4_grid": cm_big4_grid.get_scan,
     "lof_arb": lof_arb.get_scan,
     "futures_basis": futures_basis.get_scan,
     "bond_etf_arb": bond_etf_arb.get_scan,
@@ -39,7 +41,7 @@ class StrategiesService:
         return {
             "module": "strategies",
             "name": "策略中心",
-            "description": "多资产扫描：双低 / 红利倾斜网格 / LOF / 股指基差 / 债券ETF / 国债基差 / 备兑 / 配对；期现不做。",
+            "description": "多资产扫描：双低 / 红利倾斜网格 / 移动四大行网格 / LOF / 股指基差 / 债券ETF / 国债基差 / 备兑 / 配对；期现不做。",
             "strategies": reg.list_strategies(),
             "excluded": ["cash_futures_arb"],
         }

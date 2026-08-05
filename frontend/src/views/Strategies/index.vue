@@ -78,14 +78,14 @@
           <el-table-column prop="rating" label="评级" width="72" />
         </el-table>
 
-        <!-- etf_grid: 红利向上倾斜网格 -->
-        <template v-else-if="activeId === 'etf_grid'">
+        <!-- 倾斜网格：红利ETF / 移动+四大行 -->
+        <template v-else-if="activeId === 'etf_grid' || activeId === 'cm_big4_grid'">
           <el-alert
             type="success"
             :closable="false"
             show-icon
             class="mb-12"
-            :title="etfGridTitle"
+            :title="slopeGridTitle"
           />
           <el-table :data="scan.items || []" stripe size="small">
             <el-table-column prop="code" label="代码" width="84" />
@@ -108,6 +108,9 @@
             </el-table-column>
             <el-table-column label="Sharpe" width="72" align="right">
               <template #default="{ row }">{{ row.bt_sharpe != null ? Number(row.bt_sharpe).toFixed(2) : '—' }}</template>
+            </el-table-column>
+            <el-table-column label="回撤" width="80" align="right">
+              <template #default="{ row }">{{ fmtPct(row.bt_max_dd) }}</template>
             </el-table-column>
             <el-table-column prop="hint" label="提示" min-width="180" show-overflow-tooltip />
           </el-table>
@@ -135,6 +138,9 @@
             </el-table-column>
             <el-table-column label="最大回撤" width="88" align="right">
               <template #default="{ row }">{{ fmtPct(row.grid_max_dd) }}</template>
+            </el-table-column>
+            <el-table-column label="持有回撤" width="88" align="right">
+              <template #default="{ row }">{{ fmtPct(row.bh_max_dd) }}</template>
             </el-table-column>
           </el-table>
         </template>
@@ -292,10 +298,11 @@ const qmtTitle = computed(() => {
   return 'QMT 未就绪（今天开好后填写 userdata 即可）'
 })
 
-const etfGridTitle = computed(() => {
+const slopeGridTitle = computed(() => {
   const p = scan.value?.params
-  if (!p) return '向上倾斜网格 · 红利 ETF'
-  return `向上倾斜网格 · 步长 ${(Number(p.step_pct) * 100).toFixed(1)}% · ${p.n_grids}档 · 底仓≥${p.min_layers} · MA${p.ma_center}`
+  const label = activeId.value === 'cm_big4_grid' ? '移动+工农中建 等权' : '红利 ETF'
+  if (!p) return `向上倾斜网格 · ${label}`
+  return `向上倾斜网格 · ${label} · 步长 ${(Number(p.step_pct) * 100).toFixed(1)}% · ${p.n_grids}档 · 底仓≥${p.min_layers} · MA${p.ma_center}`
 })
 
 function fmtAmount(v: number | null | undefined) {

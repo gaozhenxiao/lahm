@@ -22,6 +22,10 @@ from app.services.factors.dividend_etf_slope_grid import (
     DEFAULT_PARAMS as DIVIDEND_SLOPE_GRID_DEFAULT_PARAMS,
     compute_dividend_etf_slope_grid_signal,
 )
+from app.services.factors.cm_big4_slope_grid import (
+    FACTOR_DEFAULTS as CM_BIG4_SLOPE_DEFAULT_PARAMS,
+    compute_cm_big4_slope_grid_signal,
+)
 from app.services.factors.factor_registry import FACTOR_IMPL, compute_factor_signal
 from app.services.factors.guide_builder import (
     pick_trade_example,
@@ -68,6 +72,7 @@ FACTOR_ARTIFACTS: Dict[str, Dict[str, Dict[str, Any]]] = {
             "kind": "image",
         },
     },
+    "cm_big4_slope_grid": _standard_artifacts("cm_big4_slope_grid", "移动四大行网格"),
     "national_team": {
         "equity_curve": {
             "label": "净值图 · long_hold",
@@ -762,6 +767,23 @@ BUILTIN_FACTORS: List[Dict[str, Any]] = [
         "builtin": True,
         "params": {
             k: v for k, v in DIVIDEND_SLOPE_GRID_DEFAULT_PARAMS.items() if k != "fallback_etfs"
+        },
+    },
+    {
+        "factor_id": "cm_big4_slope_grid",
+        "name": "移动四大行网格",
+        "category": "alternative",
+        "description": (
+            "中国移动+工农中建等权五袖口倾斜网格（与策略同源）："
+            "分红再投入、空闲现金约1.4%计息、个股印花税千一；"
+            "步长0.8%/10档/底仓≥2/MA90。"
+        ),
+        "tags": ["另类", "银行", "中国移动", "网格", "倾斜", "高股息"],
+        "builtin": True,
+        "params": {
+            k: v
+            for k, v in CM_BIG4_SLOPE_DEFAULT_PARAMS.items()
+            if k not in ("fallback_etfs",)
         },
     },
 ]
@@ -1492,6 +1514,12 @@ class FactorsService:
         elif factor_id == "dividend_etf_slope_grid":
             result = await asyncio.to_thread(
                 compute_dividend_etf_slope_grid_signal,
+                factor.get("params") or {},
+                asof,
+            )
+        elif factor_id == "cm_big4_slope_grid":
+            result = await asyncio.to_thread(
+                compute_cm_big4_slope_grid_signal,
                 factor.get("params") or {},
                 asof,
             )

@@ -114,6 +114,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '红利倾斜网格', requiresAuth: true, parent: '多资产', strategyId: 'etf_grid' }
       },
       {
+        path: 'cm_big4_grid',
+        name: 'MultiAssetCmBig4Grid',
+        component: () => import('@/views/Strategies/index.vue'),
+        meta: { title: '移动四大行网格', requiresAuth: true, parent: '多资产', strategyId: 'cm_big4_grid' }
+      },
+      {
         path: 'lof_arb',
         name: 'MultiAssetLofArb',
         component: () => import('@/views/Strategies/index.vue'),

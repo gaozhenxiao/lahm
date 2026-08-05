@@ -42,6 +42,7 @@ SPECIAL_COMPUTE = {
     "earnings_forecast": "app.services.factors.earnings_forecast:compute_earnings_forecast_signal",
     "dividend_etf_swing": "app.services.factors.dividend_etf_swing:compute_dividend_etf_swing_signal",
     "dividend_etf_slope_grid": "app.services.factors.dividend_etf_slope_grid:compute_dividend_etf_slope_grid_signal",
+    "cm_big4_slope_grid": "app.services.factors.cm_big4_slope_grid:compute_cm_big4_slope_grid_signal",
 }
 
 

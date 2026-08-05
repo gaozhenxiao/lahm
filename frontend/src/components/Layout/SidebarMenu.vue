@@ -30,6 +30,7 @@
       <el-menu-item index="/multi-asset/cb">可转债</el-menu-item>
       <el-menu-item index="/multi-asset/dual_low">转债双低</el-menu-item>
       <el-menu-item index="/multi-asset/etf_grid">红利倾斜网格</el-menu-item>
+      <el-menu-item index="/multi-asset/cm_big4_grid">移动四大行网格</el-menu-item>
       <el-menu-item index="/multi-asset/lof_arb">LOF套利</el-menu-item>
       <el-menu-item index="/multi-asset/bond_etf_arb">债券ETF折溢价</el-menu-item>
       <el-menu-item index="/multi-asset/futures_basis">股指基差</el-menu-item>
