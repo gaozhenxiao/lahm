@@ -15,7 +15,7 @@
 
 信号实现：`signal_high_margin_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/high_margin_break_hold50_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600436** |
 | 开仓 | 2020-06-23，约 159.9 元 |
 | 清仓 | 2020-09-03，约 255.2 元 |
-| 单腿涨跌 | **59.59%** |
+| 单笔涨跌 | **59.59%** |
 | 当日组合贡献 | NAV 7.45% |
 | 出场备注 | hold_end；买入2020-06-23 成本价159.9350 |
 

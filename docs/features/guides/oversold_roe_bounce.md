@@ -15,7 +15,7 @@ ROE质量闸门下，短期急跌后收盘站上MA20。
 
 信号实现：`signal_oversold_roe_bounce`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/oversold_roe_bounce_trade_history.csv`
 
@@ -24,7 +24,7 @@ ROE质量闸门下，短期急跌后收盘站上MA20。
 | 标的 | **sz.001280** |
 | 开仓 | 2026-01-07，约 64.58 元 |
 | 清仓 | 2026-01-28，约 97.62 元 |
-| 单腿涨跌 | **51.16%** |
+| 单笔涨跌 | **51.16%** |
 | 当日组合贡献 | NAV 6.39% |
 | 出场备注 | hold_end；买入2026-01-07 成本价64.5758 |
 

@@ -14,7 +14,7 @@
 
 信号实现：`signal_quality_coil_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/quality_coil_hold50_trade_history.csv`
 
@@ -23,7 +23,7 @@
 | 标的 | **sz.000338 潍柴动力** |
 | 开仓 | 2019-01-23，约 6.661 元 |
 | 清仓 | 2019-04-11，约 10.56 元 |
-| 单腿涨跌 | **58.46%** |
+| 单笔涨跌 | **58.46%** |
 | 当日组合贡献 | NAV 7.31% |
 | 出场备注 | hold_end；买入2019-01-23 成本价6.6613 |
 

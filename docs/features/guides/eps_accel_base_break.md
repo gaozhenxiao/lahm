@@ -16,7 +16,7 @@ EPS同比加速后横盘突破。
 
 信号实现：`signal_eps_accel_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/eps_accel_base_break_trade_history.csv`
 
@@ -25,7 +25,7 @@ EPS同比加速后横盘突破。
 | 标的 | **sz.000725** |
 | 开仓 | 2026-05-22，约 5.114 元 |
 | 清仓 | 2026-06-29，约 7.95 元 |
-| 单腿涨跌 | **55.46%** |
+| 单笔涨跌 | **55.46%** |
 | 当日组合贡献 | NAV 6.93% |
 | 出场备注 | hold_end；买入2026-05-22 成本价5.1139 |
 

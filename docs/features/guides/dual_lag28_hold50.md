@@ -16,7 +16,7 @@ dual_lag28 邻域：持有50。
 
 信号实现：`signal_dual_improve_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_lag28_hold50_trade_history.csv`
 
@@ -25,7 +25,7 @@ dual_lag28 邻域：持有50。
 | 标的 | **sz.002493** |
 | 开仓 | 2020-11-23，约 15.89 元 |
 | 清仓 | 2021-02-02，约 25.33 元 |
-| 单腿涨跌 | **59.46%** |
+| 单笔涨跌 | **59.46%** |
 | 当日组合贡献 | NAV 7.43% |
 | 出场备注 | hold_end；买入2020-11-23 成本价15.8866 |
 

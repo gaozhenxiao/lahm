@@ -15,7 +15,7 @@
 
 信号实现：`signal_dual_growth_value`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_growth_value_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600893** |
 | 开仓 | 2020-06-23，约 23.12 元 |
 | 清仓 | 2020-07-30，约 36.65 元 |
-| 单腿涨跌 | **58.48%** |
+| 单笔涨跌 | **58.48%** |
 | 当日组合贡献 | NAV 7.31% |
 | 出场备注 | hold_end；买入2020-06-23 成本价23.1250 |
 

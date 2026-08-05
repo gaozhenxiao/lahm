@@ -17,7 +17,7 @@
 
 信号实现：`signal_gross_high_np_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_high_np_reclaim_hold52_trade_history.csv`
 
@@ -26,7 +26,7 @@
 | 标的 | **sz.300033** |
 | 开仓 | 2023-03-01，约 84.34 元 |
 | 清仓 | 2023-05-18，约 128.5 元 |
-| 单腿涨跌 | **52.38%** |
+| 单笔涨跌 | **52.38%** |
 | 当日组合贡献 | NAV 6.55% |
 | 出场备注 | hold_end；买入2023-03-01 成本价84.3394 |
 

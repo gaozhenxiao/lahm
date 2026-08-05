@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_break_tight_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.300308** |
 | 开仓 | 2023-05-18，约 67.4 元 |
 | 清仓 | 2023-06-26，约 105.4 元 |
-| 单腿涨跌 | **56.38%** |
+| 单笔涨跌 | **56.38%** |
 | 当日组合贡献 | NAV 7.05% |
 | 出场备注 | hold_end；买入2023-05-18 成本价67.3964 |
 

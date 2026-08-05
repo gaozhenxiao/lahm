@@ -18,7 +18,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_champ_ret20_15_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sz.300433** |
 | 开仓 | 2020-06-05，约 18.2 元 |
 | 清仓 | 2020-08-19，约 28.11 元 |
-| 单腿涨跌 | **54.47%** |
+| 单笔涨跌 | **54.47%** |
 | 当日组合贡献 | NAV 6.81% |
 | 出场备注 | hold_end；买入2020-06-05 成本价18.1978 |
 

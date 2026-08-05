@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_brk80_m17_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.300014** |
 | 开仓 | 2019-11-26，约 22.87 元 |
 | 清仓 | 2020-02-14，约 35.47 元 |
-| 单腿涨跌 | **55.14%** |
+| 单笔涨跌 | **55.14%** |
 | 当日组合贡献 | NAV 6.89% |
 | 出场备注 | hold_end；买入2019-11-26 成本价22.8653 |
 

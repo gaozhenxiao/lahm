@@ -14,7 +14,7 @@
 
 信号实现：`signal_quality_coil_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/quality_coil_break_trade_history.csv`
 
@@ -23,7 +23,7 @@
 | 标的 | **sh.603369** |
 | 开仓 | 2019-02-11，约 15.69 元 |
 | 清仓 | 2019-03-18，约 24.51 元 |
-| 单腿涨跌 | **56.19%** |
+| 单笔涨跌 | **56.19%** |
 | 当日组合贡献 | NAV 7.02% |
 | 出场备注 | hold_end；买入2019-02-11 成本价15.6922 |
 

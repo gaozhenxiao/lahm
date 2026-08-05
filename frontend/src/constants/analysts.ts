@@ -40,8 +40,8 @@ export const ANALYSTS: Analyst[] = [
 // 分析师名称列表（用于表单选项）
 export const ANALYST_NAMES = ANALYSTS.map(analyst => analyst.name)
 
-// 默认选中的分析师
-export const DEFAULT_ANALYSTS = ['市场分析师', '基本面分析师']
+// 默认选中的分析师（无技术面/情绪面）
+export const DEFAULT_ANALYSTS = ['基本面分析师', '新闻分析师']
 
 // 根据名称获取分析师信息
 export const getAnalystByName = (name: string): Analyst | undefined => {

@@ -18,7 +18,7 @@
 
 信号实现：`signal_base_funda_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/base_funda_breakout_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sz.300014** |
 | 开仓 | 2025-08-27，约 52.9 元 |
 | 清仓 | 2025-10-16，约 83.47 元 |
-| 单腿涨跌 | **57.79%** |
+| 单笔涨跌 | **57.79%** |
 | 当日组合贡献 | NAV 7.22% |
 | 出场备注 | hold_end；买入2025-08-27 成本价52.8986 |
 

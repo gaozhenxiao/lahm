@@ -901,6 +901,69 @@
                 </el-col>
               </el-row>
             </div>
+
+            <el-divider />
+
+            <div class="llm-call-logs">
+              <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <h4 style="margin:0;">🧾 DeepSeek / 大模型 API 调用记录</h4>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <el-switch v-model="llmCallLogsOnlyErrors" active-text="仅失败" @change="loadLLMCallLogs" />
+                  <el-button size="small" :loading="llmCallLogsLoading" @click="loadLLMCallLogs">
+                    <el-icon><Refresh /></el-icon>
+                    刷新
+                  </el-button>
+                </div>
+              </div>
+              <el-alert
+                type="info"
+                :closable="false"
+                show-icon
+                title="余额监控：若出现 402/insufficient/余额不足/认证失败，请立刻去 DeepSeek 控制台充值。"
+                style="margin-bottom: 12px;"
+              />
+              <el-table
+                v-loading="llmCallLogsLoading"
+                :data="llmCallLogs"
+                size="small"
+                stripe
+                max-height="420"
+                empty-text="暂无调用记录（跑一次分析后会出现）"
+              >
+                <el-table-column prop="timestamp" label="时间" width="170" />
+                <el-table-column prop="provider" label="厂家" width="100" />
+                <el-table-column prop="model" label="模型" width="140" />
+                <el-table-column label="状态" width="80">
+                  <template #default="{ row }">
+                    <el-tag :type="row.ok ? 'success' : 'danger'" size="small">
+                      {{ row.ok ? 'OK' : '失败' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="Tokens" width="120">
+                  <template #default="{ row }">
+                    {{ row.input_tokens ?? '-' }} / {{ row.output_tokens ?? '-' }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="latency_ms" label="耗时ms" width="90" />
+                <el-table-column label="输入" min-width="180">
+                  <template #default="{ row }">
+                    <el-tooltip :content="row.input || ''" placement="top" :show-after="400">
+                      <span class="log-clip">{{ (row.input || '').slice(0, 80) }}</span>
+                    </el-tooltip>
+                  </template>
+                </el-table-column>
+                <el-table-column label="输出/错误" min-width="200">
+                  <template #default="{ row }">
+                    <el-tooltip :content="row.error || row.output || ''" placement="top" :show-after="400">
+                      <span class="log-clip" :class="{ 'log-error': !!row.error }">
+                        {{ (row.error || row.output || '').slice(0, 100) }}
+                      </span>
+                    </el-tooltip>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
           </div>
         </el-card>
 
@@ -1162,6 +1225,9 @@ const ungroupedDataSources = ref<DataSourceConfig[]>([])
 
 // 加载状态
 const providersLoading = ref(false)
+const llmCallLogsLoading = ref(false)
+const llmCallLogsOnlyErrors = ref(false)
+const llmCallLogs = ref<Array<Record<string, any>>>([])
 const llmLoading = ref(false)
 const dataSourceLoading = ref(false)
 const databaseLoading = ref(false)
@@ -1233,6 +1299,7 @@ const loadTabData = async (tab: string) => {
     case 'api-keys':
       await loadProviders()
       await loadLLMConfigs()
+      await loadLLMCallLogs()
       break
   }
 }
@@ -1798,6 +1865,21 @@ const migrateFromEnv = async () => {
     }
   } finally {
     migrateLoading.value = false
+  }
+}
+
+const loadLLMCallLogs = async () => {
+  try {
+    llmCallLogsLoading.value = true
+    const data = await configApi.getLLMCallLogs({
+      limit: 80,
+      only_errors: llmCallLogsOnlyErrors.value || undefined
+    })
+    llmCallLogs.value = data?.records || []
+  } catch (error) {
+    console.error('加载 LLM 调用记录失败:', error)
+  } finally {
+    llmCallLogsLoading.value = false
   }
 }
 
@@ -2378,6 +2460,20 @@ onMounted(async () => {
       h4 {
         margin: 0 0 16px 0;
         color: var(--el-text-color-primary);
+      }
+
+      .log-clip {
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+        color: var(--el-text-color-regular);
+      }
+
+      .log-error {
+        color: var(--el-color-danger);
       }
 
       .api-key-item {

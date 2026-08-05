@@ -13,7 +13,7 @@
           <div class="title-section">
             <h1 class="report-title">
               <el-icon><Document /></el-icon>
-              {{ report.stock_name || report.stock_symbol }} 分析报告
+              {{ reportTitle }}
             </h1>
             <div class="report-meta">
               <el-tag type="primary">{{ report.stock_symbol }}</el-tag>
@@ -219,11 +219,21 @@
         <template #header>
           <div class="card-header">
             <el-icon><Files /></el-icon>
-            <span>分析报告</span>
+            <span>经营要点</span>
           </div>
         </template>
         
-        <el-tabs v-model="activeModule" type="border-card">
+        <div v-if="reportModuleKeys.length === 1" class="module-content">
+          <div
+            v-if="typeof report.reports[reportModuleKeys[0]] === 'string'"
+            class="markdown-content"
+            v-html="renderMarkdown(report.reports[reportModuleKeys[0]] as string)"
+          />
+          <div v-else class="json-content">
+            <pre>{{ JSON.stringify(report.reports[reportModuleKeys[0]], null, 2) }}</pre>
+          </div>
+        </div>
+        <el-tabs v-else-if="reportModuleKeys.length > 1" v-model="activeModule" type="border-card">
           <el-tab-pane
             v-for="moduleName in reportModuleKeys"
             :key="moduleName"
@@ -240,6 +250,7 @@
             </div>
           </el-tab-pane>
         </el-tabs>
+        <el-empty v-else description="暂无经营要点正文" :image-size="72" />
       </el-card>
     </div>
 
@@ -295,6 +306,7 @@ type ReportModuleContent = string | Record<string, unknown>
 type ReportDetailData = {
   id: string
   analysis_id?: string
+  title?: string
   stock_symbol: string
   stock_name?: string
   status: string
@@ -323,7 +335,30 @@ const loading = ref(true)
 const report = ref<ReportDetailData | null>(null)
 const activeModule = ref('')
 const llmConfigs = ref<LLMConfig[]>([]) // 存储所有模型配置
-const reportModuleKeys = computed<string[]>(() => report.value ? Object.keys(report.value.reports || {}) : [])
+
+/** 只展示一份经营要点正文（研究经理优先，否则基本面） */
+const PRIMARY_REPORT_MODULES = ['research_team_decision', 'fundamentals_report'] as const
+
+const reportModuleKeys = computed<string[]>(() => {
+  if (!report.value?.reports) return []
+  const reports = report.value.reports
+  for (const key of PRIMARY_REPORT_MODULES) {
+    const content = reports[key]
+    if (typeof content === 'string' && content.trim().length > 20) return [key]
+  }
+  return []
+})
+
+const reportTitle = computed(() => {
+  const r = report.value
+  if (!r) return '分析报告'
+  if (r.title && !/none/i.test(r.title)) return r.title
+  const code = String(r.stock_symbol || '').trim()
+  const name = String(r.stock_name || '').trim()
+  if (name && code && name !== code && !/^none$/i.test(name)) return `${name}（${code}）`
+  if (code && !/^none$/i.test(code)) return `${code} 分析报告`
+  return '分析报告'
+})
 
 // 获取模型配置列表
 const fetchLLMConfigs = async () => {
@@ -357,9 +392,8 @@ const fetchReportDetail = async () => {
     if (result.success) {
       report.value = result.data
 
-      // 设置默认激活的模块
-      const reports = result.data.reports || {}
-      const moduleNames = Object.keys(reports)
+      // 默认打开精简主报告（研究经理 / 基本面），不展示技术/情绪
+      const moduleNames = reportModuleKeys.value
       if (moduleNames.length > 0) {
         activeModule.value = moduleNames[0]
       }
@@ -829,39 +863,11 @@ const getModelDescription = (modelInfo: string) => {
 }
 
 const getModuleDisplayName = (moduleName: string) => {
-  // 统一与单股分析的中文标签映射（完整的13个报告）
   const nameMap: Record<string, string> = {
-    // 分析师团队 (4个)
-    market_report: '📈 市场技术分析',
-    sentiment_report: '💭 市场情绪分析',
-    news_report: '📰 新闻事件分析',
-    fundamentals_report: '💰 基本面分析',
-
-    // 研究团队 (3个)
-    bull_researcher: '🐂 多头研究员',
-    bear_researcher: '🐻 空头研究员',
-    research_team_decision: '🔬 研究经理决策',
-
-    // 交易团队 (1个)
-    trader_investment_plan: '💼 交易员计划',
-
-    // 风险管理团队 (4个)
-    risky_analyst: '⚡ 激进分析师',
-    safe_analyst: '🛡️ 保守分析师',
-    neutral_analyst: '⚖️ 中性分析师',
-    risk_management_decision: '👔 投资组合经理',
-
-    // 最终决策 (1个)
-    final_trade_decision: '🎯 最终交易决策',
-
-    // 兼容旧字段
-    investment_plan: '📋 投资建议',
-    investment_debate_state: '🔬 研究团队决策（旧）',
-    risk_debate_state: '⚖️ 风险管理团队（旧）',
-    detailed_analysis: '📄 详细分析'
+    research_team_decision: '经营要点',
+    fundamentals_report: '经营要点',
   }
-  // 未匹配到时，做一个友好的回退：下划线转空格
-  return nameMap[moduleName] || moduleName.replace(/_/g, ' ')
+  return nameMap[moduleName] || '经营要点'
 }
 
 const renderMarkdown = (content: string) => {

@@ -65,7 +65,6 @@ WAVES: list[dict] = [
         "ids": [
             "gross_expand_break",
             "rev_accel_base_break",
-            "roe_dip_reclaim",
             "consec_improve_break",
             "pb_floor_quality_break",
             "growth_not_expensive_pullback",

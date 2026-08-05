@@ -15,7 +15,7 @@ PB历史低分位 + ROE底线后突破并站上均线。
 
 信号实现：`signal_pb_floor_quality_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/pb_floor_quality_break_trade_history.csv`
 
@@ -24,7 +24,7 @@ PB历史低分位 + ROE底线后突破并站上均线。
 | 标的 | **sz.300442** |
 | 开仓 | 2024-09-25，约 24.54 元 |
 | 清仓 | 2024-11-13，约 35.98 元 |
-| 单腿涨跌 | **46.65%** |
+| 单笔涨跌 | **46.65%** |
 | 当日组合贡献 | NAV 5.83% |
 | 出场备注 | hold_end；买入2024-09-25 成本价24.5378 |
 

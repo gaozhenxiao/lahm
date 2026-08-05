@@ -72,6 +72,18 @@ class InvestmentsService:
         return _serialize(doc)
 
     async def create_from_lead(self, user_id: str, lead: Dict[str, Any], thesis: str = "") -> Dict[str, Any]:
+        factor_ids: List[str] = []
+        for bucket in ("factors_good", "factors_warn", "factors_neutral"):
+            for ref in lead.get(bucket) or []:
+                if isinstance(ref, dict) and ref.get("factor_id"):
+                    fid = str(ref["factor_id"])
+                    if fid not in factor_ids:
+                        factor_ids.append(fid)
+        if lead.get("factor_id") and str(lead["factor_id"]) not in factor_ids:
+            factor_ids.insert(0, str(lead["factor_id"]))
+        for fid in lead.get("factor_ids") or []:
+            if fid and str(fid) not in factor_ids:
+                factor_ids.append(str(fid))
         return await self.create(
             user_id,
             InvestmentCreate(
@@ -80,9 +92,9 @@ class InvestmentsService:
                 market=lead.get("market", "CN"),
                 status="planned",  # type: ignore[arg-type]
                 thesis=thesis or lead.get("reason", ""),
-                lead_id=lead.get("id"),
+                lead_id=lead.get("id") if not str(lead.get("id") or "").startswith("fb:") else None,
                 analysis_id=lead.get("analysis_id"),
-                factor_ids=[lead["factor_id"]] if lead.get("factor_id") else [],
+                factor_ids=factor_ids,
                 tags=list(set((lead.get("tags") or []) + ["from_lead"])),
             ),
         )

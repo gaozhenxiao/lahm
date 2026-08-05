@@ -26,11 +26,11 @@
 | 时间止损 | 持有满 **51** 个交易日 |
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。  
-腿构建：`runner.build_legs_from_entries`（支持 `take_profit` / `trail_stop`）。
+笔构建：`runner.build_legs_from_entries`（支持 `take_profit` / `trail_stop`）。
 
 ## 举例：当时为什么选上「沪电股份」
 
-回测成交记录中的真实一腿（`gross_expand_champ_tp35_trade_history.csv`）：
+回测成交记录中的真实一笔（`gross_expand_champ_tp35_trade_history.csv`）：
 
 | 项目 | 内容 |
 |---|---|
@@ -63,7 +63,7 @@
 | 总收益 | 50.94% |
 | 年化 / 波动 | 61.4% / 33.8% |
 | 最大回撤 | -29.5% |
-| 成交腿数 | 321（max_positions=8；原始信号腿更多，受仓位上限截断） |
+| 成交笔数 | 321（max_positions=8；原始信号笔更多，受仓位上限截断） |
 | 成本 | 佣金 0.0001 + 卖出印花税 0.001 |
 
 并列：`gross_expand_ma60_tp35`（同分；该样本上 MA60 过滤未改信号集）。  

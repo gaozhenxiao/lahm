@@ -16,7 +16,7 @@
 
 信号实现：`signal_rev_accel_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/rev_accel_hold50_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.600221** |
 | 开仓 | 2024-09-27，约 1.18 元 |
 | 清仓 | 2024-12-13，约 1.88 元 |
-| 单腿涨跌 | **59.32%** |
+| 单笔涨跌 | **59.32%** |
 | 当日组合贡献 | NAV 7.42% |
 | 出场备注 | hold_end；买入2024-09-27 成本价1.1800 |
 

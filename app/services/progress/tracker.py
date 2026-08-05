@@ -187,8 +187,8 @@ class RedisProgressTracker:
         """获取分析师步骤信息（名称与描述）"""
         mapping = {
             'market': {"name": "📊 市场分析师", "description": "分析股价走势、成交量、技术指标等市场表现"},
-            'fundamentals': {"name": "💼 基本面分析师", "description": "分析公司财务状况、盈利能力、成长性等基本面"},
-            'news': {"name": "📰 新闻分析师", "description": "分析相关新闻、公告、行业动态对股价的影响"},
+            'fundamentals': {"name": "💼 基本面分析师", "description": "行业需求、竞争格局、产供销、量价利、股东变化"},
+            'news': {"name": "📰 新闻分析师", "description": "新闻是否改变需求/竞争/产供销/量价利/股东预期"},
             'social': {"name": "💬 社交媒体分析师", "description": "分析社交媒体讨论、网络热度、散户情绪等"},
         }
         return mapping.get(analyst, {"name": f"🔍 {analyst}分析师", "description": f"进行{analyst}相关的专业分析"})

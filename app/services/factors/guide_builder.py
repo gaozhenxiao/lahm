@@ -61,6 +61,7 @@ _SIG_LABELS = {
     "signal_gp_np_tight_break": "毛利/净利收紧扩张后突破",
     "signal_dual_improve_base_break": "双改善横盘突破",
     "signal_dual_improve_breakout": "双改善突破",
+    "signal_dual_improve_meanrev": "双改善均值回归",
     "signal_eps_dual_confirm_break": "EPS 双确认突破",
     "signal_high_margin_breakout": "高毛利率突破",
     "signal_gp_expand_cheap_break": "毛利率扩张 + 低估突破",
@@ -468,7 +469,7 @@ def render_guide_markdown(
     ex = pick_trade_example(factor_id, data_dir)
     if ex:
         title = f"{ex['code']}" + (f" {ex['name']}" if ex.get("name") else "")
-        lines += ["## 举例：回测里真实成交的一腿", ""]
+        lines += ["## 举例：回测里真实成交的一笔", ""]
         lines.append(f"来源：`data/factors/{factor_id}_trade_history.csv`")
         lines.append("")
         lines.append("| 项目 | 内容 |")
@@ -481,7 +482,7 @@ def render_guide_markdown(
             px_s = f"，约 {ex['sell_price']:.4g} 元" if ex.get("sell_price") else ""
             lines.append(f"| 清仓 | {ex['sell_date']}{px_s} |")
         if ex.get("leg_return") is not None:
-            lines.append(f"| 单腿涨跌 | **{_pct(ex['leg_return'])}** |")
+            lines.append(f"| 单笔涨跌 | **{_pct(ex['leg_return'])}** |")
         lines.append(f"| 当日组合贡献 | NAV {_pct(ex['nav_pnl'])} |")
         if ex.get("exit_note"):
             lines.append(f"| 出场备注 | {ex['exit_note']} |")
@@ -503,7 +504,7 @@ def render_guide_markdown(
             ("total_return", "总收益", lambda v: _pct(v)),
             ("annual_return", "年化", lambda v: _pct(v)),
             ("max_drawdown", "最大回撤", lambda v: _pct(v)),
-            ("n_legs_accepted", "成交腿数", lambda v: str(int(v))),
+            ("n_legs_accepted", "成交笔数", lambda v: str(int(v))),
             ("volatility", "波动", lambda v: _pct(v)),
         ]
         for key, label, fmt in mapping:

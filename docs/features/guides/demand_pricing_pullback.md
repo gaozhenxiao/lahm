@@ -19,7 +19,7 @@
 
 信号实现：`signal_demand_pricing_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/demand_pricing_pullback_trade_history.csv`
 
@@ -28,7 +28,7 @@
 | 标的 | **sz.002050** |
 | 开仓 | 2025-09-05，约 30.43 元 |
 | 清仓 | 2025-11-03，约 48.36 元 |
-| 单腿涨跌 | **58.93%** |
+| 单笔涨跌 | **58.93%** |
 | 当日组合贡献 | NAV 7.37% |
 | 出场备注 | hold_end；买入2025-09-05 成本价30.4283 |
 

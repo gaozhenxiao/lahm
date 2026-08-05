@@ -748,7 +748,7 @@ class SimpleAnalysisService:
         logger.info(f"🔧 创建新的柳暗花明实例（并发安全模式）...")
 
         trading_graph = LahmGraph(
-            selected_analysts=config.get("selected_analysts", ["market", "fundamentals"]),
+            selected_analysts=config.get("selected_analysts", ["fundamentals", "news"]),
             debug=config.get("debug", False),
             config=config
         )
@@ -829,7 +829,7 @@ class SimpleAnalysisService:
             return {
                 "task_id": task_id,
                 "status": "pending",
-                "message": "任务已创建，等待执行"
+                "message": "任务已创建，正在启动分析"
             }
 
         except Exception as e:
@@ -857,10 +857,23 @@ class SimpleAnalysisService:
 
         progress_tracker = None
         try:
-            logger.info(f"🚀 开始后台执行分析任务: {task_id}")
+            logger.info(f"开始后台执行分析任务: {task_id} stock={stock_code}")
+
+            # 立即标记为运行中，避免前端长时间显示「排队中」
+            try:
+                await self.memory_manager.update_task_status(
+                    task_id=task_id,
+                    status=TaskStatus.RUNNING,
+                    progress=2,
+                    message="正在校验股票并准备数据...",
+                    current_step="validation",
+                )
+                await self._update_task_status(task_id, AnalysisStatus.PROCESSING, 2)
+            except Exception as early_status_err:  # noqa: BLE001
+                logger.warning(f"提前更新运行状态失败(忽略): {early_status_err}")
 
             # 🔍 验证股票代码是否存在
-            logger.info(f"🔍 开始验证股票代码: {stock_code}")
+            logger.info(f"开始验证股票代码: {stock_code}")
             from lahm.utils.stock_validator import prepare_stock_data_async
             from datetime import datetime
 
@@ -882,9 +895,9 @@ class SimpleAnalysisService:
                     except ValueError:
                         # 如果格式不对，使用今天
                         analysis_date = datetime.now().strftime('%Y-%m-%d')
-                        logger.warning(f"⚠️ 分析日期格式不正确，使用今天: {analysis_date}")
+                        logger.warning(f"分析日期格式不正确，使用今天: {analysis_date}")
 
-            # 🔥 使用异步版本，直接 await，避免事件循环冲突
+            # 使用异步版本，直接 await，避免事件循环冲突
             validation_result = await prepare_stock_data_async(
                 stock_code=stock_code,
                 market_type=market_type,
@@ -933,7 +946,7 @@ class SimpleAnalysisService:
                 logger.info(f"📊 [线程] 创建进度跟踪器: {task_id}")
                 tracker = RedisProgressTracker(
                     task_id=task_id,
-                    analysts=request.parameters.selected_analysts or ["market", "fundamentals"],
+                    analysts=request.parameters.selected_analysts or ["fundamentals", "news"],
                     research_depth=request.parameters.research_depth or "标准",
                     llm_provider="dashscope"
                 )
@@ -1273,7 +1286,7 @@ class SimpleAnalysisService:
             # 创建分析配置（支持混合模式）
             config = create_analysis_config(
                 research_depth=research_depth,
-                selected_analysts=request.parameters.selected_analysts if request.parameters else ["market", "fundamentals"],
+                selected_analysts=request.parameters.selected_analysts if request.parameters else ["fundamentals", "news"],
                 quick_model=quick_model,
                 deep_model=deep_model,
                 llm_provider=quick_provider,  # 主要使用快速模型的供应商
@@ -1343,7 +1356,7 @@ class SimpleAnalysisService:
                         return
 
                     # 分析师阶段 - 根据选择的分析师数量动态调整
-                    analysts = request.parameters.selected_analysts if request.parameters else ["market", "fundamentals"]
+                    analysts = request.parameters.selected_analysts if request.parameters else ["fundamentals", "news"]
 
                     # 模拟分析师执行
                     for i, analyst in enumerate(analysts):
@@ -1566,10 +1579,8 @@ class SimpleAnalysisService:
             # 从state中提取reports字段
             reports = {}
             try:
-                # 定义所有可能的报告字段
+                # 精简报告：不入库技术面(market)/情绪面(sentiment)
                 report_fields = [
-                    'market_report',
-                    'sentiment_report',
                     'news_report',
                     'fundamentals_report',
                     'investment_plan',
@@ -1683,6 +1694,14 @@ class SimpleAnalysisService:
                         if risk_decision and len(risk_decision.strip()) > 10:
                             reports['risk_management_decision'] = risk_decision.strip()
                             logger.info(f"📊 [REPORTS] 提取报告: risk_management_decision - 长度: {len(risk_decision.strip())}")
+
+
+                # 产品精简：只保留读者需要的模块（无技术/情绪/多空长文/风控辩论）
+                _keep = {
+                    'fundamentals_report', 'research_team_decision',
+                }
+                reports = {k: v for k, v in reports.items() if k in _keep}
+                logger.info(f"📊 [REPORTS] 精简后保留 {len(reports)} 个报告: {list(reports.keys())}")
 
                 logger.info(f"📊 [REPORTS] 从state中提取到 {len(reports)} 个报告: {list(reports.keys())}")
 
@@ -1820,11 +1839,12 @@ class SimpleAnalysisService:
             # 从决策中提取模型信息
             model_info = decision.get('model_info', 'Unknown') if isinstance(decision, dict) else 'Unknown'
 
-            # 构建结果
+            # 构建结果（务必用 get_symbol，stock_code 字段已废弃常为 None）
+            symbol = (request.get_symbol() if hasattr(request, "get_symbol") else None) or request.symbol or request.stock_code or ""
             result = {
                 "analysis_id": str(uuid.uuid4()),
-                "stock_code": request.stock_code,
-                "stock_symbol": request.stock_code,  # 添加stock_symbol字段以保持兼容性
+                "stock_code": symbol,
+                "stock_symbol": symbol,
                 "analysis_date": analysis_date,
                 "summary": summary,
                 "recommendation": recommendation,
@@ -2427,11 +2447,39 @@ class SimpleAnalysisService:
         try:
             db = get_mongo_db()
 
-            # 生成分析ID（与web目录保持一致）
+            # 生成分析ID（与web目录保持一致）；股票代码优先 result，缺失则回填任务文档
             from datetime import datetime
             timestamp = datetime.utcnow()  # 存储 UTC 时间（标准做法）
-            stock_symbol = result.get('stock_symbol') or result.get('stock_code', 'UNKNOWN')
+
+            def _pick_code(*vals) -> str:
+                for v in vals:
+                    if v is None:
+                        continue
+                    s = str(v).strip()
+                    if s and s.lower() not in ("none", "null", "unknown", "nan"):
+                        return s
+                return ""
+
+            task_doc = await db.analysis_tasks.find_one(
+                {"task_id": task_id},
+                {"stock_code": 1, "stock_symbol": 1, "symbol": 1, "stock_name": 1},
+            ) or {}
+            stock_symbol = _pick_code(
+                result.get("stock_symbol"),
+                result.get("stock_code"),
+                result.get("symbol"),
+                task_doc.get("stock_symbol"),
+                task_doc.get("stock_code"),
+                task_doc.get("symbol"),
+            ) or "UNKNOWN"
+            # 回写 result，避免后续再丢代码
+            result["stock_symbol"] = stock_symbol
+            result["stock_code"] = stock_symbol
+            if task_doc.get("stock_name") and not result.get("stock_name"):
+                result["stock_name"] = task_doc.get("stock_name")
+
             analysis_id = f"{stock_symbol}_{timestamp.strftime('%Y%m%d_%H%M%S')}"
+            result["analysis_id"] = analysis_id
 
             # 处理reports字段 - 从state中提取所有分析报告
             reports = {}
@@ -2439,10 +2487,8 @@ class SimpleAnalysisService:
                 try:
                     state = result['state']
 
-                    # 定义所有可能的报告字段
+                    # 精简报告：不入库技术面(market)/情绪面(sentiment)
                     report_fields = [
-                        'market_report',
-                        'sentiment_report',
                         'news_report',
                         'fundamentals_report',
                         'investment_plan',
@@ -2547,6 +2593,14 @@ class SimpleAnalysisService:
                             if risk_decision and len(risk_decision.strip()) > 10:
                                 reports['risk_management_decision'] = risk_decision.strip()
 
+
+                    # 产品精简：只保留读者需要的模块（无技术/情绪/多空长文/风控辩论）
+                    _keep = {
+                        'fundamentals_report', 'research_team_decision',
+                    }
+                    reports = {k: v for k, v in reports.items() if k in _keep}
+                    logger.info(f"📊 [REPORTS] 精简后保留 {len(reports)} 个报告: {list(reports.keys())}")
+
                     logger.info(f"📊 从state中提取到 {len(reports)} 个报告: {list(reports.keys())}")
 
                 except Exception as e:
@@ -2576,50 +2630,52 @@ class SimpleAnalysisService:
             logger.info(f"📊 推断市场类型: {stock_symbol} -> {market_type}")
 
             # 🔥 获取股票名称
-            stock_name = stock_symbol  # 默认使用股票代码
+            stock_name = result.get("stock_name") or task_doc.get("stock_name") or stock_symbol
             try:
-                if market_info.get("market") == "china_a":
-                    # A股：使用统一接口获取股票信息
-                    from lahm.dataflows.interface import get_china_stock_info_unified
-                    stock_info = get_china_stock_info_unified(stock_symbol)
-                    logger.debug(f"📊 获取股票信息返回: {stock_info[:200] if stock_info else 'None'}...")
+                if (not stock_name) or stock_name == stock_symbol or str(stock_name).startswith("股票"):
+                    if market_info.get("market") == "china_a":
+                        # A股：使用统一接口获取股票信息
+                        from lahm.dataflows.interface import get_china_stock_info_unified
+                        stock_info = get_china_stock_info_unified(stock_symbol)
+                        logger.debug(f"📊 获取股票信息返回: {stock_info[:200] if stock_info else 'None'}...")
 
-                    if stock_info and "股票名称:" in stock_info:
-                        stock_name = stock_info.split("股票名称:")[1].split("\n")[0].strip()
-                        logger.info(f"✅ 获取A股名称: {stock_symbol} -> {stock_name}")
-                    else:
-                        # 降级方案：尝试直接从数据源管理器获取
-                        logger.warning(f"⚠️ 无法从统一接口解析股票名称: {stock_symbol}，尝试降级方案")
+                        if stock_info and "股票名称:" in stock_info:
+                            stock_name = stock_info.split("股票名称:")[1].split("\n")[0].strip()
+                            logger.info(f"✅ 获取A股名称: {stock_symbol} -> {stock_name}")
+                        else:
+                            # 降级方案：尝试直接从数据源管理器获取
+                            logger.warning(f"⚠️ 无法从统一接口解析股票名称: {stock_symbol}，尝试降级方案")
+                            try:
+                                from lahm.dataflows.data_source_manager import get_china_stock_info_unified as get_info_dict
+                                info_dict = get_info_dict(stock_symbol)
+                                if info_dict and info_dict.get('name'):
+                                    stock_name = info_dict['name']
+                                    logger.info(f"✅ 降级方案成功获取股票名称: {stock_symbol} -> {stock_name}")
+                            except Exception as fallback_e:
+                                logger.error(f"❌ 降级方案也失败: {fallback_e}")
+
+                    elif market_info.get("market") == "hong_kong":
+                        # 港股：使用改进的港股工具
                         try:
-                            from lahm.dataflows.data_source_manager import get_china_stock_info_unified as get_info_dict
-                            info_dict = get_info_dict(stock_symbol)
-                            if info_dict and info_dict.get('name'):
-                                stock_name = info_dict['name']
-                                logger.info(f"✅ 降级方案成功获取股票名称: {stock_symbol} -> {stock_name}")
-                        except Exception as fallback_e:
-                            logger.error(f"❌ 降级方案也失败: {fallback_e}")
-
-                elif market_info.get("market") == "hong_kong":
-                    # 港股：使用改进的港股工具
-                    try:
-                        from lahm.dataflows.providers.hk.improved_hk import get_hk_company_name_improved
-                        stock_name = get_hk_company_name_improved(stock_symbol)
-                        logger.info(f"📊 获取港股名称: {stock_symbol} -> {stock_name}")
-                    except Exception:
-                        clean_ticker = stock_symbol.replace('.HK', '').replace('.hk', '')
-                        stock_name = f"港股{clean_ticker}"
-                elif market_info.get("market") == "us":
-                    # 美股：使用简单映射
-                    us_stock_names = {
-                        'AAPL': '苹果公司', 'TSLA': '特斯拉', 'NVDA': '英伟达',
-                        'MSFT': '微软', 'GOOGL': '谷歌', 'AMZN': '亚马逊',
-                        'META': 'Meta', 'NFLX': '奈飞'
-                    }
-                    stock_name = us_stock_names.get(stock_symbol.upper(), f"美股{stock_symbol}")
-                    logger.info(f"📊 获取美股名称: {stock_symbol} -> {stock_name}")
+                            from lahm.dataflows.providers.hk.improved_hk import get_hk_company_name_improved
+                            stock_name = get_hk_company_name_improved(stock_symbol)
+                            logger.info(f"📊 获取港股名称: {stock_symbol} -> {stock_name}")
+                        except Exception:
+                            clean_ticker = stock_symbol.replace('.HK', '').replace('.hk', '')
+                            stock_name = f"港股{clean_ticker}"
+                    elif market_info.get("market") == "us":
+                        # 美股：使用简单映射
+                        us_stock_names = {
+                            'AAPL': '苹果公司', 'TSLA': '特斯拉', 'NVDA': '英伟达',
+                            'MSFT': '微软', 'GOOGL': '谷歌', 'AMZN': '亚马逊',
+                            'META': 'Meta', 'NFLX': '奈飞'
+                        }
+                        stock_name = us_stock_names.get(stock_symbol.upper(), f"美股{stock_symbol}")
+                        logger.info(f"📊 获取美股名称: {stock_symbol} -> {stock_name}")
             except Exception as e:
                 logger.warning(f"⚠️ 获取股票名称失败: {stock_symbol} - {e}")
-                stock_name = stock_symbol
+                stock_name = stock_name or stock_symbol
+            result["stock_name"] = stock_name
 
             # 构建文档（与web目录的MongoDBReportManager保持一致）
             document = {

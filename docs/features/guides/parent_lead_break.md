@@ -17,7 +17,7 @@ YOYPNI 明显高于 YOYNI 后突破，抓并表质量改善。
 
 信号实现：`signal_parent_lead_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/parent_lead_break_trade_history.csv`
 
@@ -26,7 +26,7 @@ YOYPNI 明显高于 YOYNI 后突破，抓并表质量改善。
 | 标的 | **sz.300274 阳光电源** |
 | 开仓 | 2020-10-30，约 26.65 元 |
 | 清仓 | 2020-12-18，约 42.12 元 |
-| 单腿涨跌 | **58.07%** |
+| 单笔涨跌 | **58.07%** |
 | 当日组合贡献 | NAV 7.26% |
 | 出场备注 | hold_end；买入2020-10-30 成本价26.6476 |
 

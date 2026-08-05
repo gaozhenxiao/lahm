@@ -16,7 +16,7 @@ PE/PB双低估且60日动量为正，站上MA20。
 
 信号实现：`signal_oshaughnessy_value_mom`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/oshaughnessy_value_mom_trade_history.csv`
 
@@ -25,7 +25,7 @@ PE/PB双低估且60日动量为正，站上MA20。
 | 标的 | **sh.600893** |
 | 开仓 | 2020-07-01，约 23.36 元 |
 | 清仓 | 2020-07-29，约 37.36 元 |
-| 单腿涨跌 | **59.92%** |
+| 单笔涨跌 | **59.92%** |
 | 当日组合贡献 | NAV 7.49% |
 | 出场备注 | hold_end；买入2020-07-01 成本价23.3597 |
 

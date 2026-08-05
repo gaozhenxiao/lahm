@@ -14,7 +14,7 @@
 
 信号实现：`signal_asset_light_trend`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/asset_light_trend_trade_history.csv`
 
@@ -23,7 +23,7 @@
 | 标的 | **sh.600221** |
 | 开仓 | 2024-10-09，约 1.19 元 |
 | 清仓 | 2024-11-20，约 1.81 元 |
-| 单腿涨跌 | **52.10%** |
+| 单笔涨跌 | **52.10%** |
 | 当日组合贡献 | NAV 6.51% |
 | 出场备注 | hold_end；买入2024-10-09 成本价1.1900 |
 

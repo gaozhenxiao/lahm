@@ -16,7 +16,7 @@
 
 信号实现：`signal_cheap_quality_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/cheap_quality_reclaim_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.300033** |
 | 开仓 | 2023-02-20，约 82.85 元 |
 | 清仓 | 2023-03-27，约 131.4 元 |
-| 单腿涨跌 | **58.66%** |
+| 单笔涨跌 | **58.66%** |
 | 当日组合贡献 | NAV 7.33% |
 | 出场备注 | hold_end；买入2023-02-20 成本价82.8496 |
 

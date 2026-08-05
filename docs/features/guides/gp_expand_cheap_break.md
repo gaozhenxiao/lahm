@@ -17,7 +17,7 @@
 
 信号实现：`signal_gp_expand_cheap_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gp_expand_cheap_break_trade_history.csv`
 
@@ -26,7 +26,7 @@
 | 标的 | **sh.600570** |
 | 开仓 | 2024-09-27，约 20.53 元 |
 | 清仓 | 2024-11-08，约 31.26 元 |
-| 单腿涨跌 | **52.28%** |
+| 单笔涨跌 | **52.28%** |
 | 当日组合贡献 | NAV 6.54% |
 | 出场备注 | hold_end；买入2024-09-27 成本价20.5280 |
 

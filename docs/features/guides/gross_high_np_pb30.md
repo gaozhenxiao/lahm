@@ -18,7 +18,7 @@
 
 信号实现：`signal_gross_high_np_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_high_np_pb30_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sh.600276** |
 | 开仓 | 2024-08-29，约 43.98 元 |
 | 清仓 | 2024-11-19，约 47.07 元 |
-| 单腿涨跌 | **7.02%** |
+| 单笔涨跌 | **7.02%** |
 | 当日组合贡献 | NAV 0.88% |
 | 出场备注 | hold_end；买入2024-08-29 成本价43.9810 |
 

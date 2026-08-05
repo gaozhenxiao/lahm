@@ -69,19 +69,210 @@ def shared_cache_dir() -> Path:
     return p
 
 
+# 因子回测日线统一前复权（qfq）。缓存: _shared/daily/{sh_600519}.parquet
+DAILY_PRICE_ADJUST = "qfq"
+DAILY_PRICE_META_NAME = "daily_price_meta.json"
+DAILY_JUMP_WARN = 0.50
+# BaoStock 黑名单：禁止登录/下载写缓存（读本地仍可用）
+BAOSTOCK_DOWNLOAD_BLACKLIST = True
+
+
+def daily_parquet_path(cache_dir: Path, code: str) -> Path:
+    return Path(cache_dir) / "daily" / f"{str(code).replace('.', '_')}.parquet"
+
+
+def daily_jump_stats(
+    df: pd.DataFrame,
+    *,
+    thresh: float = DAILY_JUMP_WARN,
+    skip_first: int = 1,
+) -> Dict[str, Any]:
+    """相邻收盘 |ret|>thresh 计数；用于检测前复权/未复权混写。"""
+    if df is None or df.empty or "close" not in df.columns:
+        return {"n_ret_gt_thresh": 0, "max_abs_ret": 0.0, "jump_dates": []}
+    s = df.copy()
+    s["date"] = pd.to_datetime(s["date"], errors="coerce")
+    s = s.dropna(subset=["date", "close"]).sort_values("date")
+    ret = s["close"].astype(float).pct_change()
+    if skip_first > 0:
+        ret = ret.iloc[skip_first:]
+    bad = ret[ret.abs() > thresh]
+    jump_dates: List[Dict[str, Any]] = []
+    if not bad.empty:
+        dates = s["date"].iloc[skip_first:].loc[bad.index]
+        for d, r in zip(dates, bad):
+            jump_dates.append({"date": str(pd.Timestamp(d).date()), "ret": float(r)})
+    return {
+        "n_ret_gt_thresh": int(len(bad)),
+        "max_abs_ret": float(ret.abs().max()) if len(ret) else 0.0,
+        "jump_dates": jump_dates[:20],
+    }
+
+
+def ensure_daily_qfq_frame(df: pd.DataFrame, code: str) -> pd.DataFrame:
+    """读取后标注 adjust=qfq；缺列不改 OHLC。"""
+    if df is None or df.empty:
+        return df
+    out = df.copy()
+    out["code"] = out.get("code", code)
+    if "adjust" not in out.columns:
+        out["adjust"] = DAILY_PRICE_ADJUST
+    else:
+        # 混写告警：同文件出现多种 adjust
+        vals = {str(x).lower() for x in out["adjust"].dropna().unique()}
+        if vals - {DAILY_PRICE_ADJUST, "nan", "none", ""}:
+            logger.warning(
+                "daily %s adjust mixed/unexpected %s (expected %s)",
+                code,
+                sorted(vals),
+                DAILY_PRICE_ADJUST,
+            )
+    return out
+
+
+# 中证指数公司成分表（不依赖 BaoStock）
+_CSINDEX_CONS_URL = (
+    "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/"
+    "autofile/cons/{code}cons.xls"
+)
+# 沪深300 + 中证100/200/500/800
+_CSI_CORE_INDEX_CODES = ("000300", "000903", "000904", "000905", "000906")
+# 单指数 / 三宇宙并集（中证官网静态成分；挖掘阶段可先用，有幸存者偏差）
+_CSINDEX_UNIVERSE_MAP = {
+    "hs300": ("000300",),
+    "csi300": ("000300",),
+    "csi500": ("000905",),
+    "zz500": ("000905",),
+    "csi1000": ("000852",),
+    "zz1000": ("000852",),
+    "csi300_500_1000": ("000300", "000905", "000852"),
+    "hs300_csi500_csi1000": ("000300", "000905", "000852"),
+}
+
+
+def _exchange_to_bs_prefix(ex: str) -> str:
+    s = str(ex or "")
+    if "深圳" in s or "Shenzhen" in s or s.upper() in ("SZSE", "SZ"):
+        return "sz"
+    if "北京" in s or "Beijing" in s or s.upper() in ("BSE", "BJ"):
+        return "bj"
+    return "sh"
+
+
+def fetch_csindex_cons_codes(
+    index_codes: Sequence[str] = _CSI_CORE_INDEX_CODES,
+    *,
+    timeout: float = 30.0,
+) -> pd.DataFrame:
+    """下载中证官网成分 xls，返回去重后的 baostock 风格 code 列。"""
+    import io
+    import urllib.request
+
+    frames: List[pd.DataFrame] = []
+    clear_proxy()
+    for idx in index_codes:
+        url = _CSINDEX_CONS_URL.format(code=str(idx))
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read()
+        df = pd.read_excel(io.BytesIO(raw))
+        # 列名中英混排，按关键词定位
+        code_col = next(
+            (c for c in df.columns if "Constituent Code" in str(c) or str(c).endswith("成份券代码")),
+            None,
+        )
+        if code_col is None:
+            code_col = next((c for c in df.columns if "代码" in str(c) and "指数" not in str(c)), None)
+        ex_col = next((c for c in df.columns if "Exchange" in str(c) and "Eng" not in str(c)), None)
+        if code_col is None:
+            raise RuntimeError(f"csindex cons columns unrecognized for {idx}: {list(df.columns)}")
+        part = pd.DataFrame(
+            {
+                "raw": df[code_col].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6),
+                "ex": df[ex_col] if ex_col is not None else "",
+                "index_code": str(idx),
+            }
+        )
+        part["code"] = part.apply(
+            lambda r: f"{_exchange_to_bs_prefix(r['ex'])}.{r['raw']}", axis=1
+        )
+        frames.append(part[["code", "index_code"]])
+    if not frames:
+        return pd.DataFrame(columns=["code"])
+    out = pd.concat(frames, ignore_index=True)
+    out = out[out["code"].str.match(r"^(sh|sz|bj)\.\d{6}$", na=False)]
+    return out[["code"]].drop_duplicates().reset_index(drop=True)
+
+
+def load_st_codes(*, explicit: str | Path | None = None) -> set[str]:
+    """当前简称含 ST/*ST/S*ST 的股票（baostock 风格 code）。"""
+    import re
+
+    try:
+        from app.services.factors import ashare_fin_db as fin_db
+    except Exception:  # noqa: BLE001
+        return set()
+    if not fin_db.db_available(explicit):
+        return set()
+    try:
+        basic = fin_db.fetch_basic(explicit)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("load ST names failed: %s", exc)
+        return set()
+    if basic is None or basic.empty or "name" not in basic.columns:
+        return set()
+    # 匹配 ST、*ST、S*ST、SST 等前缀（允许前导 * / S）
+    pat = re.compile(r"^[\*S]*ST", re.IGNORECASE)
+    names = basic["name"].astype(str)
+    mask = names.str.contains(pat, na=False)
+    return set(basic.loc[mask, "code"].astype(str).tolist())
+
+
+def drop_st_codes(codes: Sequence[str], *, st_codes: Optional[set[str]] = None) -> List[str]:
+    banned = st_codes if st_codes is not None else load_st_codes()
+    if not banned:
+        return [str(c) for c in codes]
+    return [str(c) for c in codes if str(c) not in banned]
+
+
 def fetch_universe_codes(
     universe: str,
     limiter: RateLimiter,
     cache_dir: Path,
+    *,
+    force: bool = False,
 ) -> List[str]:
-    cache = cache_dir / f"universe_{universe}.parquet"
-    if cache.exists():
+    u = (universe or "hs300").lower().strip()
+    cache = cache_dir / f"universe_{u}.parquet"
+    if cache.exists() and not force:
         return pd.read_parquet(cache)["code"].astype(str).tolist()
+
+    # 行业宇宙：由挖掘脚本预写 universe_ind_*.parquet；缺缓存时回退空（避免误用 hs300）
+    if u.startswith("ind_") or u.startswith("industry_"):
+        if cache.exists():
+            return pd.read_parquet(cache)["code"].astype(str).tolist()
+        logger = __import__("logging").getLogger("webapi.factors.bs_kit")
+        logger.warning("industry universe cache missing: %s", cache)
+        return []
+
+    # 核心宽基并集：剔除小票，不依赖 BaoStock
+    if u in ("csi_core", "mid_large", "hs300_zz", "zz_core"):
+        out = fetch_csindex_cons_codes(_CSI_CORE_INDEX_CODES)
+        codes = drop_st_codes(out["code"].astype(str).tolist())
+        pd.DataFrame({"code": codes}).to_parquet(cache, index=False)
+        return codes
+
+    # 沪深300 / 中证500 / 中证1000（及并集）：中证官网静态成分，不依赖 BaoStock
+    if u in _CSINDEX_UNIVERSE_MAP:
+        out = fetch_csindex_cons_codes(_CSINDEX_UNIVERSE_MAP[u])
+        codes = drop_st_codes(out["code"].astype(str).tolist())
+        pd.DataFrame({"code": codes}).to_parquet(cache, index=False)
+        return codes
+
     clear_proxy()
     bs = bs_login()
     try:
         limiter.wait()
-        u = (universe or "hs300").lower().strip()
         if u in ("all", "all_a", "ashare"):
             # 全 A：股票基础信息；过滤退市/非股票
             rs = bs.query_stock_basic()
@@ -99,20 +290,15 @@ def fetch_universe_codes(
             # 只要沪深 A 股代码
             out = out[out["code"].str.match(r"^(sh|sz)\.\d{6}$", na=False)]
             out = out[["code"]].drop_duplicates()
-        elif u == "zz500":
-            rs = bs.query_zz500_stocks()
-            df = rs_to_df(rs)
-            if df.empty:
-                return []
-            out = df[["code"]].drop_duplicates()
         else:
-            rs = bs.query_hs300_stocks()
-            df = rs_to_df(rs)
-            if df.empty:
-                return []
-            out = df[["code"]].drop_duplicates()
-        out.to_parquet(cache, index=False)
-        return out["code"].astype(str).tolist()
+            # 未知宇宙名：回退 hs300 中证成分（不再走 BaoStock）
+            out = fetch_csindex_cons_codes(("000300",))
+            codes = drop_st_codes(out["code"].astype(str).tolist())
+            pd.DataFrame({"code": codes}).to_parquet(cache, index=False)
+            return codes
+        codes = drop_st_codes(out["code"].astype(str).tolist())
+        pd.DataFrame({"code": codes}).to_parquet(cache, index=False)
+        return codes
     finally:
         bs.logout()
 
@@ -126,10 +312,17 @@ def fetch_daily_valuation(
     *,
     force: bool = False,
     bs=None,
+    cache_only: bool = False,
 ) -> pd.DataFrame:
-    """日线 + peTTM/pbMRQ（后复权）。"""
-    cache = cache_dir / "daily" / f"{code.replace('.', '_')}.parquet"
+    """日线 + peTTM/pbMRQ（前复权 qfq）。
+
+    约定：缓存 OHLC 必须为前复权；写入请用 scripts/download_daily_qfq_tencent.py。
+    BaoStock 黑名单：不再经本函数下载/合并日线（避免与新浪未复权混写）。
+    cache_only=True 或黑名单时仅读本地缓存。
+    """
+    cache = daily_parquet_path(cache_dir, code)
     cache.parent.mkdir(parents=True, exist_ok=True)
+    stale: Optional[pd.DataFrame] = None
     if cache.exists() and not force:
         df = pd.read_parquet(cache)
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
@@ -137,15 +330,60 @@ def fetch_daily_valuation(
         first = df["date"].min()
         end_ok = pd.notna(last) and last >= pd.Timestamp(end) - pd.Timedelta(days=10)
         start_ok = pd.notna(first) and first <= pd.Timestamp(start) + pd.Timedelta(days=40)
-        if end_ok and start_ok and not df.empty:
-            return df.sort_values("date").reset_index(drop=True)
+        if not df.empty:
+            stale = ensure_daily_qfq_frame(df, code)
+            js = daily_jump_stats(stale)
+            if js["n_ret_gt_thresh"] >= 3:
+                logger.warning(
+                    "daily %s possible adj mix: n_|ret|>%.0f%%=%s max_abs_ret=%.2f",
+                    code,
+                    DAILY_JUMP_WARN * 100,
+                    js["n_ret_gt_thresh"],
+                    js["max_abs_ret"],
+                )
+            if (end_ok and start_ok) or cache_only or BAOSTOCK_DOWNLOAD_BLACKLIST:
+                return stale.sort_values("date").reset_index(drop=True)
 
+    if cache_only or BAOSTOCK_DOWNLOAD_BLACKLIST:
+        if stale is not None and not stale.empty:
+            return stale.sort_values("date").reset_index(drop=True)
+        if cache.exists():
+            df = pd.read_parquet(cache)
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            if not df.empty:
+                return ensure_daily_qfq_frame(df, code).sort_values("date").reset_index(drop=True)
+        return pd.DataFrame(
+            columns=[
+                "date",
+                "code",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "amount",
+                "turn",
+                "pctChg",
+                "peTTM",
+                "pbMRQ",
+                "adjust",
+            ]
+        )
+
+    # 以下分支仅在显式关闭黑名单时可达（保留兼容，仍写 adjust=qfq）
     own = bs is None
     if own:
         clear_proxy()
-        bs = bs_login()
+        try:
+            bs = bs_login()
+        except Exception as exc:  # noqa: BLE001
+            if stale is not None and not stale.empty:
+                logger.warning("daily %s login fail, use stale cache: %s", code, exc)
+                return stale.sort_values("date").reset_index(drop=True)
+            raise
     try:
         limiter.wait()
+        # baostock adjustflag: 1后复权 2前复权 3不复权
         rs = bs.query_history_k_data_plus(
             code,
             "date,code,open,high,low,close,volume,amount,turn,pctChg,peTTM,pbMRQ",
@@ -170,6 +408,7 @@ def fetch_daily_valuation(
                     "pctChg",
                     "peTTM",
                     "pbMRQ",
+                    "adjust",
                 ]
             )
             empty.to_parquet(cache, index=False)
@@ -179,17 +418,18 @@ def fetch_daily_valuation(
                 df[c] = pd.to_numeric(df[c], errors="coerce")
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
         df = df.dropna(subset=["date", "close"]).sort_values("date").drop_duplicates("date", keep="last")
+        df["adjust"] = DAILY_PRICE_ADJUST
+        # 禁止与旧缓存 OHLC 混并（旧文件可能含未复权）；整段覆盖后仅保留旧估值
         if cache.exists():
             old = pd.read_parquet(cache)
             old["date"] = pd.to_datetime(old["date"], errors="coerce")
-            df = (
-                pd.concat([old, df], ignore_index=True)
-                .dropna(subset=["date", "close"])
-                .drop_duplicates("date", keep="last")
-                .sort_values("date")
-            )
+            val_cols = [c for c in ("peTTM", "pbMRQ", "turn", "pctChg", "amount") if c in old.columns]
+            if val_cols:
+                old_v = old.dropna(subset=["date"])[["date"] + val_cols].drop_duplicates("date", keep="last")
+                df = df.drop(columns=[c for c in val_cols if c in df.columns], errors="ignore")
+                df = df.merge(old_v, on="date", how="left")
         df.to_parquet(cache, index=False)
-        return df.reset_index(drop=True)
+        return ensure_daily_qfq_frame(df, code).reset_index(drop=True)
     finally:
         if own:
             bs.logout()
@@ -466,6 +706,33 @@ def run_equal_weight_backtest(
     commission = float(params.get("commission_rate") or 0.0001)
     stamp = float(params.get("stamp_tax_sell") or 0.001)
     max_pos = int(params.get("max_positions") or 8)
+    # 单票权重上限（相对满仓）；如 0.25 ⇒ 持仓不足 4 只时不满仓、留现金
+    max_name_w_raw = params.get("max_name_weight")
+    max_name_weight = float(max_name_w_raw) if max_name_w_raw is not None else None
+    # 每腿固定 1/max_pos（与 trade_history / 手续费口径一致）；未满仓留现金，禁止 1 腿满仓
+    fixed_leg_weight = bool(params.get("fixed_leg_weight"))
+    # position_display=actual：日度 position 写真实资金敞口（等权满仓时为 1.0），供 UI 与净值一致
+    position_display = str(params.get("position_display") or "").strip().lower()
+    # 同行业同时持有名额上限（按唯一 code 计）
+    max_ind_raw = params.get("max_industry_names")
+    max_industry_names = int(max_ind_raw) if max_ind_raw is not None else None
+    industry_by_code: Dict[str, str] = dict(params.get("industry_by_code") or {})
+
+    def _ind(code: str) -> str:
+        c = str(code)
+        if c in industry_by_code:
+            return str(industry_by_code[c])
+        s6 = code_to_symbol6(c)
+        if s6 in industry_by_code:
+            return str(industry_by_code[s6])
+        # 无行业数据时：用市场前缀近似（极粗）
+        if c.startswith("sh.688") or s6.startswith("688"):
+            return "approx_star"
+        if c.startswith("sz.300") or s6.startswith("300"):
+            return "approx_chinext"
+        if c.startswith("sh.") or s6.startswith(("60", "68")):
+            return "approx_sh"
+        return "approx_sz"
 
     if bench_daily is None or bench_daily.empty:
         return pd.DataFrame(), {"error": "no_bench"}, empty_legs
@@ -501,6 +768,15 @@ def run_equal_weight_backtest(
         active = [a for a in active if pd.Timestamp(a["exit_date"]) > row["entry_date"]]
         if len(active) >= max_pos:
             continue
+        code = str(row["code"])
+        if max_industry_names is not None and max_industry_names > 0:
+            ind = _ind(code)
+            # 已持有同行业的唯一代码数（不含本票）
+            held_codes = {str(a["code"]) for a in active}
+            if code not in held_codes:
+                n_ind = sum(1 for c in held_codes if _ind(c) == ind)
+                if n_ind >= max_industry_names:
+                    continue
         accepted.append(row)
         active.append(row.to_dict())
     if not accepted:
@@ -509,17 +785,45 @@ def run_equal_weight_backtest(
     # 按腿占名额（同股可多腿重叠）；不可用 code 做持仓键，否则重叠腿被丢弃
     acc["_leg_id"] = np.arange(len(acc), dtype=np.int64)
 
+    def _overnight_weights(open_map: Dict[Any, dict]) -> Tuple[Dict[Any, float], float, int]:
+        """返回 (leg_id->weight, exposure, n_unique_names)。
+
+        默认：隔夜腿等权、满仓（与历史一致）。
+        fixed_leg_weight：每腿固定 1/max_pos，不合并同票多腿；未满仓留现金。
+        max_name_weight：按唯一 code 等权且单票 ≤ 上限，不足留现金。
+        """
+        if not open_map:
+            return {}, 0.0, 0
+        n_names = len({str(v["code"]) for v in open_map.values()})
+        if fixed_leg_weight:
+            w = 1.0 / max(1, max_pos)
+            return {lid: w for lid in open_map}, float(len(open_map) * w), n_names
+        if max_name_weight is None or max_name_weight <= 0:
+            w = 1.0 / len(open_map)
+            return {lid: w for lid in open_map}, 1.0, n_names
+        by_code: Dict[str, List[Any]] = {}
+        for lid, info in open_map.items():
+            by_code.setdefault(str(info["code"]), []).append(lid)
+        n_names = len(by_code)
+        name_w = min(1.0 / n_names, float(max_name_weight))
+        out: Dict[Any, float] = {}
+        for lids in by_code.values():
+            per = name_w / len(lids)
+            for lid in lids:
+                out[lid] = per
+        return out, float(name_w * n_names), n_names
+
     rows = []
     open_pos: Dict[Any, dict] = {}  # leg_id -> leg info
     equity = 1.0
     for dt in calendar:
         cost_today = 0.0
         overnight = list(open_pos.keys())
+        overnight_map = {lid: open_pos[lid] for lid in overnight}
         asset_ret = 0.0
-        if overnight:
-            # 持仓等权：隔夜腿数分权（少仓时等价集中暴露，非固定 1/max_pos）
-            w = 1.0 / len(overnight)
-            for lid in overnight:
+        leg_w, exposure, n_mark = _overnight_weights(overnight_map) if overnight else ({}, 0.0, 0)
+        if overnight and leg_w:
+            for lid, w in leg_w.items():
                 code = str(open_pos[lid]["code"])
                 r = code_ret.get(code)
                 if r is None or dt not in r.index or pd.isna(r.loc[dt]):
@@ -544,18 +848,28 @@ def run_equal_weight_backtest(
             open_pos[lid] = row.to_dict()
             cost_today += commission * (1.0 / max_pos)
 
-        n_mark = len(overnight)
+        n_legs = len(overnight)
         gross = asset_ret if overnight else 0.0
         net = gross - cost_today
         equity *= 1.0 + net
+        # position：固定腿权 / 单票上限 / actual 展示 → 真实敞口；否则保持历史 n_legs/max_pos
+        if (
+            fixed_leg_weight
+            or (max_name_weight is not None and max_name_weight > 0)
+            or position_display == "actual"
+        ):
+            pos = exposure
+        else:
+            pos = (n_legs / max_pos) if max_pos else 0.0
         rows.append(
             {
                 "date": dt,
-                "n_pos": n_mark,
+                "n_pos": n_legs,
+                "n_names": n_mark,
                 "strategy_ret": net,
                 "equity": equity,
                 "bench_ret": float(bench_ret.loc[dt]) if dt in bench_ret.index else 0.0,
-                "position": (n_mark / max_pos) if max_pos else 0.0,
+                "position": pos,
             }
         )
 
@@ -587,6 +901,10 @@ def run_equal_weight_backtest(
         "avg_position": round(float(daily["position"].mean()), 4),
         "position_logic": str(params.get("position_logic") or "equal_weight"),
         "accounting": "eod_rebalance_hold_earns_day",
+        "fixed_leg_weight": bool(fixed_leg_weight),
+        "position_display": position_display or None,
+        "max_name_weight": max_name_weight,
+        "max_industry_names": max_industry_names,
         "trade_start": start,
         "trade_end": end,
     }

@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_lag29_stop10_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.600460** |
 | 开仓 | 2021-04-30，约 35.67 元 |
 | 清仓 | 2021-07-19，约 54.67 元 |
-| 单腿涨跌 | **53.27%** |
+| 单笔涨跌 | **53.27%** |
 | 当日组合贡献 | NAV 6.66% |
 | 出场备注 | hold_end；买入2021-04-30 成本价35.6687 |
 

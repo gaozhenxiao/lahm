@@ -16,7 +16,7 @@
 
 信号实现：`signal_high_margin_pullback`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/high_margin_pullback_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.300308** |
 | 开仓 | 2024-02-01，约 79.08 元 |
 | 清仓 | 2024-03-08，约 124.6 元 |
-| 单腿涨跌 | **57.58%** |
+| 单笔涨跌 | **57.58%** |
 | 当日组合贡献 | NAV 7.20% |
 | 出场备注 | hold_end；买入2024-02-01 成本价79.0830 |
 

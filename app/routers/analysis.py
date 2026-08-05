@@ -40,14 +40,11 @@ class BatchAnalyzeRequest(BaseModel):
 @router.post("/single", response_model=Dict[str, Any])
 async def submit_single_analysis(
     request: SingleAnalysisRequest,
-    background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user)
 ):
-    """提交单股分析任务 - 使用 BackgroundTasks 异步执行"""
+    """提交单股分析任务 - 使用 asyncio.create_task 立即并发执行"""
     try:
-        logger.info(f"🎯 收到单股分析请求")
-        logger.info(f"👤 用户信息: {user}")
-        logger.info(f"📊 请求数据: {request}")
+        logger.info(f"收到单股分析请求: {request}")
 
         # 立即创建任务记录并返回，不等待执行完成
         analysis_service = get_simple_analysis_service()
@@ -57,33 +54,19 @@ async def submit_single_analysis(
         task_id = result["task_id"]
         user_id = user["id"]
 
-        # 定义一个包装函数来运行异步任务
         async def run_analysis_task():
-            """包装函数：在后台运行分析任务"""
+            """在后台运行分析任务"""
             try:
-                logger.info(f"🚀 [BackgroundTask] 开始执行分析任务: {task_id}")
-                logger.info(f"📝 [BackgroundTask] task_id={task_id}, user_id={user_id}")
-                logger.info(f"📝 [BackgroundTask] request={request}")
-
-                # 重新获取服务实例，确保在正确的上下文中
-                logger.info(f"🔧 [BackgroundTask] 正在获取服务实例...")
+                logger.info(f"[AsyncTask] 开始执行分析任务: {task_id}")
                 service = get_simple_analysis_service()
-                logger.info(f"✅ [BackgroundTask] 服务实例获取成功: {id(service)}")
-
-                logger.info(f"🚀 [BackgroundTask] 准备调用 execute_analysis_background...")
-                await service.execute_analysis_background(
-                    task_id,
-                    user_id,
-                    request
-                )
-                logger.info(f"✅ [BackgroundTask] 分析任务完成: {task_id}")
+                await service.execute_analysis_background(task_id, user_id, request)
+                logger.info(f"[AsyncTask] 分析任务完成: {task_id}")
             except Exception as e:
-                logger.error(f"❌ [BackgroundTask] 分析任务失败: {task_id}, 错误: {e}", exc_info=True)
+                logger.error(f"[AsyncTask] 分析任务失败: {task_id}, 错误: {e}", exc_info=True)
 
-        # 使用 BackgroundTasks 执行异步任务
-        background_tasks.add_task(run_analysis_task)
-
-        logger.info(f"✅ 分析任务已在后台启动: {result}")
+        # 与批量分析一致：create_task 立即调度，不依赖 BackgroundTasks 串行队列
+        asyncio.create_task(run_analysis_task())
+        logger.info(f"分析任务已调度: {result}")
 
         return {
             "success": True,
@@ -91,7 +74,7 @@ async def submit_single_analysis(
             "message": "分析任务已在后台启动"
         }
     except Exception as e:
-        logger.error(f"❌ 提交单股分析任务失败: {e}")
+        logger.error(f"提交单股分析任务失败: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -403,10 +386,8 @@ async def get_task_result(
                 state = result_data.get('state', {})
 
                 if isinstance(state, dict):
-                    # 定义所有可能的报告字段
+                    # 精简报告：不入库技术面(market)/情绪面(sentiment)
                     report_fields = [
-                        'market_report',
-                        'sentiment_report',
                         'news_report',
                         'fundamentals_report',
                         'investment_plan',
@@ -460,6 +441,12 @@ async def get_task_result(
                         risk_decision = risk_debate_state.get('judge_decision', "")
                         if isinstance(risk_decision, str) and len(risk_decision.strip()) > 10:
                             reports['risk_management_decision'] = risk_decision.strip()
+
+                    # 产品精简：只保留读者需要的模块
+                    _keep = {
+                        'fundamentals_report', 'research_team_decision',
+                    }
+                    reports = {k: v for k, v in reports.items() if k in _keep}
 
                     logger.info(f"📊 [RESULT] 从state中提取到 {len(reports)} 个报告: {list(reports.keys())}")
                     result_data['reports'] = reports

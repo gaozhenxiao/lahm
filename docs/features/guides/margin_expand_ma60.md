@@ -16,7 +16,7 @@
 
 信号实现：`signal_margin_expand_ma60`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/margin_expand_ma60_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.600196** |
 | 开仓 | 2021-04-19，约 42.23 元 |
 | 清仓 | 2021-06-03，约 60.39 元 |
-| 单腿涨跌 | **43.01%** |
+| 单笔涨跌 | **43.01%** |
 | 当日组合贡献 | NAV 5.38% |
 | 出场备注 | hold_end；买入2021-04-19 成本价42.2279 |
 

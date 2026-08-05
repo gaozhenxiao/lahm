@@ -15,7 +15,7 @@ catchup × 90日突破。
 
 信号实现：`signal_gross_net_catchup_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/catchup_brk90_trade_history.csv`
 
@@ -24,7 +24,7 @@ catchup × 90日突破。
 | 标的 | **sz.002602** |
 | 开仓 | 2025-05-27，约 8.983 元 |
 | 清仓 | 2025-08-07，约 14.27 元 |
-| 单腿涨跌 | **58.87%** |
+| 单笔涨跌 | **58.87%** |
 | 当日组合贡献 | NAV 7.36% |
 | 出场备注 | hold_end；买入2025-05-27 成本价8.9834 |
 

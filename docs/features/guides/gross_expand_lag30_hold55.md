@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_lag30_hold55_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.002602** |
 | 开仓 | 2025-06-16，约 9.93 元 |
 | 清仓 | 2025-09-01，约 15.53 元 |
-| 单腿涨跌 | **56.37%** |
+| 单笔涨跌 | **56.37%** |
 | 当日组合贡献 | NAV 7.05% |
 | 出场备注 | hold_end；买入2025-06-16 成本价9.9296 |
 

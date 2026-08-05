@@ -13,7 +13,7 @@
 
 信号实现：`signal_amount_shrink_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/amount_shrink_breakout_trade_history.csv`
 
@@ -22,7 +22,7 @@
 | 标的 | **sz.000999** |
 | 开仓 | 2021-12-20，约 14.06 元 |
 | 清仓 | 2022-01-06，约 20.51 元 |
-| 单腿涨跌 | **45.80%** |
+| 单笔涨跌 | **45.80%** |
 | 当日组合贡献 | NAV 5.72% |
 | 出场备注 | hold_end；买入2021-12-20 成本价14.0639 |
 

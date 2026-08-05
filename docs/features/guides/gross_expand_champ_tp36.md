@@ -17,7 +17,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_champ_tp36_trade_history.csv`
 
@@ -26,7 +26,7 @@
 | 标的 | **sz.300433** |
 | 开仓 | 2020-06-12，约 20.19 元 |
 | 清仓 | 2020-07-08，约 30.11 元 |
-| 单腿涨跌 | **49.09%** |
+| 单笔涨跌 | **49.09%** |
 | 当日组合贡献 | NAV 6.14% |
 | 出场备注 | take_profit；买入2020-06-12 成本价20.1936 |
 

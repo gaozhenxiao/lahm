@@ -1,7 +1,8 @@
 """各因子入场信号（基本面闸门 + K 线确认）。"""
 from __future__ import annotations
 
-from typing import Any, Dict
+from functools import lru_cache
+from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
 
@@ -1412,6 +1413,57 @@ def _funda_event(series: pd.Series) -> pd.Series:
     return series.notna() & series.ne(series.shift(1))
 
 
+def _mkv_yuan(px: pd.DataFrame) -> pd.Series:
+    """总市值（元）≈ close × totalShare；缺股本则全 NaN。"""
+    if "totalShare" not in px.columns or "close" not in px.columns:
+        return pd.Series(float("nan"), index=px.index, dtype=float)
+    sh = pd.to_numeric(px["totalShare"], errors="coerce")
+    cl = pd.to_numeric(px["close"], errors="coerce")
+    return cl * sh
+
+
+def _tier_by_mkv(mkv: pd.Series, spec: Dict[str, Any], default: float) -> pd.Series:
+    """按市值分档赋值。
+
+    spec 例::
+        {"edges": [5e10, 2e11], "values": [80, 60, 40]}
+        # mkv < 5e10 → 80；[5e10, 2e11) → 60；≥ 2e11 → 40
+    edges 升序，len(values) == len(edges) + 1。
+    mkv 缺失时用 default。
+    """
+    edges = [float(x) for x in (spec.get("edges") or [])]
+    values = [float(x) for x in (spec.get("values") or [])]
+    if not edges or len(values) != len(edges) + 1:
+        return pd.Series(float(default), index=mkv.index, dtype=float)
+    out = pd.Series(float(values[-1]), index=mkv.index, dtype=float)
+    # 从低到高覆盖
+    out[:] = float(values[0])
+    for i, e in enumerate(edges):
+        out = out.where(~(mkv >= e), float(values[i + 1]))
+    out = out.where(mkv.notna(), float(default))
+    return out
+
+
+def _param_scalar_or_mkv(
+    px: pd.DataFrame,
+    params: Dict[str, Any],
+    key: str,
+    default: float,
+) -> tuple[float | None, pd.Series | None]:
+    """常数参数 或 `{key}_by_mkv` 分档序列。
+
+    返回 (scalar_or_None, series_or_None)；二者恰一非空。
+    """
+    by = params.get(f"{key}_by_mkv")
+    if isinstance(by, dict) and by.get("edges") is not None and by.get("values") is not None:
+        mkv = _mkv_yuan(px)
+        return None, _tier_by_mkv(mkv, by, float(default))
+    raw = params.get(key)
+    if raw is None:
+        return float(default), None
+    return float(raw), None
+
+
 # ----- 第六波：财务基本面为主（非纯量价） -----
 
 
@@ -2013,6 +2065,54 @@ def signal_dual_improve_breakout(px: pd.DataFrame, params: Dict[str, Any]) -> pd
     return out
 
 
+def signal_dual_improve_meanrev(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """双改善均值回归：财务闸门同 breakout，技术面取相反方向。
+
+    财务（不变）：ROE/净利率环比改善热窗 + 可选门槛。
+    技术（反向突破）：
+      - 明确非 N 日新高，且相对 N 日高回撤 ≥ pullback_min；
+      - 近 20 日回撤足够（dd_20 ≤ -dd_need）或近期曾低于慢均线（弱势）；
+      - 上穿 MA20 企稳反转（不做突破确认）。
+    """
+    if "roeAvg" not in px.columns or "npMargin" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    roe = _to_dec(px["roeAvg"])
+    np_ = _to_dec(px["npMargin"])
+    roe_up = _funda_event(px["roeAvg"]) & ((roe - roe.shift(1)) >= float(params.get("roe_improve") or 0.002))
+    np_up = _funda_event(px["npMargin"]) & ((np_ - np_.shift(1)) >= float(params.get("margin_improve") or 0.003))
+    lag = int(params.get("funda_lag") or 5)
+    hot = _funda_hot_window(roe_up, lag) & _funda_hot_window(np_up, lag)
+    np_ok = np_ >= float(params.get("np_min") or 0.0)
+    roe_ok = _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0)) if params.get("roe_min") is not None else True
+
+    brk_win = int(params.get("break_days") or 60)
+    if brk_win == 60 and "high_60" in px.columns:
+        hi_ref = px["high_60"].shift(1)
+    else:
+        hi_ref = px["high"].rolling(brk_win, min_periods=max(5, brk_win // 2)).max().shift(1)
+    pullback_min = float(params.get("pullback_min") or 0.06)
+    deep_pull = hi_ref.notna() & (px["close"] <= hi_ref * (1.0 - pullback_min))
+    not_brk = hi_ref.notna() & (px["close"] < hi_ref)
+
+    dd_need = -abs(float(params.get("dd_need") or 0.04))
+    dd_ok = px["dd_20"] <= dd_need if "dd_20" in px.columns else pd.Series(True, index=px.index)
+
+    ma_weak = px["ma60"] if "ma60" in px.columns else px["ma20"]
+    was_weak = (
+        (px["close"] < ma_weak)
+        | (px["close"].shift(1) < ma_weak.shift(1))
+        | (px["close"].shift(2) < ma_weak.shift(2))
+        | (px["close"].shift(3) < ma_weak.shift(3))
+    )
+    weak_ok = dd_ok.fillna(False) | was_weak.fillna(False)
+
+    cross = (px["close"] > px["ma20"]) & (px["close"].shift(1) <= px["ma20"].shift(1))
+    m = hot & np_ok & roe_ok & not_brk & deep_pull & weak_ok & cross
+    out = px.loc[m, ["date", "close"]].copy()
+    out["note"] = "双改善弱势回撤企稳"
+    return out
+
+
 def signal_value_repair_reclaim(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
     """价值修复：低估 + 盈利转正/改善 + 站上MA60。"""
     if "pe_pct" not in px.columns:
@@ -2059,7 +2159,13 @@ def signal_parent_lead_reclaim(px: pd.DataFrame, params: Dict[str, Any]) -> pd.D
 
 
 def signal_gross_expand_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
-    """毛利率扩张突破：毛利率环比改善后突破60日高。"""
+    """毛利率扩张突破：毛利率环比改善后突破 N 日高。
+
+    支持按市值分档参数（函数型/分档型）：
+    - ``margin_min_by_mkv`` / ``break_days_by_mkv``:
+      ``{"edges": [5e10, 2e11], "values": [v_lo, v_mid, v_hi]}``
+    - 市值 mkv = close × totalShare（元）；未给 ``*_by_mkv`` 时退化为常数 params。
+    """
     if "gpMargin" not in px.columns:
         return pd.DataFrame(columns=["date", "close", "note"])
     gp = _to_dec(px["gpMargin"])
@@ -2068,7 +2174,11 @@ def signal_gross_expand_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.Da
     if params.get("gp_consec"):
         prev_up = ((gp.shift(1) - gp.shift(2)) >= imp).fillna(False)
         improve = improve & prev_up
-    level = gp >= float(params.get("margin_min") or 0.20)
+    mmin_s, mmin_ser = _param_scalar_or_mkv(px, params, "margin_min", 0.20)
+    if mmin_ser is not None:
+        level = gp >= mmin_ser
+    else:
+        level = gp >= float(mmin_s if mmin_s is not None else 0.20)
     hot = _funda_hot_window(improve & level, int(params.get("funda_lag") or 25))
     np_ok = True
     if "npMargin" in px.columns and params.get("np_min") is not None:
@@ -2077,13 +2187,26 @@ def signal_gross_expand_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.Da
         np_ = _to_dec(px["npMargin"])
         np_up = _funda_event(px["npMargin"]) & ((np_ - np_.shift(1)) >= float(params.get("np_improve") or 0.0))
         hot = hot & _funda_hot_window(np_up, int(params.get("funda_lag") or 25))
-    brk_win = int(params.get("break_days") or 60)
-    if brk_win == 60 and "high_60" in px.columns:
-        hi_ref = px["high_60"].shift(1)
-    else:
-        hi_ref = px["high"].rolling(brk_win, min_periods=max(5, brk_win // 2)).max().shift(1)
     soft = float(params.get("brk_soft") or 1.0)
-    brk = px["close"] >= hi_ref * soft
+    brk_s, brk_ser = _param_scalar_or_mkv(px, params, "break_days", 60.0)
+    if brk_ser is not None:
+        days_i = brk_ser.round().astype(int)
+        brk = pd.Series(False, index=px.index)
+        for d in sorted(set(int(x) for x in days_i.unique())):
+            if d <= 0:
+                continue
+            if d == 60 and "high_60" in px.columns:
+                hi_ref = px["high_60"].shift(1)
+            else:
+                hi_ref = px["high"].rolling(d, min_periods=max(5, d // 2)).max().shift(1)
+            brk = brk | ((days_i == d) & (px["close"] >= hi_ref * soft))
+    else:
+        brk_win = int(brk_s if brk_s is not None else 60)
+        if brk_win == 60 and "high_60" in px.columns:
+            hi_ref = px["high_60"].shift(1)
+        else:
+            hi_ref = px["high"].rolling(brk_win, min_periods=max(5, brk_win // 2)).max().shift(1)
+        brk = px["close"] >= hi_ref * soft
     m = hot & np_ok & brk
     ma_col = "ma60" if int(params.get("ma_days") or 20) >= 60 else "ma20"
     if ma_col not in px.columns:
@@ -2105,8 +2228,18 @@ def signal_gross_expand_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.Da
         m = m & dry.fillna(False)
     if params.get("dd_need") is not None and "dd_20" in px.columns:
         m = m & (px["dd_20"] <= -abs(float(params.get("dd_need") or 0.0)))
+    # 绝对净利门槛（元，累计报告期口径）
+    if params.get("net_profit_min") is not None and "netProfit" in px.columns:
+        m = m & (pd.to_numeric(px["netProfit"], errors="coerce") >= float(params.get("net_profit_min") or 0.0))
+    # 总市值门槛（元）≈ close × totalShare
+    if params.get("mktcap_min") is not None and "totalShare" in px.columns:
+        mkt = _mkv_yuan(px)
+        m = m & mkt.notna() & (mkt >= float(params.get("mktcap_min") or 0.0))
     out = px.loc[m, ["date", "close"]].copy()
-    out["note"] = "毛利率扩张突破"
+    note = "毛利率扩张突破"
+    if params.get("margin_min_by_mkv") or params.get("break_days_by_mkv"):
+        note = "毛利率扩张突破(mkv分档)"
+    out["note"] = note
     return out
 
 
@@ -3374,4 +3507,1070 @@ def signal_amount_coil_outrun_break(px: pd.DataFrame, params: Dict[str, Any]) ->
     m = coil.fillna(False) & wake.fillna(False) & funda & _entry_tech(px, params)
     out = px.loc[m, ["date", "close"]].copy()
     out["note"] = "成交收缩股权利差突破"
+    return out
+
+
+# Wind 业绩预告类型码（S_PROFITNOTICE_STYLE）
+_FCST_STYLE_PRE_INCREASE = 454010000.0  # 预增
+_FCST_STYLE_SLIGHT_UP = 454008000.0  # 略增
+_FCST_STYLE_CONT_PROFIT = 454003000.0  # 续盈
+_FCST_STYLE_TURNAROUND = 454004000.0  # 扭亏
+_FCST_STYLE_SKIP = {
+    454001000.0,  # 不确定
+    454002000.0,  # 略减
+    454004000.0,  # 扭亏（伪翻倍主来源）
+    454006000.0,  # 首亏
+    454007000.0,  # 续亏
+    454009000.0,  # 预减
+}
+_FCST_STYLE_POSITIVE = {
+    _FCST_STYLE_PRE_INCREASE,
+    _FCST_STYLE_SLIGHT_UP,
+    _FCST_STYLE_CONT_PROFIT,
+}
+
+
+def signal_fcst_profit_gap(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """业绩预告爆发利润断层：增速下限≥explosive 的正向预告，公告日事件买入。
+
+    纯预告/基本面事件（非 earnings_forecast 的追高三维）。排除扭亏伪翻倍：
+    类型为扭亏/亏损类，或可由预告净利反推基期≤0 时跳过。
+    """
+    if "fcst_change_min" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+
+    chg = pd.to_numeric(px["fcst_change_min"], errors="coerce")
+    # 库内为百分数（100=100%）；偶发小数则放大到百分数口径
+    chg_pct = chg.where(chg.abs() > 5.0, chg * 100.0)
+    explosive = float(params.get("explosive_chg") or params.get("explosive_chg_pct_dwn") or 100.0)
+    explosive_ok = chg_pct.notna() & (chg_pct >= explosive)
+
+    style = pd.to_numeric(px["fcst_style"], errors="coerce") if "fcst_style" in px.columns else pd.Series(pd.NA, index=px.index)
+    style_skip = style.isin(list(_FCST_STYLE_SKIP))
+    style_pos = style.isna() | style.isin(list(_FCST_STYLE_POSITIVE))
+
+    np_min = (
+        pd.to_numeric(px["fcst_np_min"], errors="coerce")
+        if "fcst_np_min" in px.columns
+        else pd.Series(pd.NA, index=px.index)
+    )
+    # 反推上年同季基期：np_min / (1 + chg%)；基期亏损则视为伪翻倍
+    prior = np_min / (1.0 + chg_pct / 100.0)
+    base_loss = np_min.notna() & chg_pct.notna() & (prior <= 0)
+    np_pos = np_min.isna() | (np_min > 0)
+
+    abstract_turn = pd.Series(False, index=px.index)
+    if "fcst_abstract" in px.columns:
+        abstract_turn = px["fcst_abstract"].astype(str).str.contains("扭亏", na=False)
+
+    gate = explosive_ok & style_pos & (~style_skip) & np_pos & (~base_loss) & (~abstract_turn)
+    evt = _funda_event(px["fcst_change_min"]) & gate.fillna(False)
+
+    lag = int(params.get("funda_lag") or 0)
+    hot = _funda_hot_window(evt, lag) if lag > 0 else evt
+
+    require_ma = params.get("require_ma20", True)
+    if require_ma:
+        m = hot & _funda_confirm(px)
+    else:
+        m = hot
+
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "预告爆发利润断层"
+    return out
+
+
+def signal_q_np_gap(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """正式季报单季净利润断层式跨越增长（非预告）。
+
+    依赖 ashare_fin_db 派生列：累计净利差分→q_np，再算 q_np_yoy / q_np_qoq / q_np_prior_yoy。
+    信号：单季 YoY≥θ，且「断层」（上年同季增速不高 或 单季环比跨越）；
+    排除单季亏损与基期亏损伪翻倍；按公告日 asof 事件对齐。
+    """
+    if "q_np_yoy" not in px.columns or "q_np" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+
+    yoy = pd.to_numeric(px["q_np_yoy"], errors="coerce").astype(float)
+    q_np = pd.to_numeric(px["q_np"], errors="coerce").astype(float)
+    qoq = (
+        pd.to_numeric(px["q_np_qoq"], errors="coerce").astype(float)
+        if "q_np_qoq" in px.columns
+        else pd.Series(float("nan"), index=px.index, dtype=float)
+    )
+    prior_yoy = (
+        pd.to_numeric(px["q_np_prior_yoy"], errors="coerce").astype(float)
+        if "q_np_prior_yoy" in px.columns
+        else pd.Series(float("nan"), index=px.index, dtype=float)
+    )
+
+    # explosive_chg：兼容百分数（100=100%）与小数（1.0=100%）
+    explosive_raw = float(params.get("explosive_chg") or 100.0)
+    explosive = explosive_raw / 100.0 if abs(explosive_raw) > 5.0 else explosive_raw
+    prior_max_raw = float(params.get("prior_yoy_max") or 30.0)
+    prior_max = prior_max_raw / 100.0 if abs(prior_max_raw) > 5.0 else prior_max_raw
+    qoq_gap_raw = float(params.get("qoq_gap_min") or 50.0)
+    qoq_gap = qoq_gap_raw / 100.0 if abs(qoq_gap_raw) > 5.0 else qoq_gap_raw
+
+    explosive_ok = yoy.notna() & (yoy >= explosive)
+    np_pos = q_np.notna() & (q_np > 0)
+    # 断层：上年同季增速不高，或本期单季环比跨越（缺上年同比时不默认放行）
+    soft_prior = prior_yoy.notna() & (prior_yoy < prior_max)
+    qoq_jump = qoq.notna() & (qoq >= qoq_gap)
+    gap_ok = soft_prior | qoq_jump
+
+    gate = (explosive_ok & np_pos & gap_ok).fillna(False)
+    evt = (_funda_event(yoy) & gate).fillna(False)
+
+    lag = int(params.get("funda_lag") or 0)
+    hot = (_funda_hot_window(evt, lag) if lag > 0 else evt).fillna(False)
+
+    require_ma = bool(params.get("require_ma20", True))
+    if require_ma:
+        m = (hot & _funda_confirm(px)).fillna(False)
+    else:
+        m = hot
+
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "正式季报单季净利断层"
+    return out
+
+
+def _tech_break_confirm(px: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
+    """通用技术确认：N 日高突破 + 站上 MA20（与 dual_improve / gross_expand 同构）。"""
+    brk_win = int(params.get("break_days") or 60)
+    soft = float(params.get("brk_soft") or 1.0)
+    if brk_win == 60 and "high_60" in px.columns:
+        hi_ref = px["high_60"].shift(1)
+    else:
+        hi_ref = px["high"].rolling(brk_win, min_periods=max(5, brk_win // 2)).max().shift(1)
+    brk = hi_ref.notna() & (px["close"] >= hi_ref * soft)
+    ma_ok = _funda_confirm(px) if bool(params.get("require_ma20", True)) else pd.Series(True, index=px.index)
+    return (brk & ma_ok).fillna(False)
+
+
+def signal_expr_ros_improve_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """快报 ROS（净利/营收）同比改善 + 技术突破确认。
+
+    PIT：快报实际/公告日 merge_asof。ΔROS 优先用同行上年字段（expr_dros）；
+    缺列时退化为 expr_ros 环比跳变代理（弱）。
+    """
+    dros_col = "expr_dros" if "expr_dros" in px.columns else None
+    ros_col = "expr_ros" if "expr_ros" in px.columns else None
+    if dros_col is None and ros_col is None:
+        # 运行时粗算：若面板仅有净利/营收
+        if "expr_net_profit" in px.columns and "expr_oper_rev" in px.columns:
+            rev = pd.to_numeric(px["expr_oper_rev"], errors="coerce")
+            np_ = pd.to_numeric(px["expr_net_profit"], errors="coerce")
+            ros = np_ / rev.replace(0, pd.NA)
+            px = px.copy()
+            px["expr_ros"] = ros
+            ros_col = "expr_ros"
+        else:
+            return pd.DataFrame(columns=["date", "close", "note"])
+
+    improve = float(params.get("ros_improve") or params.get("margin_improve") or 0.005)
+    if dros_col is not None:
+        dros = pd.to_numeric(px[dros_col], errors="coerce")
+        evt = _funda_event(px[dros_col])
+        gate = evt & dros.notna() & (dros >= improve)
+    else:
+        ros = pd.to_numeric(px[ros_col], errors="coerce")
+        dros = ros - ros.shift(1)
+        evt = _funda_event(px[ros_col])
+        gate = evt & dros.notna() & (dros >= improve)
+
+    if "expr_net_profit" in px.columns:
+        np_pos = pd.to_numeric(px["expr_net_profit"], errors="coerce") > 0
+        gate = gate & np_pos.fillna(False)
+    if "expr_oper_rev" in px.columns:
+        rev_pos = pd.to_numeric(px["expr_oper_rev"], errors="coerce") > 0
+        gate = gate & rev_pos.fillna(False)
+    if params.get("ros_min") is not None and ros_col is not None:
+        ros_now = pd.to_numeric(px[ros_col], errors="coerce")
+        gate = gate & (ros_now >= float(params.get("ros_min") or 0.0))
+
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gate.fillna(False), lag) if lag > 0 else gate.fillna(False)
+    tech = _tech_break_confirm(px, params)
+    m = (hot & tech).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "快报ROS改善突破"
+    return out
+
+
+def signal_fcst_np_proxy_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """弱 ROS 代理：仅业绩预告净利增速达标 + 同技术突破。
+
+    预告无营收，无法算真 ROS；用 fcst_change_min（同比增速下限，百分数）作代理。
+    PIT：首次公告日（S_PROFITNOTICE_FIRSTANNDATE）asof。
+    """
+    if "fcst_change_min" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+
+    chg = pd.to_numeric(px["fcst_change_min"], errors="coerce")
+    chg_pct = chg.where(chg.abs() > 5.0, chg * 100.0)
+    thr = float(params.get("fcst_chg_min") or params.get("explosive_chg") or 20.0)
+    # thr 兼容小数（0.2=20%）
+    if abs(thr) <= 5.0:
+        thr = thr * 100.0
+    chg_ok = chg_pct.notna() & (chg_pct >= thr)
+
+    style = (
+        pd.to_numeric(px["fcst_style"], errors="coerce")
+        if "fcst_style" in px.columns
+        else pd.Series(pd.NA, index=px.index)
+    )
+    style_skip = style.isin(list(_FCST_STYLE_SKIP))
+    style_pos = style.isna() | style.isin(list(_FCST_STYLE_POSITIVE))
+
+    np_min = (
+        pd.to_numeric(px["fcst_np_min"], errors="coerce")
+        if "fcst_np_min" in px.columns
+        else pd.Series(pd.NA, index=px.index)
+    )
+    prior = np_min / (1.0 + chg_pct / 100.0)
+    base_loss = np_min.notna() & chg_pct.notna() & (prior <= 0)
+    np_pos = np_min.isna() | (np_min > 0)
+
+    abstract_turn = pd.Series(False, index=px.index)
+    if "fcst_abstract" in px.columns:
+        abstract_turn = px["fcst_abstract"].astype(str).str.contains("扭亏", na=False)
+
+    gate = chg_ok & style_pos & (~style_skip) & np_pos & (~base_loss) & (~abstract_turn)
+    evt = _funda_event(px["fcst_change_min"]) & gate.fillna(False)
+
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(evt.fillna(False), lag) if lag > 0 else evt.fillna(False)
+    tech = _tech_break_confirm(px, params)
+    m = (hot & tech).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "预告净利代理突破(弱ROS)"
+    return out
+
+
+@lru_cache(maxsize=1)
+def _ipo_list_date_map() -> Dict[str, pd.Timestamp]:
+    """上市日：本地财务库 S_INFO_LISTDATE。"""
+    try:
+        from app.services.factors import ashare_fin_db as fin_db
+
+        basic = fin_db.fetch_basic()
+    except Exception:  # noqa: BLE001
+        return {}
+    out: Dict[str, pd.Timestamp] = {}
+    if basic is None or basic.empty:
+        return out
+    for _, r in basic.iterrows():
+        code = r.get("code")
+        raw = r.get("S_INFO_LISTDATE")
+        if not code or raw is None:
+            continue
+        s = str(raw).strip()
+        try:
+            if len(s) == 8 and s.isdigit():
+                out[str(code)] = pd.Timestamp(f"{s[:4]}-{s[4:6]}-{s[6:8]}")
+            else:
+                out[str(code)] = pd.Timestamp(s)
+        except Exception:  # noqa: BLE001
+            continue
+    return out
+
+
+def _ipo_crash_ok(px: pd.DataFrame, age_days: pd.Series, params: Dict[str, Any]) -> pd.Series:
+    """上市后 0–N 月内是否出现过大跌（相对上市后峰值最大回撤）。
+
+    参数：
+    - ``ipo_crash_months``：观察窗（默认 18 月，日历近似 30.44 天/月）
+    - ``ipo_crash_dd``：阈值，如 -0.40 / -0.45 / -0.50（最大回撤 ≤ 该值即算大跌）
+
+    一旦在观察窗内触及阈值，之后全程保持 True（供 2.5 年窗入场使用）。
+    若行情覆盖不足（观察窗内有效 bar < 20），则回退为上市后至年龄 2.0 年内的最大回撤。
+    """
+    if not params.get("require_ipo_crash", False):
+        return pd.Series(True, index=px.index)
+    months = float(params.get("ipo_crash_months") or 18.0)
+    thr = float(params.get("ipo_crash_dd") or -0.45)
+    if thr > 0:
+        thr = -abs(thr)
+    crash_end = months * 30.44
+    post = age_days.notna() & (age_days >= 0)
+    in_win = post & (age_days <= crash_end)
+    close = pd.to_numeric(px["close"], errors="coerce")
+    peak = close.where(post).cummax()
+    dd = close / peak.replace(0, pd.NA) - 1.0
+
+    # 覆盖不足时回退：用上市后至 2.0 年的早期回撤近似「上市后大跌」
+    if int(in_win.fillna(False).sum()) < 20:
+        in_win = post & (age_days <= 2.0 * 365.25)
+
+    min_dd = dd.where(in_win).cummin()
+    hit_in_win = in_win.fillna(False) & (min_dd <= thr).fillna(False)
+    # sticky：窗内一旦触发，年龄窗内仍有效
+    return hit_in_win.cummax().fillna(False)
+
+
+def _ipo_consol_ok(px: pd.DataFrame, age_days: pd.Series, params: Dict[str, Any]) -> pd.Series:
+    """大跌后、进入 IPO 年龄窗前/内：长期横盘（箱体窄 或 贴近均线）。
+
+    参数：
+    - ``consol_window``：横盘观察窗（交易日，默认 120）
+    - ``consol_amp_max``：箱体振幅上限 (high-low)/mid（默认 0.32，不过严）
+    - ``consol_ma_band``：相对 ma60 偏离上限（默认 0.08）；无 ma60 则用 ma20
+    - ``consol_min_age_years``：至少过完大跌窗才认横盘（默认 = ipo_crash_months/12）
+    """
+    if not params.get("require_consol", False):
+        return pd.Series(True, index=px.index)
+    win = int(params.get("consol_window") or 120)
+    amp_max = float(params.get("consol_amp_max") or 0.32)
+    band = float(params.get("consol_ma_band") or 0.08)
+    crash_m = float(params.get("ipo_crash_months") or 18.0)
+    min_age = float(params.get("consol_min_age_years") if params.get("consol_min_age_years") is not None else (crash_m / 12.0))
+    after_crash = age_days.notna() & (age_days / 365.25 >= min_age)
+
+    hi, lo, base = _amp_base(px, win, amp_max)
+    ma_col = "ma60" if "ma60" in px.columns else ("ma20" if "ma20" in px.columns else None)
+    near_ma = pd.Series(False, index=px.index)
+    if ma_col is not None:
+        ma = pd.to_numeric(px[ma_col], errors="coerce")
+        near_ma = ma.notna() & (px["close"] > 0) & ((px["close"] / ma - 1.0).abs() <= band)
+    # 入场日看「此前已横盘」：shift(1)
+    consol = (base.fillna(False) | near_ma.fillna(False)).shift(1).fillna(False)
+    return after_crash & consol
+
+
+def _ipo_soft_entry(px: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
+    """横盘后软入场：突破（可 soft）或企稳（站上 ma20），不过严。
+
+    ``entry_mode``:
+      - soft（默认）：N 日高 soft突破 或 收盘站上 ma20
+      - break：仅突破
+      - stabilize：仅站上 ma20
+      - none / use_break=False：不过滤
+    """
+    use_brk = params.get("use_break", True)
+    brk_raw = params.get("break_days")
+    mode = str(params.get("entry_mode") or "soft").lower()
+    if use_brk is False or mode in ("none", "off") or (brk_raw is not None and int(brk_raw) <= 0 and mode == "break"):
+        if mode in ("none", "off") or use_brk is False:
+            return pd.Series(True, index=px.index)
+
+    brk_win = int(brk_raw or 40)
+    soft = float(params.get("brk_soft") or 0.985)
+    if brk_win == 60 and "high_60" in px.columns:
+        hi_ref = px["high_60"].shift(1)
+    else:
+        hi_ref = px["high"].rolling(brk_win, min_periods=max(5, brk_win // 2)).max().shift(1)
+    brk = px["close"] >= hi_ref * soft
+
+    stab = pd.Series(False, index=px.index)
+    if "ma20" in px.columns:
+        stab = px["ma20"].notna() & (px["close"] > px["ma20"])
+        # 企稳：站上 ma20，且不低于近窗中轴过多
+        win = int(params.get("consol_window") or 120)
+        mid = (
+            px["high"].rolling(win, min_periods=max(20, win // 2)).max()
+            + px["low"].rolling(win, min_periods=max(20, win // 2)).min()
+        ) / 2.0
+        stab = stab & mid.notna() & (px["close"] >= mid * float(params.get("stab_mid_floor") or 0.96))
+
+    if mode == "break":
+        tech = brk
+        if params.get("require_ma20", True) and "ma20" in px.columns:
+            tech = tech & px["ma20"].notna() & (px["close"] > px["ma20"])
+    elif mode == "stabilize":
+        tech = stab
+    else:  # soft
+        tech = brk.fillna(False) | stab.fillna(False)
+        if params.get("require_ma20", False) and "ma20" in px.columns:
+            # soft 默认不强制 ma20；显式 require_ma20=True 时叠加
+            tech = tech & px["ma20"].notna() & (px["close"] > px["ma20"])
+    return tech.fillna(False)
+
+
+def signal_ipo_age_earn_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """IPO 形态：上市后大跌 → 长期横盘 → 年龄≈2.5 年窗 + 业绩改善 + 软入场。
+
+    上市日优先用列 ``list_date``；否则按 ``code`` 查财务库 S_INFO_LISTDATE。
+
+    形态阈值（可配）：
+    - 大跌：``require_ipo_crash`` + ``ipo_crash_months``(12/18) + ``ipo_crash_dd``(-0.40/-0.45/-0.50)
+    - 横盘：``require_consol`` + ``consol_window`` + ``consol_amp_max`` / ``consol_ma_band``
+    - 年龄：``ipo_age_lo``/``ipo_age_hi``（建议 [2.4, 3.0)）
+    - 业绩：毛利/净利率/净利改善（既有）+ 可选 ``require_rev``/``np_min``
+    - 入场：``entry_mode=soft|break|stabilize``（横盘后突破或企稳，默认 soft 不过严）
+    """
+    if "close" not in px.columns or "date" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+
+    if "list_date" in px.columns and pd.to_datetime(px["list_date"], errors="coerce").notna().any():
+        ld = pd.to_datetime(px["list_date"], errors="coerce")
+    else:
+        code = None
+        if "code" in px.columns and len(px):
+            code = str(px["code"].iloc[0])
+        ld_one = _ipo_list_date_map().get(code) if code else None
+        if ld_one is None:
+            return pd.DataFrame(columns=["date", "close", "note"])
+        ld = pd.Series(ld_one, index=px.index)
+
+    dt = pd.to_datetime(px["date"], errors="coerce")
+    age_days = (dt - ld).dt.days
+    age = age_days / 365.25
+    lo = float(params.get("ipo_age_lo") or 2.4)
+    hi = float(params.get("ipo_age_hi") or 3.0)
+    in_win = age.notna() & (age >= lo) & (age < hi)
+
+    improve = pd.Series(False, index=px.index)
+    if "gpMargin" in px.columns:
+        gp = _to_dec(px["gpMargin"])
+        imp = float(params.get("margin_improve") or 0.003)
+        improve = improve | (_funda_event(px["gpMargin"]) & ((gp - gp.shift(1)) >= imp))
+    if "npMargin" in px.columns:
+        npm = _to_dec(px["npMargin"])
+        imp = float(params.get("np_improve") or params.get("margin_improve") or 0.003)
+        improve = improve | (_funda_event(px["npMargin"]) & ((npm - npm.shift(1)) >= imp))
+    if "netProfit" in px.columns:
+        np_ = pd.to_numeric(px["netProfit"], errors="coerce")
+        improve = improve | (_funda_event(px["netProfit"]) & (np_ > np_.shift(1)))
+
+    if params.get("require_rev") and "MBRevenue" in px.columns:
+        rev = pd.to_numeric(px["MBRevenue"], errors="coerce")
+        rev_ok = _funda_event(px["MBRevenue"]) & (rev > rev.shift(1))
+        improve = improve & rev_ok.fillna(False)
+
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(improve.fillna(False), lag) if lag > 0 else improve.fillna(False)
+
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & (_to_dec(px["npMargin"]) >= float(params.get("np_min") or 0.0))
+    if params.get("net_profit_min") is not None and "netProfit" in px.columns:
+        hot = hot & (
+            pd.to_numeric(px["netProfit"], errors="coerce")
+            >= float(params.get("net_profit_min") or 0.0)
+        )
+
+    crash_ok = _ipo_crash_ok(px, age_days, params)
+    consol_ok = _ipo_consol_ok(px, age_days, params)
+    tech = _ipo_soft_entry(px, params)
+
+    m = in_win & hot & crash_ok & consol_ok & tech.fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = f"IPO大跌横盘[{lo},{hi})+业绩改善软入场"
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 营收/净利 YoY 增速及其变化趋势（二阶导、由负转正、连续两季改善）
+# 口径写清：growth.YOYNI=净利润同比；fin_rev_yoy/fin_np_yoy=累计同报告期 YoY；
+# q_np_yoy=正式季报单季净利 YoY（非预告）。
+# ---------------------------------------------------------------------------
+
+
+def _yoy_series(px: pd.DataFrame, col: str) -> Optional[pd.Series]:
+    if col not in px.columns:
+        return None
+    return _to_dec(px[col])
+
+
+def _yoy_event_delta(raw: pd.Series, yoy: pd.Series) -> tuple[pd.Series, pd.Series]:
+    """财报跳变日的 ΔYoY（相对上一披露值）。"""
+    evt = _funda_event(raw)
+    delta = yoy - yoy.shift(1)
+    return evt.fillna(False), delta
+
+
+def _yoy_consec2_improve(raw: pd.Series, yoy: pd.Series, step: float) -> pd.Series:
+    """连续两季 YoY 改善：本季 ΔYoY≥step 且上季 ΔYoY≥step（按披露事件对齐）。"""
+    evt, delta = _yoy_event_delta(raw, yoy)
+    delta_at = delta.where(evt)
+    prev_delta = delta_at.ffill().shift(1)
+    return (evt & (delta >= step) & (prev_delta >= step)).fillna(False)
+
+
+def _yoy_gate_hot(px: pd.DataFrame, gate: pd.Series, params: Dict[str, Any]) -> pd.Series:
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gate.fillna(False), lag) if lag > 0 else gate.fillna(False)
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0))
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0))
+    if params.get("pe_pct_max") is not None and "pe_pct" in px.columns:
+        hot = hot & (px["pe_pct"].isna() | (px["pe_pct"] <= float(params.get("pe_pct_max") or 0.55)))
+    return hot.fillna(False)
+
+
+def signal_ni_yoy_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """净利同比再加速：YOYNI（净利润同比）ΔYoY≥阈值且水平达标后技术入场。
+
+    口径：baostock/growth 缓存 YOYNI（同比小数）；二阶=本期YoY−上期YoY。
+    与 dual_yoy_accel 差异：仅需 YOYNI，不强制 YOYPNI。
+    """
+    col = str(params.get("yoy_col") or "YOYNI")
+    yoy = _yoy_series(px, col)
+    if yoy is None:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    evt, delta = _yoy_event_delta(px[col], yoy)
+    accel = float(params.get("growth_accel") or params.get("accel_min") or 0.05)
+    gmin = float(params.get("growth_min") or params.get("yoy_min") or 0.08)
+    gate = evt & delta.notna() & (delta >= accel) & yoy.notna() & (yoy >= gmin)
+    hot = _yoy_gate_hot(px, gate, params)
+    m = hot & _entry_tech(px, params)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "净利同比再加速"
+    return out
+
+
+def signal_ni_yoy_turn_pos_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """净利同比由负转正：上期 YoY<0（或≤turn_from）、本期 YoY≥turn_to 后入场。"""
+    col = str(params.get("yoy_col") or "YOYNI")
+    yoy = _yoy_series(px, col)
+    if yoy is None:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    evt = _funda_event(px[col])
+    prev = yoy.shift(1)
+    turn_from = float(params.get("turn_from") or 0.0)
+    turn_to = float(params.get("turn_to") or params.get("growth_min") or 0.0)
+    gate = (
+        evt
+        & prev.notna()
+        & yoy.notna()
+        & (prev <= turn_from)
+        & (yoy >= turn_to)
+    )
+    # 可选：要求 ΔYoY 足够大，避免贴零噪声
+    min_jump = params.get("growth_accel") or params.get("accel_min")
+    if min_jump is not None:
+        gate = gate & ((yoy - prev) >= float(min_jump))
+    hot = _yoy_gate_hot(px, gate.fillna(False), params)
+    m = hot & _entry_tech(px, params)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "净利同比由负转正"
+    return out
+
+
+def signal_ni_yoy_consec2_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """净利同比连续两季改善：连续两期 ΔYoY≥阈值，且本期水平≥growth_min。"""
+    col = str(params.get("yoy_col") or "YOYNI")
+    yoy = _yoy_series(px, col)
+    if yoy is None:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    step = float(params.get("growth_accel") or params.get("accel_min") or 0.03)
+    gmin = float(params.get("growth_min") or params.get("yoy_min") or 0.05)
+    consec = _yoy_consec2_improve(px[col], yoy, step)
+    gate = consec & yoy.notna() & (yoy >= gmin)
+    hot = _yoy_gate_hot(px, gate, params)
+    m = hot & _entry_tech(px, params)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "净利同比连续两季改善"
+    return out
+
+
+def signal_q_np_yoy_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """单季净利 YoY 再加速（非断层）：q_np_yoy 二阶改善 + 水平门槛 + 技术确认。
+
+    口径：ashare_fin_db 正式季报单季净利 YoY；与 signal_q_np_gap（爆炸式断层）不同。
+    """
+    if "q_np_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    yoy = pd.to_numeric(px["q_np_yoy"], errors="coerce").astype(float)
+    raw = px["q_np_yoy"]
+    evt, delta = _yoy_event_delta(raw, yoy)
+    accel = float(params.get("growth_accel") or params.get("accel_min") or 0.10)
+    gmin = float(params.get("growth_min") or params.get("yoy_min") or 0.15)
+    pos = pd.Series(True, index=px.index)
+    if "q_np" in px.columns:
+        pos = pd.to_numeric(px["q_np"], errors="coerce") > 0
+    gate = evt & delta.notna() & (delta >= accel) & yoy.notna() & (yoy >= gmin) & pos.fillna(False)
+    hot = _yoy_gate_hot(px, gate, params)
+    # 默认突破确认（可用 entry=pullback）
+    p2 = dict(params)
+    if "entry" not in p2:
+        p2["entry"] = "break"
+    if "break_days" not in p2:
+        p2["break_days"] = 60
+    m = hot & _entry_tech(px, p2)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "单季净利YoY再加速"
+    return out
+
+
+def signal_rev_yoy_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """营收同比再加速：fin_rev_yoy（累计同报告期营收 YoY）ΔYoY≥阈值后入场。"""
+    col = str(params.get("yoy_col") or "fin_rev_yoy")
+    if col not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    yoy = pd.to_numeric(px[col], errors="coerce").astype(float)
+    evt, delta = _yoy_event_delta(px[col], yoy)
+    accel = float(params.get("growth_accel") or params.get("accel_min") or 0.05)
+    gmin = float(params.get("growth_min") or params.get("yoy_min") or 0.08)
+    gate = evt & delta.notna() & (delta >= accel) & yoy.notna() & (yoy >= gmin)
+    hot = _yoy_gate_hot(px, gate, params)
+    m = hot & _entry_tech(px, params)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "营收同比再加速"
+    return out
+
+
+def signal_dual_rev_np_yoy_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """营收+净利同比双加速：fin_rev_yoy 与 YOYNI/fin_np_yoy 同时再加速。"""
+    rev_col = "fin_rev_yoy"
+    np_col = "YOYNI" if "YOYNI" in px.columns else ("fin_np_yoy" if "fin_np_yoy" in px.columns else None)
+    if rev_col not in px.columns or np_col is None:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    rev = pd.to_numeric(px[rev_col], errors="coerce").astype(float)
+    ni = _to_dec(px[np_col]) if np_col == "YOYNI" else pd.to_numeric(px[np_col], errors="coerce").astype(float)
+    accel = float(params.get("growth_accel") or params.get("accel_min") or 0.04)
+    gmin = float(params.get("growth_min") or params.get("yoy_min") or 0.06)
+    evt = _funda_event(px[rev_col]) | _funda_event(px[np_col])
+    both = (
+        evt
+        & rev.notna()
+        & ni.notna()
+        & ((rev - rev.shift(1)) >= accel)
+        & ((ni - ni.shift(1)) >= accel)
+        & (rev >= gmin)
+        & (ni >= gmin)
+    )
+    hot = _yoy_gate_hot(px, both.fillna(False), params)
+    m = hot & _entry_tech(px, params)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "营收净利同比双加速"
+    return out
+
+
+# ----- 利润因果链 Round1：L2 驱动变量（正交于纯 YoY #198–#200） -----
+
+
+def signal_cl_yoy_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """合同负债 YoY 再加速：需求领先指标的二阶（ΔYoY），非单纯高同比水平。"""
+    if "contract_liab_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    yoy = pd.to_numeric(px["contract_liab_yoy"], errors="coerce").astype(float)
+    yoy = yoy.where(yoy.abs() <= 5.0, yoy / 100.0)
+    evt, delta = _yoy_event_delta(px["contract_liab_yoy"], yoy)
+    accel = float(params.get("cl_accel") or params.get("growth_accel") or params.get("accel_min") or 0.08)
+    ymin = float(params.get("yoy_min") or 0.10)
+    cl_pos = pd.Series(True, index=px.index)
+    if "contract_liab" in px.columns:
+        cl_pos = pd.to_numeric(px["contract_liab"], errors="coerce") > 0
+    gate = evt & delta.notna() & (delta >= accel) & yoy.notna() & (yoy >= ymin) & cl_pos.fillna(False)
+    hot = _yoy_gate_hot(px, gate.fillna(False), params)
+    m = hot & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "合同负债YoY再加速"
+    return out
+
+
+def signal_gp_rev_dual_hit_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """毛利+营收双击：毛利率环比改善 × 营收同比达标/再加速（利润≈收入×利润率）。"""
+    if "gpMargin" not in px.columns or "fin_rev_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    gp = _to_dec(px["gpMargin"])
+    rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce").astype(float)
+    gp_imp = float(params.get("gp_improve") or params.get("margin_improve") or 0.005)
+    gmin = float(params.get("rev_yoy_min") or params.get("growth_min") or params.get("yoy_min") or 0.08)
+    racc = float(params.get("growth_accel") or params.get("accel_min") or 0.0)
+    gp_up = _funda_event(px["gpMargin"]) & ((gp - gp.shift(1)) >= gp_imp)
+    rev_evt = _funda_event(px["fin_rev_yoy"])
+    rev_ok = rev.notna() & (rev >= gmin)
+    if racc > 0:
+        rev_ok = rev_ok & rev_evt & ((rev - rev.shift(1)) >= racc)
+    gp_min = params.get("margin_min") or params.get("gp_min")
+    gp_level = gp >= float(gp_min) if gp_min is not None else pd.Series(True, index=px.index)
+    # 要求两闸同窗：毛利改善热窗 ∩ 营收条件热窗
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gp_up.fillna(False), lag) & _funda_hot_window(
+        (rev_evt & rev_ok).fillna(False) if racc > 0 else rev_ok.fillna(False), lag
+    )
+    if gp_min is not None:
+        hot = hot & gp_level.fillna(False)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "毛利营收双击"
+    return out
+
+
+def signal_opex_down_rev_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """费用率下行 + 营收加速：销售+管理费用/营收下降，同时营收 YoY 再加速。"""
+    if "fin_opex_ratio" not in px.columns or "fin_rev_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    opex = pd.to_numeric(px["fin_opex_ratio"], errors="coerce").astype(float)
+    rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce").astype(float)
+    opex_imp = float(params.get("opex_improve") or 0.005)
+    accel = float(params.get("growth_accel") or params.get("accel_min") or 0.05)
+    gmin = float(params.get("growth_min") or params.get("rev_yoy_min") or 0.06)
+    opex_evt = _funda_event(px["fin_opex_ratio"])
+    opex_down = opex_evt & opex.notna() & ((opex.shift(1) - opex) >= opex_imp)
+    if params.get("opex_max") is not None:
+        opex_down = opex_down & (opex <= float(params.get("opex_max") or 0.35))
+    rev_evt, rev_delta = _yoy_event_delta(px["fin_rev_yoy"], rev)
+    rev_acc = rev_evt & rev_delta.notna() & (rev_delta >= accel) & rev.notna() & (rev >= gmin)
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(opex_down.fillna(False), lag) & _funda_hot_window(rev_acc.fillna(False), lag)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "费用率下行+营收加速"
+    return out
+
+
+def signal_inv_delever_rev_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """存货/营收下行 + 营收同比：去库存/周转改善伴随需求（营收）不塌。"""
+    if "fin_inv_to_rev" not in px.columns or "fin_rev_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    invr = pd.to_numeric(px["fin_inv_to_rev"], errors="coerce").astype(float)
+    rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce").astype(float)
+    inv_imp = float(params.get("inv_improve") or 0.02)
+    gmin = float(params.get("growth_min") or params.get("rev_yoy_min") or 0.05)
+    evt = _funda_event(px["fin_inv_to_rev"])
+    inv_down = evt & invr.notna() & ((invr.shift(1) - invr) >= inv_imp)
+    if params.get("inv_max") is not None:
+        inv_down = inv_down & (invr <= float(params.get("inv_max") or 0.8))
+    rev_ok = rev.notna() & (rev >= gmin)
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(inv_down.fillna(False), lag) & rev_ok.fillna(False)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "存货强度下行+营收"
+    return out
+
+
+def signal_ar_tighten_rev_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """应收/营收下行 + 营收同比：回款质量改善，收入增长更可信。"""
+    if "fin_ar_to_rev" not in px.columns or "fin_rev_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    arr = pd.to_numeric(px["fin_ar_to_rev"], errors="coerce").astype(float)
+    rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce").astype(float)
+    ar_imp = float(params.get("ar_improve") or 0.015)
+    gmin = float(params.get("growth_min") or params.get("rev_yoy_min") or 0.05)
+    evt = _funda_event(px["fin_ar_to_rev"])
+    ar_down = evt & arr.notna() & ((arr.shift(1) - arr) >= ar_imp)
+    if params.get("ar_max") is not None:
+        ar_down = ar_down & (arr <= float(params.get("ar_max") or 0.6))
+    rev_ok = rev.notna() & (rev >= gmin)
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(ar_down.fillna(False), lag) & rev_ok.fillna(False)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "应收强度下行+营收"
+    return out
+
+
+# ----- 结构大批量 Round1：ROE/ROA/杠杆/现金流质量/双击组合 -----
+
+
+def signal_roe_struct_improve_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """ROE 结构改善：roeAvg 环比升 + 可选毛利/净利地板，技术确认。"""
+    if "roeAvg" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    roe = _to_dec(px["roeAvg"])
+    roe_imp = float(params.get("roe_improve") or 0.004)
+    evt = _funda_event(px["roeAvg"])
+    roe_up = evt & ((roe - roe.shift(1)) >= roe_imp)
+    if params.get("roe_min") is not None:
+        roe_up = roe_up & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(roe_up.fillna(False), lag)
+    if params.get("margin_min") is not None and "gpMargin" in px.columns:
+        hot = hot & _margin_ok(px["gpMargin"], float(params.get("margin_min") or 0.0)).fillna(False)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "ROE结构改善"
+    return out
+
+
+def signal_roa_improve_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """ROA 改善：归母净利/总资产环比升（资产盈利能力结构）。"""
+    if "fin_roa" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    roa = pd.to_numeric(px["fin_roa"], errors="coerce").astype(float)
+    roa_imp = float(params.get("roa_improve") or 0.002)
+    evt = _funda_event(px["fin_roa"])
+    roa_up = evt & roa.notna() & ((roa - roa.shift(1)) >= roa_imp)
+    if params.get("roa_min") is not None:
+        roa_up = roa_up & (roa >= float(params.get("roa_min") or 0.0))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(roa_up.fillna(False), lag)
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0)).fillna(False)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "ROA改善"
+    return out
+
+
+def signal_roe_roa_sync_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """ROE×ROA 双击：权益与资产盈利能力同步改善。"""
+    if "roeAvg" not in px.columns or "fin_roa" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    roe = _to_dec(px["roeAvg"])
+    roa = pd.to_numeric(px["fin_roa"], errors="coerce").astype(float)
+    roe_imp = float(params.get("roe_improve") or 0.003)
+    roa_imp = float(params.get("roa_improve") or 0.0015)
+    roe_up = _funda_event(px["roeAvg"]) & ((roe - roe.shift(1)) >= roe_imp)
+    roa_up = _funda_event(px["fin_roa"]) & roa.notna() & ((roa - roa.shift(1)) >= roa_imp)
+    if params.get("roe_min") is not None:
+        roe_up = roe_up & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0))
+    if params.get("roa_min") is not None:
+        roa_up = roa_up & (roa >= float(params.get("roa_min") or 0.0))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(roe_up.fillna(False), lag) & _funda_hot_window(roa_up.fillna(False), lag)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "ROE×ROA双击"
+    return out
+
+
+def signal_lev_delever_quality_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """杠杆下行 + 质量地板：资产负债率下降且 ROE/净利不过差。"""
+    if "fin_lev" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    lev = pd.to_numeric(px["fin_lev"], errors="coerce").astype(float)
+    lev_imp = float(params.get("lev_improve") or 0.02)
+    evt = _funda_event(px["fin_lev"])
+    lev_down = evt & lev.notna() & ((lev.shift(1) - lev) >= lev_imp)
+    if params.get("lev_max") is not None:
+        lev_down = lev_down & (lev <= float(params.get("lev_max") or 0.7))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(lev_down.fillna(False), lag)
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0)).fillna(False)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "杠杆下行+质量"
+    return out
+
+
+def signal_cfo_quality_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """经营现金流质量：cfo/归母净利水平或改善 + 可选利润率地板。"""
+    if "cfo_to_np" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    cfoq = pd.to_numeric(px["cfo_to_np"], errors="coerce").astype(float)
+    cfo_min = float(params.get("cfo_min") or 0.8)
+    cfo_imp = float(params.get("cfo_improve") or 0.0)
+    evt = _funda_event(px["cfo_to_np"])
+    gate = evt & cfoq.notna() & (cfoq >= cfo_min)
+    if cfo_imp > 0:
+        gate = gate & ((cfoq - cfoq.shift(1)) >= cfo_imp)
+    # 排除极端负利润导致的比值爆炸
+    gate = gate & (cfoq.abs() <= 8.0)
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gate.fillna(False), lag)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "现金流质量"
+    return out
+
+
+def signal_gp_opex_dual_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """毛利↑ × 费用率↓ 双击：定价/成本结构同步改善。"""
+    if "gpMargin" not in px.columns or "fin_opex_ratio" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    gp = _to_dec(px["gpMargin"])
+    opex = pd.to_numeric(px["fin_opex_ratio"], errors="coerce").astype(float)
+    gp_imp = float(params.get("gp_improve") or params.get("margin_improve") or 0.004)
+    opex_imp = float(params.get("opex_improve") or 0.004)
+    gp_up = _funda_event(px["gpMargin"]) & ((gp - gp.shift(1)) >= gp_imp)
+    opex_down = _funda_event(px["fin_opex_ratio"]) & opex.notna() & ((opex.shift(1) - opex) >= opex_imp)
+    if params.get("margin_min") is not None:
+        gp_up = gp_up & (gp >= float(params.get("margin_min") or 0.0))
+    if params.get("opex_max") is not None:
+        opex_down = opex_down & (opex <= float(params.get("opex_max") or 0.4))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gp_up.fillna(False), lag) & _funda_hot_window(opex_down.fillna(False), lag)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "毛利费用双击"
+    return out
+
+
+def signal_ar_inv_dual_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """应收+存货强度双下行：营运资本结构改善。"""
+    if "fin_ar_to_rev" not in px.columns or "fin_inv_to_rev" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    arr = pd.to_numeric(px["fin_ar_to_rev"], errors="coerce").astype(float)
+    invr = pd.to_numeric(px["fin_inv_to_rev"], errors="coerce").astype(float)
+    ar_imp = float(params.get("ar_improve") or 0.01)
+    inv_imp = float(params.get("inv_improve") or 0.015)
+    ar_down = _funda_event(px["fin_ar_to_rev"]) & arr.notna() & ((arr.shift(1) - arr) >= ar_imp)
+    inv_down = _funda_event(px["fin_inv_to_rev"]) & invr.notna() & ((invr.shift(1) - invr) >= inv_imp)
+    if params.get("ar_max") is not None:
+        ar_down = ar_down & (arr <= float(params.get("ar_max") or 0.55))
+    if params.get("inv_max") is not None:
+        inv_down = inv_down & (invr <= float(params.get("inv_max") or 0.85))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(ar_down.fillna(False), lag) & _funda_hot_window(inv_down.fillna(False), lag)
+    if params.get("growth_min") is not None and "fin_rev_yoy" in px.columns:
+        rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce")
+        hot = hot & (rev.notna() & (rev >= float(params.get("growth_min") or 0.0))).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "应收存货双改善"
+    return out
+
+
+def signal_asset_turn_up_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """资产周转提升：营收/总资产环比升（效率结构）。"""
+    if "fin_asset_turn" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    at = pd.to_numeric(px["fin_asset_turn"], errors="coerce").astype(float)
+    at_imp = float(params.get("asset_turn_improve") or 0.01)
+    evt = _funda_event(px["fin_asset_turn"])
+    at_up = evt & at.notna() & ((at - at.shift(1)) >= at_imp)
+    if params.get("asset_turn_min") is not None:
+        at_up = at_up & (at >= float(params.get("asset_turn_min") or 0.0))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(at_up.fillna(False), lag)
+    if params.get("roe_min") is not None and "roeAvg" in px.columns:
+        hot = hot & _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "资产周转提升"
+    return out
+
+
+# ----- 物理世界结构 Round1：收现 / 转固 / 应付授信 / 资本开支 / CFO 二阶 -----
+
+
+def signal_cash_collect_up_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """销售收现比上行：销售商品收到的现金/营收环比改善，收入含金量上升。"""
+    if "fin_cash_collect" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    cc = pd.to_numeric(px["fin_cash_collect"], errors="coerce").astype(float)
+    cc_imp = float(params.get("collect_improve") or 0.03)
+    evt = _funda_event(px["fin_cash_collect"])
+    gate = evt & cc.notna() & ((cc - cc.shift(1)) >= cc_imp)
+    if params.get("collect_min") is not None:
+        gate = gate & (cc >= float(params.get("collect_min") or 0.85))
+    gate = gate & (cc > 0.2) & (cc < 2.5)
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gate.fillna(False), lag)
+    if params.get("growth_min") is not None and "fin_rev_yoy" in px.columns:
+        rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce")
+        hot = hot & (rev.notna() & (rev >= float(params.get("growth_min") or 0.0))).fillna(False)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "销售收现比上行"
+    return out
+
+
+def signal_cip_convert_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """在建工程转固：CIP 下降且固定资产上升 —— 产能落地的物理时钟。"""
+    need = ("fin_cip_delta", "fin_fa_delta")
+    if any(c not in px.columns for c in need):
+        return pd.DataFrame(columns=["date", "close", "note"])
+    cip_d = pd.to_numeric(px["fin_cip_delta"], errors="coerce")
+    fa_d = pd.to_numeric(px["fin_fa_delta"], errors="coerce")
+    cip_drop = float(params.get("cip_drop") or 0.0)
+    fa_rise = float(params.get("fa_rise") or 0.0)
+    evt_col = "fin_cip" if "fin_cip" in px.columns else "fin_cip_delta"
+    evt = _funda_event(px[evt_col])
+    gate = evt & cip_d.notna() & fa_d.notna() & (cip_d < -abs(cip_drop)) & (fa_d > abs(fa_rise))
+    if "fin_cip_share" in px.columns and params.get("cip_share_max") is not None:
+        share = pd.to_numeric(px["fin_cip_share"], errors="coerce")
+        gate = gate & share.notna() & (share <= float(params.get("cip_share_max") or 0.5))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gate.fillna(False), lag)
+    if params.get("growth_min") is not None and "fin_rev_yoy" in px.columns:
+        rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce")
+        hot = hot & (rev.notna() & (rev >= float(params.get("growth_min") or 0.0))).fillna(False)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "在建工程转固"
+    return out
+
+
+def signal_ap_credit_rev_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """应付/营收上行 + 营收增长：扩张期占用供应商信用。"""
+    if "fin_ap_to_rev" not in px.columns or "fin_rev_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    apr = pd.to_numeric(px["fin_ap_to_rev"], errors="coerce").astype(float)
+    rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce").astype(float)
+    ap_imp = float(params.get("ap_improve") or 0.015)
+    gmin = float(params.get("growth_min") or params.get("rev_yoy_min") or 0.06)
+    evt = _funda_event(px["fin_ap_to_rev"])
+    ap_up = evt & apr.notna() & ((apr - apr.shift(1)) >= ap_imp)
+    if params.get("ap_max") is not None:
+        ap_up = ap_up & (apr <= float(params.get("ap_max") or 0.8))
+    rev_ok = rev.notna() & (rev >= gmin)
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(ap_up.fillna(False), lag) & rev_ok.fillna(False)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "应付授信扩张"
+    return out
+
+
+def signal_capex_cycle_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """资本开支强度上行 + 营收加速：扩张周期。"""
+    if "fin_capex_to_rev" not in px.columns or "fin_rev_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    cx = pd.to_numeric(px["fin_capex_to_rev"], errors="coerce").astype(float)
+    rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce").astype(float)
+    cx_imp = float(params.get("capex_improve") or 0.02)
+    gmin = float(params.get("growth_min") or 0.05)
+    accel = float(params.get("growth_accel") or params.get("accel_min") or 0.0)
+    evt = _funda_event(px["fin_capex_to_rev"])
+    cx_up = evt & cx.notna() & ((cx - cx.shift(1)) >= cx_imp) & (cx > 0)
+    if params.get("capex_min") is not None:
+        cx_up = cx_up & (cx >= float(params.get("capex_min") or 0.0))
+    rev_ok = rev.notna() & (rev >= gmin)
+    if accel > 0:
+        rev_evt, rev_delta = _yoy_event_delta(px["fin_rev_yoy"], rev)
+        rev_ok = rev_ok & rev_evt & rev_delta.notna() & (rev_delta >= accel)
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(cx_up.fillna(False), lag) & _funda_hot_window(rev_ok.fillna(False), lag)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "资本开支扩张周期"
+    return out
+
+
+def signal_cfo_yoy_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """经营现金流 YoY 再加速：现金利润二阶。"""
+    if "fin_cfo_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    yoy = pd.to_numeric(px["fin_cfo_yoy"], errors="coerce").astype(float)
+    accel = float(params.get("cfo_accel") or params.get("accel_min") or 0.08)
+    ymin = float(params.get("cfo_yoy_min") or params.get("yoy_min") or 0.05)
+    evt, delta = _yoy_event_delta(px["fin_cfo_yoy"], yoy)
+    gate = evt & delta.notna() & (delta >= accel) & yoy.notna() & (yoy >= ymin)
+    if "cfo" in px.columns and params.get("require_cfo_pos", True):
+        cfo = pd.to_numeric(px["cfo"], errors="coerce")
+        gate = gate & cfo.notna() & (cfo > 0)
+    hot = _yoy_gate_hot(px, gate.fillna(False), params)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "经营现金流YoY再加速"
     return out

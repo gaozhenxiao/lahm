@@ -16,7 +16,7 @@
 
 信号实现：`signal_rev_accel_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/rev_accel_base_break_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.600460** |
 | 开仓 | 2020-12-03，约 18.37 元 |
 | 清仓 | 2021-01-08，约 28.86 元 |
-| 单腿涨跌 | **57.09%** |
+| 单笔涨跌 | **57.09%** |
 | 当日组合贡献 | NAV 7.14% |
 | 出场备注 | hold_end；买入2020-12-03 成本价18.3742 |
 

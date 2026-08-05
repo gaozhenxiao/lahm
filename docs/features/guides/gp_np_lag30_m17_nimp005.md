@@ -18,7 +18,7 @@ gp_np峰 × lag30。
 
 信号实现：`signal_gp_np_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gp_np_lag30_m17_nimp005_trade_history.csv`
 
@@ -27,7 +27,7 @@ gp_np峰 × lag30。
 | 标的 | **sh.600176 中国巨石** |
 | 开仓 | 2026-04-29，约 35.54 元 |
 | 清仓 | 2026-07-15，约 53 元 |
-| 单腿涨跌 | **49.15%** |
+| 单笔涨跌 | **49.15%** |
 | 当日组合贡献 | NAV 6.14% |
 | 出场备注 | hold_end；买入2026-04-29 成本价35.5357 |
 

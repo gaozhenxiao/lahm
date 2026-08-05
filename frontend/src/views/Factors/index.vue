@@ -1,15 +1,97 @@
 <template>
   <div class="factors-page">
     <div class="page-header">
-      <h1 class="page-title">因子列表 Factors</h1>
-      <p class="page-description"># 为生成顺序；点击表头可按指标或序号排序，点「说明」看完整介绍</p>
+      <h1 class="page-title">多因子 Factors</h1>
+      <div class="stock-match">
+        <el-input
+          v-model="stockMatch.code"
+          class="stock-match-input"
+          clearable
+          placeholder="股票代码，如 600887"
+          @keyup.enter="runStockMatch"
+        />
+        <el-button type="primary" :loading="stockMatch.loading" @click="runStockMatch">分析</el-button>
+      </div>
     </div>
+
+    <el-card v-if="stockMatch.result || stockMatch.error" shadow="never" class="match-card">
+      <template #header>
+        <div class="match-card-header">
+          <span class="match-card-title">
+            单票匹配
+            <template v-if="stockMatch.result">
+              · {{ stockMatch.result.code_norm || stockMatch.result.code }}
+              <template v-if="stockMatchDisplayName">
+                · {{ stockMatchDisplayName }}
+              </template>
+              <span v-if="stockMatchPriceText" class="muted">
+                · {{ stockMatchPriceText }}
+              </span>
+              <span v-if="stockMatch.result.trade_date" class="muted">
+                · 交易日 {{ stockMatch.result.trade_date }}
+              </span>
+            </template>
+          </span>
+          <el-button link type="info" @click="clearStockMatch">清除</el-button>
+        </div>
+      </template>
+      <div v-loading="stockMatch.loading">
+        <p v-if="stockMatch.error" class="match-error">{{ stockMatch.error }}</p>
+        <template v-else-if="stockMatch.result">
+          <p v-if="stockMatch.result.error" class="match-error">{{ stockMatch.result.error }}</p>
+          <div class="match-summary">
+            <el-tag type="success" effect="plain">符合 {{ stockMatch.result.summary?.hit ?? 0 }}</el-tag>
+            <el-tag type="info" effect="plain">不符合 {{ stockMatch.result.summary?.miss ?? 0 }}</el-tag>
+            <el-tag type="warning" effect="plain">
+              数据不足 {{ stockMatch.result.summary?.insufficient_data ?? 0 }}
+            </el-tag>
+            <el-tag type="danger" effect="plain">
+              不支持 {{ stockMatch.result.summary?.unsupported ?? 0 }}
+            </el-tag>
+          </div>
+          <div v-if="stockMatchHits.length" class="match-hits">
+            <div class="match-hits-title">当前符合</div>
+            <div
+              v-for="m in stockMatchHits"
+              :key="m.factor_id"
+              class="match-hit-item"
+            >
+              <div class="match-hit-row" @click="focusMatchedFactor(m.factor_id)">
+                <span class="match-hit-name">{{ m.name }}</span>
+                <span class="muted">{{ m.reason || m.note || m.factor_id }}</span>
+              </div>
+              <p v-if="matchExplanation(m)" class="match-hit-detail">
+                {{ matchExplanation(m) }}
+              </p>
+            </div>
+          </div>
+          <p v-else class="muted match-empty">当前交易日无符合入场信号的因子</p>
+          <el-collapse v-if="stockMatchOthers.length" class="match-others">
+            <el-collapse-item title="其他结果（不符合 / 数据不足 / 不支持）" name="others">
+              <div
+                v-for="m in stockMatchOthers"
+                :key="m.factor_id"
+                class="match-other-row"
+                @click="focusMatchedFactor(m.factor_id)"
+              >
+                <el-tag size="small" :type="matchStatusTagType(m.status)" effect="plain">
+                  {{ matchStatusLabel(m.status) }}
+                </el-tag>
+                <span class="match-hit-name">{{ m.name }}</span>
+                <span class="muted">{{ m.reason || '' }}</span>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+        </template>
+      </div>
+    </el-card>
 
     <el-card shadow="never">
       <el-table
         :data="items"
         v-loading="loading"
         stripe
+        :row-class-name="factorRowClassName"
         :default-sort="{ prop: 'bt_sharpe', order: 'descending' }"
       >
         <el-table-column
@@ -52,6 +134,7 @@
         <el-table-column label="回测区间" min-width="160">
           <template #default="{ row }">
             <span v-if="row.bt_start && row.bt_end" class="range">{{ row.bt_start }} ~ {{ row.bt_end }}</span>
+            <span v-else-if="row.bt_error || row.last_backtest_error" class="muted">{{ row.bt_error || row.last_backtest_error }}</span>
             <span v-else class="muted">暂无回测</span>
           </template>
         </el-table-column>
@@ -119,7 +202,7 @@
               <el-button size="small" @click="zoomEquity(1.4)">缩小</el-button>
               <el-button size="small" @click="resetEquityZoom">重置</el-button>
             </el-button-group>
-            <span class="equity-hint">点击某日看持仓 · 滚轮/捏合缩放 · 拖拽平移 · 框选放大</span>
+            <span class="equity-hint">点击某日看持仓 · ←/→ 切换日期 · 滚轮/捏合缩放 · 拖拽平移 · 框选放大</span>
           </div>
           <v-chart
             v-if="preview.equitySeries.length"
@@ -128,8 +211,11 @@
             :class="{ 'equity-chart--dual': equityHasPosition }"
             :option="equityChartOption"
             autoresize
+            tabindex="0"
             @click="onEquityChartClick"
             @zr:click="onEquityZrClick"
+            @datazoom="onEquityDataZoom"
+            @restore="onEquityRestore"
           />
           <img
             v-else-if="preview.url"
@@ -142,11 +228,11 @@
             <div class="trades-meta contrib-toolbar">
               <span>
                 选中日 {{ preview.selectedDate }} ·
-                隔夜持仓 {{ preview.openHoldings.length }} 只 ·
+                当日持仓 {{ preview.openHoldings.length }} 只（含当日买入） ·
                 合计仓位 {{ fmtPct(preview.holdingsTotalWeight) }}
                 <template v-if="preview.selectedDailyPos">
-                  · 日度 {{ fmtPct(preview.selectedDailyPos.position) }}
-                  / {{ preview.selectedDailyPos.n_pos }} 只
+                  · 日度敞口 {{ fmtPct(preview.selectedDailyPos.position) }}
+                  / {{ preview.selectedDailyPos.n_pos }} 只（引擎隔夜）
                   · 净值 {{ Number(preview.selectedDailyPos.equity).toFixed(4) }}
                 </template>
               </span>
@@ -165,14 +251,18 @@
               stripe
               height="220"
               size="small"
-              empty-text="该日无隔夜持仓"
+              empty-text="该日无持仓（含当日买入）"
             >
               <el-table-column prop="code" label="代码" min-width="100" />
               <el-table-column prop="name" label="名称" min-width="100" />
               <el-table-column prop="buy_date" label="买入日" width="110" />
-              <el-table-column prop="sell_date" label="卖出日" width="110" />
+              <el-table-column prop="sell_date" label="卖出日" width="110">
+                <template #default="{ row }">{{ row.sell_date || '持有中' }}</template>
+              </el-table-column>
               <el-table-column prop="buy_price" label="买入价" width="90" align="right" />
-              <el-table-column prop="sell_price" label="卖出价" width="90" align="right" />
+              <el-table-column prop="sell_price" label="卖出价" width="90" align="right">
+                <template #default="{ row }">{{ row.sell_price || '-' }}</template>
+              </el-table-column>
               <el-table-column prop="weight" label="仓位" width="80" align="right">
                 <template #default="{ row }">{{ row.weight.toFixed(4) }}</template>
               </el-table-column>
@@ -193,7 +283,7 @@
             v-else-if="preview.equitySeries.length && !preview.selectedDate && !preview.loading"
             class="muted equity-holdings-note"
           >
-            点击净值或仓位图上的某一日，可查看该日隔夜持仓结构。
+            点击净值或仓位图上的某一日，或按 ←/→，可查看该日持仓结构（含当日买入）。
           </p>
         </template>
         <img v-else-if="preview.kind === 'image' && preview.url" :src="preview.url" class="preview-img" alt="" />
@@ -295,29 +385,35 @@
               <div class="trades-meta contrib-toolbar">
                 <span>
                   回测末日 {{ preview.holdingsAsOf || '-' }} ·
-                  隔夜持仓 {{ preview.openHoldings.length }} 只 ·
+                  当日持仓 {{ preview.openHoldings.length }} 只（含当日买入） ·
                   合计仓位 {{ fmtPct(preview.holdingsTotalWeight) }}
                   <template v-if="preview.posSeries.length">
                     · 对照日度末行 {{ fmtPct(preview.posSeries[0]?.position || 0) }}
-                    / {{ preview.posSeries[0]?.n_pos ?? 0 }} 只
+                    / {{ preview.posSeries[0]?.n_pos ?? 0 }} 只（引擎隔夜）
                   </template>
                 </span>
               </div>
               <div class="holdings-block">
-                <div class="holdings-subtitle">末日持仓分布（与总仓位表末行同口径：当日隔夜持仓）</div>
+                <div class="holdings-subtitle">
+                  末日持仓分布（买入即显示：buy ≤ 末日 ≤ sell；日度 n_pos 仍为引擎隔夜口径）
+                </div>
                 <el-table
                   :data="preview.openHoldings"
                   stripe
                   height="200"
                   size="small"
-                  empty-text="末日无隔夜持仓"
+                  empty-text="末日无持仓（含当日买入）"
                 >
                   <el-table-column prop="code" label="代码" min-width="100" />
                   <el-table-column prop="name" label="名称" min-width="100" />
                   <el-table-column prop="buy_date" label="买入日" width="110" />
-                  <el-table-column prop="sell_date" label="卖出日" width="110" />
+                  <el-table-column prop="sell_date" label="卖出日" width="110">
+                    <template #default="{ row }">{{ row.sell_date || '持有中' }}</template>
+                  </el-table-column>
                   <el-table-column prop="buy_price" label="买入价" width="90" align="right" />
-                  <el-table-column prop="sell_price" label="卖出价" width="90" align="right" />
+                  <el-table-column prop="sell_price" label="卖出价" width="90" align="right">
+                    <template #default="{ row }">{{ row.sell_price || '-' }}</template>
+                  </el-table-column>
                   <el-table-column prop="weight" label="仓位" width="80" align="right">
                     <template #default="{ row }">{{ row.weight.toFixed(4) }}</template>
                   </el-table-column>
@@ -377,7 +473,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { marked } from 'marked'
 import { use as echartsUse } from 'echarts/core'
@@ -397,7 +494,12 @@ import {
   type FactorArtifact,
   type FactorBacktestLogic,
   type FactorItem,
+  type FactorStockMatchItem,
+  type FactorStockMatchResult,
 } from '@/api/factors'
+
+const route = useRoute()
+const router = useRouter()
 
 echartsUse([
   LineChart,
@@ -418,12 +520,50 @@ type FactorRow = FactorItem & {
   bt_start: string | null
   bt_end: string | null
   bt_logic: string | null
+  bt_error: string | null
 }
 
 const loading = ref(false)
 const items = ref<FactorRow[]>([])
 const computing = ref('')
 const lastResult = ref<any>(null)
+const highlightFactorId = ref('')
+const matchHitIds = ref<Set<string>>(new Set())
+const stockMatch = reactive({
+  code: '',
+  loading: false,
+  error: '' as string,
+  result: null as FactorStockMatchResult | null,
+})
+let deepLinkBusy = false
+
+const stockMatchHits = computed(() =>
+  (stockMatch.result?.matches || []).filter((m) => m.status === 'hit' || m.match),
+)
+const stockMatchOthers = computed(() =>
+  (stockMatch.result?.matches || []).filter((m) => !(m.status === 'hit' || m.match)),
+)
+const stockMatchDisplayName = computed(() => {
+  const r = stockMatch.result
+  return (r?.stock_name || r?.name || '').trim()
+})
+const stockMatchPriceText = computed(() => {
+  const r = stockMatch.result
+  if (!r) return ''
+  const px = r.price ?? r.close
+  if (px == null || Number.isNaN(Number(px))) return ''
+  const d = r.price_date || r.trade_date || ''
+  const adj = r.price_adjust_label || (r.price_adjust === 'qfq' ? '前复权' : '')
+  const priceStr = Number(px).toFixed(2)
+  if (d && adj) return `收盘 ${priceStr}（${d}，${adj}）`
+  if (d) return `收盘 ${priceStr}（${d}）`
+  if (adj) return `收盘 ${priceStr}（${adj}）`
+  return `收盘 ${priceStr}`
+})
+
+function matchExplanation(m: FactorStockMatchItem): string {
+  return (m.explanation || m.detail || '').trim()
+}
 
 const guide = reactive({
   visible: false,
@@ -569,7 +709,7 @@ const equityChartOption = computed<EChartsOption>(() => {
     if (hasPos && pt && !list.some((p: any) => p?.seriesName === '仓位')) {
       lines.push(`仓位: <b>${fmtPct(pt.position)}</b>（${pt.n_pos} 只）`)
     }
-    lines.push('<div style="margin-top:4px;opacity:.75">点击查看该日持仓结构</div>')
+    lines.push('<div style="margin-top:4px;opacity:.75">点击或 ←/→ 查看该日持仓结构</div>')
     return lines.join('<br/>')
   }
   const equitySeriesOpts: any[] = [
@@ -677,6 +817,7 @@ const equityChartOption = computed<EChartsOption>(() => {
             splitLine: { lineStyle: { type: 'dashed', opacity: 0.45 } },
           },
           {
+            // 仓位轴独立固定 0–100%，不随净值窗口 rescale
             type: 'value',
             min: 0,
             max: 1,
@@ -695,6 +836,7 @@ const equityChartOption = computed<EChartsOption>(() => {
       {
         type: 'inside',
         xAxisIndex: xAxes,
+        // none：保留全量 category 索引（点击选日不乱）；Y 轴由 dataZoom 回调手动 rescale
         filterMode: 'none',
         zoomOnMouseWheel: true,
         moveOnMouseMove: true,
@@ -814,6 +956,7 @@ function enrichRow(row: FactorItem, gen_seq: number): FactorRow {
     bt_start: m?.start ?? null,
     bt_end: m?.end ?? null,
     bt_logic: m?.position_logic || row.backtest?.primary_logic || null,
+    bt_error: (m as any)?.error || row.last_backtest_error || null,
   }
 }
 
@@ -1163,12 +1306,15 @@ function buildNavContribution(rows: Record<string, string>[]): {
 }
 
 /**
- * 回测末日隔夜持仓：与日度表 n_pos 同口径。
- * 已平仓腿：buy < asOf ≤ sell；未写清仓的开仓（行情末日未到期）落在 stacks 未匹配分支。
+ * 选日持仓（买入即显示）：buy ≤ asOf，且未平或 sell ≥ asOf（卖出日仍显示，与旧口径一致）。
+ * 未写清仓的开仓（行情末日未到期）记为仍持仓，不伪造卖出日。
+ * 展示可含当日收盘买入；日度表 n_pos 仍为引擎隔夜会计，二者在买入日可能不一致。
+ * 若传入日度敞口 totalExposure 且腿数与 n_pos 一致，则按腿等权 totalExposure/n 覆盖。
  */
 function buildOpenHoldings(
   rows: Record<string, string>[],
   asOfHint = '',
+  opts?: { totalExposure?: number; nPos?: number },
 ): {
   holdings: OpenHolding[]
   asOf: string
@@ -1188,6 +1334,7 @@ function buildOpenHoldings(
     code: string
     name: string
     buy_date: string
+    /** 真实清仓日；空串表示尚未平仓 */
     sell_date: string
     buy_price: number
     sell_price: number
@@ -1238,7 +1385,7 @@ function buildOpenHoldings(
       })
     }
   }
-  // 仍未匹配的开仓（极少见）：视为持有至 asOf
+  // 仍未匹配的开仓：真实未平仓，不写卖出日（勿用 asOf 冒充）
   const asOf = (asOfHint || lastTrade || '').slice(0, 10)
   for (const [code, list] of Object.entries(stacks)) {
     for (const ent of list) {
@@ -1246,7 +1393,7 @@ function buildOpenHoldings(
         code,
         name: ent.name,
         buy_date: ent.date,
-        sell_date: asOf || ent.date,
+        sell_date: '',
         buy_price: ent.price,
         sell_price: 0,
         w: ent.w,
@@ -1255,25 +1402,45 @@ function buildOpenHoldings(
       })
     }
   }
-  // 隔夜持仓：买入日早于 asOf，卖出日不早于 asOf（当日平仓仍计入）
+  // 买入即显示：买入日不晚于 asOf；未平仓，或卖出日不早于 asOf（卖出日仍计入）
   const held = asOf
-    ? legs.filter((x) => x.buy_date < asOf && x.sell_date >= asOf)
+    ? legs.filter((x) => {
+        if (!(x.buy_date <= asOf)) return false
+        if (!x.sell_date) return true
+        return x.sell_date >= asOf
+      })
     : []
+  // 有日度敞口时：按腿等权对齐引擎（满仓 actual→1/n；fixed_leg→1/mp）
+  const expo = opts?.totalExposure
+  const nHint = opts?.nPos
+  if (
+    held.length > 0 &&
+    expo != null &&
+    Number.isFinite(expo) &&
+    (nHint == null || nHint === held.length)
+  ) {
+    const w = expo / held.length
+    for (const x of held) x.w = w
+  }
   held.sort((a, b) => b.w - a.w || a.code.localeCompare(b.code))
   const totalWeight = held.reduce((s, x) => s + x.w, 0)
-  const holdings: OpenHolding[] = held.map((x) => ({
-    code: x.code,
-    name: x.name,
-    buy_date: x.buy_date,
-    sell_date: x.sell_date,
-    buy_price: x.buy_price > 0 ? x.buy_price.toFixed(4) : '',
-    sell_price: x.sell_price > 0 ? x.sell_price.toFixed(4) : '',
-    weight: x.w,
-    weight_share: totalWeight > 0 ? fmtPct(x.w / totalWeight) : '0.00%',
-    hold_days: calendarHoldDays(x.buy_date, asOf),
-    stock_ret: x.stock_ret != null ? fmtPct(x.stock_ret) : '',
-    note: x.note,
-  }))
+  const holdings: OpenHolding[] = held.map((x) => {
+    // 选日视角仍在持仓：不展示未来卖出日/卖出价；仅真实已于 asOf 当日平仓的显示卖出信息
+    const closedOnOrBeforeAsOf = Boolean(x.sell_date && x.sell_date <= asOf)
+    return {
+      code: x.code,
+      name: x.name,
+      buy_date: x.buy_date,
+      sell_date: closedOnOrBeforeAsOf ? x.sell_date : '',
+      buy_price: x.buy_price > 0 ? x.buy_price.toFixed(4) : '',
+      sell_price: closedOnOrBeforeAsOf && x.sell_price > 0 ? x.sell_price.toFixed(4) : '',
+      weight: x.w,
+      weight_share: totalWeight > 0 ? fmtPct(x.w / totalWeight) : '0.00%',
+      hold_days: calendarHoldDays(x.buy_date, asOf),
+      stock_ret: closedOnOrBeforeAsOf && x.stock_ret != null ? fmtPct(x.stock_ret) : '',
+      note: x.note,
+    }
+  })
   return { holdings, asOf, totalWeight }
 }
 
@@ -1425,7 +1592,10 @@ function selectEquityDate(date: string) {
     ? { position: pt.position, n_pos: pt.n_pos, equity: pt.equity }
     : null
   if (preview.equityTradeRows.length) {
-    const open = buildOpenHoldings(preview.equityTradeRows, d)
+    const open = buildOpenHoldings(preview.equityTradeRows, d, {
+      totalExposure: pt?.position,
+      nPos: pt?.n_pos,
+    })
     preview.openHoldings = open.holdings
     preview.holdingsAsOf = open.asOf
     preview.holdingsTotalWeight = open.totalWeight
@@ -1434,6 +1604,58 @@ function selectEquityDate(date: string) {
     preview.holdingsAsOf = d
     preview.holdingsTotalWeight = pt?.position ?? 0
   }
+}
+
+function focusEquityChart() {
+  nextTick(() => {
+    const el = (equityChartRef.value as any)?.$el as HTMLElement | undefined
+    el?.focus?.({ preventScroll: true })
+  })
+}
+
+/** 同步十字星 / tooltip 到指定序列下标（不改变鼠标悬停行为） */
+function syncEquityAxisPointer(dataIndex: number) {
+  const chart = equityChartRef.value as any
+  if (!chart || typeof chart.dispatchAction !== 'function') return
+  if (dataIndex < 0 || dataIndex >= preview.equitySeries.length) return
+  try {
+    chart.dispatchAction({
+      type: 'showTip',
+      seriesIndex: 0,
+      dataIndex,
+    })
+  } catch {
+    /* ignore */
+  }
+}
+
+function isEditableKeyTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  if (target.isContentEditable) return true
+  return !!target.closest('input, textarea, select, [contenteditable="true"]')
+}
+
+/** 按交易日序列索引 ±1 移动选中日（头尾不再移动） */
+function nudgeEquitySelection(delta: -1 | 1) {
+  const pts = preview.equitySeries
+  if (!pts.length) return
+  let idx = pts.findIndex((p) => p.date === preview.selectedDate)
+  if (idx < 0) idx = pts.length - 1
+  const next = idx + delta
+  if (next < 0 || next >= pts.length) return
+  selectEquityDate(pts[next].date)
+  syncEquityAxisPointer(next)
+}
+
+function onEquityPreviewKeydown(e: KeyboardEvent) {
+  if (!preview.visible || preview.kind !== 'equity' || !preview.equitySeries.length) return
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+  if (isEditableKeyTarget(e.target)) return
+  e.preventDefault()
+  nudgeEquitySelection(e.key === 'ArrowLeft' ? -1 : 1)
 }
 
 function onEquityChartClick(params: any) {
@@ -1449,7 +1671,10 @@ function onEquityChartClick(params: any) {
     date = preview.equitySeries[params.dataIndex].date
   }
   date = date.slice(0, 10)
-  if (date) selectEquityDate(date)
+  if (date) {
+    selectEquityDate(date)
+    focusEquityChart()
+  }
 }
 
 /** 点击绘图区任意位置 → 映射到最近交易日（比点中细线更易用） */
@@ -1469,6 +1694,7 @@ function onEquityZrClick(event: any) {
       const pt = preview.equitySeries[Math.max(0, Math.min(preview.equitySeries.length - 1, idx))]
       if (pt?.date) {
         selectEquityDate(pt.date)
+        focusEquityChart()
         return
       }
     } catch {
@@ -1492,6 +1718,108 @@ function getEquityDataZoomRange(): { start: number; end: number } {
   return { start: 0, end: 100 }
 }
 
+/** 根据 dataZoom 窗口解析可见点下标（保留 filterMode:none 时索引与全序列一致） */
+function getEquityVisibleIndexRange(startPct?: number, endPct?: number): { i0: number; i1: number } {
+  const pts = preview.equitySeries
+  const n = pts.length
+  if (!n) return { i0: 0, i1: -1 }
+
+  // 事件里带的百分比优先，避免与 getOption 里滞后的 startValue 打架
+  if (Number.isFinite(startPct as number) && Number.isFinite(endPct as number)) {
+    const i0 = Math.max(0, Math.floor((Number(startPct) / 100) * (n - 1)))
+    const i1 = Math.min(n - 1, Math.ceil((Number(endPct) / 100) * (n - 1)))
+    return { i0, i1 }
+  }
+
+  const chart = equityChartRef.value as any
+  try {
+    const opt = chart?.getOption?.() as any
+    const dz =
+      (opt?.dataZoom || []).find((z: any) => z && (z.start != null || z.startValue != null)) ||
+      opt?.dataZoom?.[0]
+    if (dz?.startValue != null && dz?.endValue != null) {
+      let i0 =
+        typeof dz.startValue === 'number'
+          ? dz.startValue
+          : pts.findIndex((p) => p.date === String(dz.startValue).slice(0, 10))
+      let i1 =
+        typeof dz.endValue === 'number'
+          ? dz.endValue
+          : pts.findIndex((p) => p.date === String(dz.endValue).slice(0, 10))
+      if (!Number.isFinite(i0) || i0 < 0) i0 = 0
+      if (!Number.isFinite(i1) || i1 < 0) i1 = n - 1
+      return { i0: Math.max(0, Math.min(i0, i1)), i1: Math.min(n - 1, Math.max(i0, i1)) }
+    }
+  } catch {
+    /* fall through */
+  }
+  const { start, end } = getEquityDataZoomRange()
+  const i0 = Math.max(0, Math.floor((start / 100) * (n - 1)))
+  const i1 = Math.min(n - 1, Math.ceil((end / 100) * (n - 1)))
+  return { i0, i1 }
+}
+
+/** 按可见窗口内策略净值（及基准）重算主图 Y 轴，仓位子图轴不动 */
+function applyEquityYRescale(startPct?: number, endPct?: number) {
+  const chart = equityChartRef.value as any
+  const pts = preview.equitySeries
+  if (!chart || !pts.length) return
+  const { i0, i1 } = getEquityVisibleIndexRange(startPct, endPct)
+  if (i1 < i0) return
+  const useBench = pts.some((p) => Math.abs(p.bench - 1) > 1e-9)
+  let lo = Infinity
+  let hi = -Infinity
+  for (let i = i0; i <= i1; i++) {
+    const p = pts[i]
+    if (!p) continue
+    lo = Math.min(lo, p.equity)
+    hi = Math.max(hi, p.equity)
+    if (useBench) {
+      lo = Math.min(lo, p.bench)
+      hi = Math.max(hi, p.bench)
+    }
+  }
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return
+  const span = hi - lo
+  const pad = span > 0 ? span * 0.05 : Math.max(Math.abs(hi) * 0.05, 0.01)
+  const min = lo - pad
+  const max = hi + pad
+  const hasPos = equityHasPosition.value
+  if (hasPos) {
+    chart.setOption(
+      {
+        yAxis: [
+          { min, max },
+          { min: 0, max: 1 },
+        ],
+      },
+      { lazyUpdate: true },
+    )
+  } else {
+    chart.setOption({ yAxis: { min, max } }, { lazyUpdate: true })
+  }
+}
+
+function onEquityDataZoom(params: any) {
+  let start = params?.start
+  let end = params?.end
+  if (Array.isArray(params?.batch) && params.batch.length) {
+    const b = params.batch.find((x: any) => x && x.start != null) || params.batch[0]
+    start = b?.start
+    end = b?.end
+  }
+  if (Number.isFinite(Number(start)) && Number.isFinite(Number(end))) {
+    applyEquityYRescale(Number(start), Number(end))
+  } else {
+    applyEquityYRescale()
+  }
+}
+
+function onEquityRestore() {
+  // restore 后下一帧再读 dataZoom，避免仍是旧窗口
+  requestAnimationFrame(() => applyEquityYRescale(0, 100))
+}
+
 /** factor < 1 放大（视野变窄），> 1 缩小 */
 function zoomEquity(factor: number) {
   const chart = equityChartRef.value
@@ -1512,12 +1840,14 @@ function zoomEquity(factor: number) {
     end = 100
   }
   chart.dispatchAction({ type: 'dataZoom', start, end })
+  applyEquityYRescale(start, end)
 }
 
 function resetEquityZoom() {
   const chart = equityChartRef.value
   if (!chart) return
   chart.dispatchAction({ type: 'restore' })
+  requestAnimationFrame(() => applyEquityYRescale(0, 100))
 }
 
 function downloadTextFile(filename: string, text: string) {
@@ -1683,19 +2013,168 @@ function shortLabel(a: FactorArtifact): string {
   return a.label
 }
 
+function factorRowClassName({ row }: { row: FactorRow }) {
+  if (matchHitIds.value.has(row.factor_id)) return 'factor-row-match-hit'
+  if (row.factor_id === highlightFactorId.value) return 'factor-row-highlight'
+  return ''
+}
+
+function matchStatusLabel(status: string) {
+  if (status === 'hit') return '符合'
+  if (status === 'miss') return '不符合'
+  if (status === 'insufficient_data') return '数据不足'
+  if (status === 'unsupported') return '不支持'
+  return status || '-'
+}
+
+function matchStatusTagType(status: string): 'success' | 'info' | 'warning' | 'danger' {
+  if (status === 'hit') return 'success'
+  if (status === 'insufficient_data') return 'warning'
+  if (status === 'unsupported') return 'danger'
+  return 'info'
+}
+
+function clearStockMatch() {
+  stockMatch.error = ''
+  stockMatch.result = null
+  matchHitIds.value = new Set()
+  highlightFactorId.value = ''
+}
+
+async function runStockMatch() {
+  const code = stockMatch.code.trim()
+  if (!code) {
+    ElMessage.warning('请输入股票代码')
+    return
+  }
+  stockMatch.loading = true
+  stockMatch.error = ''
+  stockMatch.result = null
+  matchHitIds.value = new Set()
+  try {
+    const data = await factorsApi.matchStock(code)
+    stockMatch.result = data
+    const hits = (data.matches || [])
+      .filter((m: FactorStockMatchItem) => m.status === 'hit' || m.match)
+      .map((m) => m.factor_id)
+    matchHitIds.value = new Set(hits)
+    if (data.error) {
+      ElMessage.warning(data.error)
+    } else if (!hits.length) {
+      ElMessage.info(`未匹配到入场信号（交易日 ${data.trade_date || '-'}）`)
+    } else {
+      ElMessage.success(`符合 ${hits.length} 个因子`)
+    }
+  } catch (e: any) {
+    stockMatch.error = e?.message || '分析失败'
+    ElMessage.error(stockMatch.error)
+  } finally {
+    stockMatch.loading = false
+  }
+}
+
+async function focusMatchedFactor(factorId: string) {
+  highlightFactorId.value = factorId
+  await nextTick()
+  try {
+    const name =
+      stockMatch.result?.matches?.find((m) => m.factor_id === factorId)?.name ||
+      items.value.find((r) => r.factor_id === factorId)?.name ||
+      ''
+    const rows = document.querySelectorAll('.el-table__body tr')
+    for (const row of Array.from(rows)) {
+      const text = row.textContent || ''
+      if ((name && text.includes(name)) || row.classList.contains('factor-row-match-hit')) {
+        ;(row as HTMLElement).scrollIntoView({ block: 'center', behavior: 'smooth' })
+        return
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function pickTradeArtifact(row: FactorItem): FactorArtifact | null {
+  const trades = availableArtifacts(row).filter(isTradeArtifact)
+  if (!trades.length) return null
+  const primary = row.backtest?.primary_logic
+  return (primary && trades.find((a) => a.logic === primary)) || trades[0]
+}
+
+async function resolveFactorRow(factorId: string): Promise<FactorRow | null> {
+  const found = items.value.find((r) => r.factor_id === factorId)
+  if (found) return found
+  try {
+    const fetched = await factorsApi.get(factorId)
+    const status = String(fetched.status || '').toLowerCase()
+    if (status === 'retired' || status === 'inactive' || status === 'disabled') {
+      ElMessage.warning(`${fetched.name || factorId} 已下线，仍尝试打开交易`)
+    } else {
+      ElMessage.warning(`${fetched.name || factorId} 不在当前列表，仍尝试打开交易`)
+    }
+    return enrichRow(fetched, 0)
+  } catch {
+    ElMessage.warning('该因子已下线或不存在')
+    return null
+  }
+}
+
+async function applyFactorDeepLink() {
+  const factorId = String(route.query.factor_id || '').trim()
+  if (!factorId || deepLinkBusy) return
+  const open = String(route.query.open || '').trim()
+  deepLinkBusy = true
+  try {
+    const nextQuery = { ...route.query } as Record<string, any>
+    delete nextQuery.factor_id
+    delete nextQuery.open
+    await router.replace({ path: route.path, query: nextQuery })
+
+    const row = await resolveFactorRow(factorId)
+    if (!row) return
+
+    highlightFactorId.value = factorId
+    await nextTick()
+    try {
+      const el = document.querySelector('.factor-row-highlight')
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    } catch {
+      /* ignore */
+    }
+
+    if (open === 'trades') {
+      const trade = pickTradeArtifact(row)
+      if (!trade) {
+        ElMessage.warning(`${row.name || factorId} 暂无交易产物`)
+        return
+      }
+      await openArtifact(row, trade)
+    }
+  } finally {
+    deepLinkBusy = false
+  }
+}
+
 async function load() {
   loading.value = true
   try {
     const data = await factorsApi.list()
-    // 按创建时间（注册生成顺序）编号；与当前按 Sharpe 等排序无关
-    const byGen = [...(data.items || [])].sort((a, b) => {
+    // 优先用后端 gen_seq（已含 #165/#193 等删槽空洞）；否则本地按创建时间编号
+    const raw = (data.items || []).filter((row) => {
+      const fid = String(row.factor_id || '')
+      const tags = row.tags || []
+      return !(fid.startsWith('_gen_pad') || tags.includes('gen_seq_pad') || tags.includes('deleted_slot'))
+    })
+    const byGen = [...raw].sort((a, b) => {
       const ta = a.created_at || ''
       const tb = b.created_at || ''
       if (ta !== tb) return ta < tb ? -1 : 1
       return String(a.factor_id).localeCompare(String(b.factor_id))
     })
     const seqMap = new Map(byGen.map((row, i) => [row.factor_id, i + 1]))
-    const rows = (data.items || []).map((row) => enrichRow(row, seqMap.get(row.factor_id) || 0))
+    const rows = raw.map((row) =>
+      enrichRow(row, typeof row.gen_seq === 'number' && row.gen_seq > 0 ? row.gen_seq : seqMap.get(row.factor_id) || 0),
+    )
     rows.sort((a, b) => sortNum('bt_sharpe')(b, a))
     items.value = rows
   } catch (e: any) {
@@ -1853,7 +2332,10 @@ async function openArtifact(row: FactorItem, a: FactorArtifact) {
             preview.posSeries = []
           }
         }
-        const open = buildOpenHoldings(enriched, asOfHint)
+        const open = buildOpenHoldings(enriched, asOfHint, {
+          totalExposure: preview.posSeries[0]?.position,
+          nPos: preview.posSeries[0]?.n_pos,
+        })
         preview.openHoldings = open.holdings
         preview.holdingsAsOf = open.asOf
         preview.holdingsTotalWeight = open.totalWeight
@@ -1900,16 +2382,104 @@ async function downloadCurrent() {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  window.addEventListener('keydown', onEquityPreviewKeydown)
+  await load()
+  await applyFactorDeepLink()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onEquityPreviewKeydown)
+})
+
+watch(
+  () => String(route.query.factor_id || ''),
+  async (id) => {
+    if (!id || loading.value) return
+    await applyFactorDeepLink()
+  },
+)
 </script>
 
 <style scoped>
-.page-header { margin-bottom: 16px; }
-.page-title { margin: 0 0 6px; font-size: 22px; }
-.page-description { margin: 0; color: var(--el-text-color-secondary); }
+.page-header {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.page-title { margin: 0; font-size: 22px; }
+.stock-match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stock-match-input { width: 200px; }
+.match-card { margin-bottom: 12px; }
+.match-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.match-card-title {
+  line-height: 1.45;
+  word-break: break-word;
+}
+.match-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.match-hits-title {
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: var(--el-text-color-regular);
+}
+.match-hit-item {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+}
+.match-hit-item:last-child { border-bottom: none; }
+.match-hit-row,
+.match-other-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 2px 0;
+  cursor: pointer;
+  font-size: 13px;
+}
+.match-hit-row:hover,
+.match-other-row:hover {
+  color: var(--el-color-primary);
+}
+.match-hit-name { font-weight: 500; min-width: 120px; flex-shrink: 0; }
+.match-hit-detail {
+  margin: 4px 0 0;
+  padding-left: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--el-text-color-regular);
+  white-space: pre-wrap;
+}
+.match-empty { margin: 0; }
+.match-error { color: var(--el-color-danger); margin: 0 0 8px; }
+.match-others { margin-top: 8px; }
 .result { white-space: pre-wrap; font-size: 12px; max-height: 420px; overflow: auto; margin: 0; }
 .muted { color: var(--el-text-color-secondary); }
 .range { font-size: 12px; color: var(--el-text-color-regular); }
+:deep(.factor-row-highlight) {
+  --el-table-tr-bg-color: #fff8e1;
+  background: #fff8e1 !important;
+}
+:deep(.factor-row-match-hit) {
+  --el-table-tr-bg-color: #e8f5e9;
+  background: #e8f5e9 !important;
+}
 .gen-seq { color: var(--el-text-color-secondary); font-variant-numeric: tabular-nums; }
 .pos { color: var(--el-color-success); font-variant-numeric: tabular-nums; }
 .neg { color: var(--el-color-danger); font-variant-numeric: tabular-nums; }
@@ -1931,6 +2501,10 @@ onMounted(load)
   width: 100%;
   height: min(52vh, 420px);
   min-height: 280px;
+  outline: none;
+}
+.equity-chart:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--el-color-primary-light-5);
 }
 .equity-chart--dual {
   height: min(58vh, 480px);

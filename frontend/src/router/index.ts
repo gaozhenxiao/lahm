@@ -24,7 +24,7 @@ const routes: RouteRecordRaw[] = [
   // 已下线功能入口：兼容旧链接，统一跳转仪表板
   { path: '/learning/:pathMatch(.*)*', redirect: '/dashboard' },
   { path: '/learning', redirect: '/dashboard' },
-  { path: '/analysis/history', redirect: '/tasks?tab=completed' },
+  { path: '/analysis/history', redirect: '/dashboard' },
   { path: '/analysis/:pathMatch(.*)*', redirect: '/dashboard' },
   { path: '/analysis', redirect: '/dashboard' },
   { path: '/screening/:pathMatch(.*)*', redirect: '/dashboard' },
@@ -71,13 +71,83 @@ const routes: RouteRecordRaw[] = [
     path: '/factors',
     name: 'Factors',
     component: () => import('@/layouts/BasicLayout.vue'),
-    meta: { title: '因子列表', requiresAuth: true, transition: 'slide-up' },
+    meta: { title: '多因子', requiresAuth: true, transition: 'slide-up' },
     children: [
       {
         path: '',
         name: 'FactorsHome',
         component: () => import('@/views/Factors/index.vue'),
-        meta: { title: '因子列表', requiresAuth: true }
+        meta: { title: '多因子', requiresAuth: true }
+      }
+    ]
+  },
+  // 旧入口兼容
+  { path: '/cb', redirect: '/multi-asset/cb' },
+  { path: '/strategies', redirect: '/multi-asset/strategies' },
+  { path: '/derivatives', redirect: '/multi-asset/cb' },
+  { path: '/derivatives/cb', redirect: '/multi-asset/cb' },
+  { path: '/derivatives/strategies', redirect: '/multi-asset/strategies' },
+  {
+    path: '/multi-asset',
+    name: 'MultiAsset',
+    component: () => import('@/layouts/BasicLayout.vue'),
+    meta: { title: '多资产', requiresAuth: true, transition: 'slide-up' },
+    redirect: '/multi-asset/cb',
+    children: [
+      {
+        path: 'cb',
+        name: 'MultiAssetCb',
+        component: () => import('@/views/ConvertibleBonds/index.vue'),
+        meta: { title: '可转债', requiresAuth: true, parent: '多资产' }
+      },
+      { path: 'strategies', redirect: '/multi-asset/dual_low' },
+      {
+        path: 'dual_low',
+        name: 'MultiAssetDualLow',
+        component: () => import('@/views/Strategies/index.vue'),
+        meta: { title: '转债双低', requiresAuth: true, parent: '多资产', strategyId: 'dual_low' }
+      },
+      {
+        path: 'etf_grid',
+        name: 'MultiAssetEtfGrid',
+        component: () => import('@/views/Strategies/index.vue'),
+        meta: { title: 'ETF网格', requiresAuth: true, parent: '多资产', strategyId: 'etf_grid' }
+      },
+      {
+        path: 'lof_arb',
+        name: 'MultiAssetLofArb',
+        component: () => import('@/views/Strategies/index.vue'),
+        meta: { title: 'LOF套利', requiresAuth: true, parent: '多资产', strategyId: 'lof_arb' }
+      },
+      {
+        path: 'bond_etf_arb',
+        name: 'MultiAssetBondEtfArb',
+        component: () => import('@/views/Strategies/index.vue'),
+        meta: { title: '债券ETF折溢价', requiresAuth: true, parent: '多资产', strategyId: 'bond_etf_arb' }
+      },
+      {
+        path: 'futures_basis',
+        name: 'MultiAssetFuturesBasis',
+        component: () => import('@/views/Strategies/index.vue'),
+        meta: { title: '股指基差', requiresAuth: true, parent: '多资产', strategyId: 'futures_basis' }
+      },
+      {
+        path: 'treasury_basis',
+        name: 'MultiAssetTreasuryBasis',
+        component: () => import('@/views/Strategies/index.vue'),
+        meta: { title: '国债期货基差', requiresAuth: true, parent: '多资产', strategyId: 'treasury_basis' }
+      },
+      {
+        path: 'covered_call',
+        name: 'MultiAssetCoveredCall',
+        component: () => import('@/views/Strategies/index.vue'),
+        meta: { title: '高股息备兑', requiresAuth: true, parent: '多资产', strategyId: 'covered_call' }
+      },
+      {
+        path: 'pairs',
+        name: 'MultiAssetPairs',
+        component: () => import('@/views/Strategies/index.vue'),
+        meta: { title: '配对交易', requiresAuth: true, parent: '多资产', strategyId: 'pairs' }
       }
     ]
   },
@@ -145,26 +215,9 @@ const routes: RouteRecordRaw[] = [
   },
 
 
-  {
-    path: '/tasks',
-    name: 'TaskCenter',
-    component: () => import('@/layouts/BasicLayout.vue'),
-    meta: {
-      title: '任务中心',
-      icon: 'List',
-      requiresAuth: true,
-      transition: 'slide-up'
-    },
-    children: [
-      {
-        path: '',
-        name: 'TaskCenterHome',
-        component: () => import('@/views/Tasks/TaskCenter.vue'),
-        meta: { title: '任务中心', requiresAuth: true }
-      }
-    ]
-  },
-  { path: '/queue', redirect: '/tasks' },
+  { path: '/tasks', redirect: '/dashboard' },
+  { path: '/tasks/:pathMatch(.*)*', redirect: '/dashboard' },
+  { path: '/queue', redirect: '/dashboard' },
   {
     path: '/reports',
     name: 'Reports',

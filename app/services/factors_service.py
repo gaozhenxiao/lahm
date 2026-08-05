@@ -24,6 +24,7 @@ from app.services.factors.guide_builder import (
     selection_steps,
     variant_overview,
 )
+from app.services.factors.match_stock import match_stock_against_factors
 
 logger = logging.getLogger("webapi")
 FACTORS = "factors"
@@ -181,6 +182,10 @@ _PARAM_LABELS = {
     "lead_min": "归属净利领先幅度",
     "ret20_max": "20日涨幅上限",
     "amt_dry_ratio": "缩量比例",
+    "explosive_chg": "爆发增速下限（%）",
+    "prior_yoy_max": "上年同季增速上限（断层，%）",
+    "qoq_gap_min": "单季环比跨越下限（%）",
+    "require_ma20": "要求站上MA20",
 }
 
 
@@ -307,7 +312,7 @@ def build_factor_guide_markdown(factor: Dict[str, Any], *, file_guide: Optional[
     ex = pick_trade_example(factor_id, _factors_data_dir()) if factor_id else None
     if ex:
         title_ex = f"{ex['code']}" + (f" {ex['name']}" if ex.get("name") else "")
-        lines += ["## 举例：回测真实成交一腿", ""]
+        lines += ["## 举例：回测真实成交一笔", ""]
         lines.append("| 项目 | 内容 |")
         lines.append("|---|---|")
         lines.append(f"| 标的 | **{title_ex}** |")
@@ -318,7 +323,7 @@ def build_factor_guide_markdown(factor: Dict[str, Any], *, file_guide: Optional[
             px_s = f"，约 {ex['sell_price']:.4g}" if ex.get("sell_price") else ""
             lines.append(f"| 清仓 | {ex['sell_date']}{px_s} |")
         if ex.get("leg_return") is not None:
-            lines.append(f"| 单腿涨跌 | {_fmt_pct_md(ex['leg_return'])} |")
+            lines.append(f"| 单笔涨跌 | {_fmt_pct_md(ex['leg_return'])} |")
         lines.append(f"| 组合贡献 | NAV {_fmt_pct_md(ex.get('nav_pnl'))} |")
         if ex.get("open_note"):
             lines.append(f"| 开仓备注 | {ex['open_note']} |")
@@ -492,6 +497,10 @@ def _metric_slice(row: Dict[str, Any]) -> Dict[str, Any]:
         "avg_position",
         "position_logic",
         "mode",
+        "error",
+        "note",
+        "n_legs_raw",
+        "n_legs_accepted",
     )
     return {k: row.get(k) for k in keys if k in row}
 
@@ -753,11 +762,12 @@ for _i, _f in enumerate(BUILTIN_FACTORS):
 RETIRED_FACTOR_IDS = (
     "nt_dip",
     "ma20_cross",
-    "pe_low_ma_reclaim",
-    "cheap_roe_bounce",
-    "eps_growth_reclaim",
-    "ma_trend_quality",
-    "high_margin_pullback",
+    # 下列 5 个仍在 FACTOR_IMPL / BUILTIN，不得列入 RETIRED（否则 ensure 会删掉并导致 UI 序号前移吞掉 #166）
+    # "pe_low_ma_reclaim",
+    # "cheap_roe_bounce",
+    # "eps_growth_reclaim",
+    # "ma_trend_quality",
+    # "high_margin_pullback",
     "low_vol_reclaim",
     "momentum_ma_pullback",
     "ma120_pullback",
@@ -804,6 +814,463 @@ RETIRED_FACTOR_IDS = (
     "roe_pb_misprice",
     "roe_persist_reclaim",
     "share_shrink_quality",
+    "advance_recv_lead_base",
+    "advance_recv_lead_roe",
+    "amount_coil_outrun_base",
+    "asset_light_cl_base",
+    "asset_light_lag29_g10",
+    "asset_light_ni_amp",
+    "asset_light_ni_base",
+    "asset_light_ni_pullback",
+    "asset_light_ni_reclaim",
+    "asset_light_ni_roe",
+    "catchup_break_lag28",
+    "catchup_break_lag28_hold52",
+    "catchup_brk80",
+    "catchup_brk80_gap04",
+    "catchup_brk80_gp22",
+    "cl_intensity_base",
+    "cl_intensity_break_np",
+    "cl_intensity_reclaim",
+    "cl_intensity_roe_base",
+    "cl_intensity_roe_reclaim",
+    "consec_improve_lag28_hold51",
+    "consec_improve_lag30_hold51",
+    "contract_liab_base_break",
+    "contract_liab_reclaim_strict",
+    "contract_np_lag28_hold51",
+    "contract_np_lag28_np10",
+    "contract_np_lag29_np08",
+    "contract_np_lag29_np10",
+    "contract_np_lag29_yoy25",
+    "demand_pricing_base",
+    "demand_pricing_base_np",
+    "demand_pricing_break",
+    "demand_pricing_pullback",
+    "dual_break_hold50",
+    "dual_break_mid_hold50",
+    "dual_brk80_lag28",
+    "dual_improve_base_tight2",
+    "dual_improve_breakout_wide",
+    "dual_lag28_hold50",
+    "dual_lag28_hold51",
+    "dual_lag28_hold52",
+    "dual_lag28_np08",
+    "dual_lag28_np10",
+    "dual_lag28_np11",
+    "dual_lag29_hold51",
+    "dual_m17_lag29_np10",
+    "dual_mid_amp18",
+    "dual_mid_amp22",
+    "dual_mid_hold40",
+    "dual_mid_hold42",
+    "dual_mid_hold45",
+    "dual_mid_hold50",
+    "dual_mid_hold51",
+    "dual_mid_hold52",
+    "dual_tight_amp16",
+    "dual_tight_amp16_hold52",
+    "dual_tight_hold35",
+    "dual_tight_hold50",
+    "dual_tight_hold51",
+    "dual_tight_hold52",
+    "dual_tight_hold53",
+    "dual_wide_base",
+    "dual_yoy_accel_base",
+    "dual_yoy_accel_reclaim",
+    "eps_dual_accel08",
+    "eps_dual_confirm_break",
+    "eps_dual_hold50",
+    "eps_dual_lag28_accel08_brk80",
+    "eps_dual_lag28_brk60",
+    "eps_dual_lag28_brk80",
+    "eps_dual_lag28_brk80_hold52",
+    "eps_dual_lag28_hold51",
+    "eps_dual_lag28_np10_brk80",
+    "eps_dual_lag30_brk80",
+    "eps_dual_lag30_hold51",
+    "eps_ttm_mom_base",
+    "equity_outrun_break",
+    "equity_outrun_pullback",
+    "float_concentration_reclaim",
+    "gp_cheap_lag28",
+    "gp_cheap_lag28_hold51",
+    "gp_cheap_lag29_m17_np10",
+    "gp_cheap_lag29_m17_np10_hold52",
+    "gp_cheap_lag29_m17_pe60",
+    "gp_cheap_mid_hold50",
+    "gp_consec_base",
+    "gp_consec_break",
+    "gp_consec_pullback",
+    "gp_expand_cheap_break",
+    "gp_expand_cheap_hold50",
+    "gp_np_expand_break",
+    "gp_np_expand_lag",
+    "gp_np_lag28_m17_nimp005",
+    "gp_np_lag29_m16_nimp005",
+    "gp_np_lag29_m17_nimp004",
+    "gp_np_lag29_m17_nimp005_hold52",
+    "gp_np_lag29_m17_nimp006",
+    "gp_np_lag29_m17_np10",
+    "gp_np_lag29_m20_np10",
+    "gp_np_lag30_m17_nimp005",
+    "gp_np_lag_base_hold35",
+    "gp_np_lag_hold35",
+    "gp_np_lag_hold42",
+    "gp_np_lag_hold45",
+    "gp_np_lag_hold51",
+    "gp_np_lag_hold52",
+    "gp_np_lag_hold60",
+    "gp_np_lag_stop10",
+    "gp_np_mid_hold50",
+    "gp_np_peak_tp20",
+    "gp_np_tight_break",
+    "gp_np_tight_hold51",
+    "gp_np_tight_lag28_hold52",
+    "gp_np_tight_lag29_hold50",
+    "gp_np_tight_lag29_hold51",
+    "gp_np_tight_lag29_hold52",
+    "gp_np_tight_lag30_hold51",
+    "gp_np_tight_lag30_hold52",
+    "gp_np_tight_lag31_hold51",
+    "gross_base_mid_hold50",
+    "gross_dual_base_tight",
+    "gross_dual_mid_hold50",
+    "gross_dual_stack_break",
+    "gross_dual_stack_hold51",
+    "gross_dual_stack_hold52",
+    "gross_expand_break",
+    "gross_expand_break_tight",
+    "gross_expand_brk55_m17_np10_lag29",
+    "gross_expand_brk58_m17_np10_lag29",
+    "gross_expand_brk60_m16_np10",
+    "gross_expand_brk60_m16_np10_lag29",
+    "gross_expand_brk60_m175_np10_lag29",
+    "gross_expand_brk60_m17_np09",
+    "gross_expand_brk60_m17_np095_lag29",
+    "gross_expand_brk60_m17_np10",
+    "gross_expand_brk60_m17_np105_lag29",
+    "gross_expand_brk60_m17_np10_hold52",
+    "gross_expand_brk60_m17_np10_imp005",
+    "gross_expand_brk60_m17_np10_lag27",
+    "gross_expand_brk60_m17_np10_lag29",
+    "gross_expand_brk60_m17_np10_lag29_hold49",
+    "gross_expand_brk60_m17_np10_lag29_hold50",
+    "gross_expand_brk60_m17_np10_lag29_hold52",
+    "gross_expand_brk60_m17_np10_lag29_hold53",
+    "gross_expand_brk60_m17_np10_lag29_hold54",
+    "gross_expand_brk60_m17_np10_lag29_imp005",
+    "gross_expand_brk60_m17_np10_lag29_imp0055",
+    "gross_expand_brk60_m17_np10_lag29_imp0065",
+    "gross_expand_brk60_m17_np10_lag29_ma60",
+    "gross_expand_brk60_m17_np10_lag29_nimp002",
+    "gross_expand_brk60_m17_np10_lag29_nimp003",
+    "gross_expand_brk60_m17_np10_lag29_nimp005",
+    "gross_expand_brk60_m17_np10_lag29_stop10",
+    "gross_expand_brk60_m17_np10_lag29_stop13",
+    "gross_expand_brk60_m17_np10_lag29_stop14",
+    "gross_expand_brk60_m17_np10_lag30",
+    "gross_expand_brk60_m17_np10_lag31",
+    "gross_expand_brk60_m17_np11",
+    "gross_expand_brk60_m17_np11_lag29",
+    "gross_expand_brk60_m18_np10",
+    "gross_expand_brk60_m18_np10_lag29",
+    "gross_expand_brk60_m19_np10_lag29",
+    "gross_expand_brk62_m17_np10_lag29",
+    "gross_expand_brk65_m17_np10_lag29",
+    "gross_expand_brk70",
+    "gross_expand_brk75_m17",
+    "gross_expand_brk80",
+    "gross_expand_brk80_imp005",
+    "gross_expand_brk80_m16",
+    "gross_expand_brk80_m17",
+    "gross_expand_brk80_m17_imp005",
+    "gross_expand_brk80_m17_lag29",
+    "gross_expand_brk80_m17_np08",
+    "gross_expand_brk80_m17_np10",
+    "gross_expand_brk80_m17_np10_hold50",
+    "gross_expand_brk80_m17_np12",
+    "gross_expand_brk80_m18",
+    "gross_expand_brk80_np10",
+    "gross_expand_brk85_m17",
+    "gross_expand_brk90",
+    "gross_expand_champ_amtdry60",
+    "gross_expand_champ_dd03",
+    "gross_expand_champ_dd05",
+    "gross_expand_champ_gp2",
+    "gross_expand_champ_gp2_imp005",
+    "gross_expand_champ_pb40",
+    "gross_expand_champ_pe45",
+    "gross_expand_champ_pe55",
+    "gross_expand_champ_ret20_15",
+    "gross_expand_champ_ret20_20",
+    "gross_expand_champ_ret20_30",
+    "gross_expand_champ_roe10",
+    "gross_expand_champ_roe10_pe55",
+    "gross_expand_champ_roe12",
+    "gross_expand_champ_soft97",
+    "gross_expand_champ_soft98",
+    "gross_expand_champ_soft99",
+    "gross_expand_champ_tp15",
+    "gross_expand_champ_tp20",
+    "gross_expand_champ_tp20_hold60",
+    "gross_expand_champ_tp25",
+    "gross_expand_champ_tp30",
+    "gross_expand_champ_tp32",
+    "gross_expand_champ_tp34",
+    "gross_expand_champ_tp35",
+    "gross_expand_champ_tp35_hold49",
+    "gross_expand_champ_tp35_hold50",
+    "gross_expand_champ_tp35_hold52",
+    "gross_expand_champ_tp35_hold53",
+    "gross_expand_champ_tp35_hold55",
+    "gross_expand_champ_tp35_np09",
+    "gross_expand_champ_tp35_np11",
+    "gross_expand_champ_tp35_stop10",
+    "gross_expand_champ_tp35_stop14",
+    "gross_expand_champ_tp35_trail15",
+    "gross_expand_champ_tp36",
+    "gross_expand_champ_tp38",
+    "gross_expand_champ_tp40",
+    "gross_expand_champ_tp50",
+    "gross_expand_champ_trail10",
+    "gross_expand_champ_trail12",
+    "gross_expand_champ_trail15",
+    "gross_expand_champ_yoy0",
+    "gross_expand_champ_yoy03",
+    "gross_expand_champ_yoy05",
+    "gross_expand_hold40",
+    "gross_expand_hold50",
+    "gross_expand_hold50_stop10",
+    "gross_expand_hold52",
+    "gross_expand_hold53",
+    "gross_expand_hold55",
+    "gross_expand_hold60",
+    "gross_expand_imp007",
+    "gross_expand_lag27",
+    "gross_expand_lag27_hold51",
+    "gross_expand_lag28",
+    "gross_expand_lag28_hold50_mid",
+    "gross_expand_lag28_hold51",
+    "gross_expand_lag28_hold51_imp005",
+    "gross_expand_lag28_hold51_m18",
+    "gross_expand_lag28_hold51_m22",
+    "gross_expand_lag28_hold51_stop10",
+    "gross_expand_lag28_hold52",
+    "gross_expand_lag28_hold55",
+    "gross_expand_lag28_stop10",
+    "gross_expand_lag29",
+    "gross_expand_lag29_hold51",
+    "gross_expand_lag29_hold52",
+    "gross_expand_lag29_hold53",
+    "gross_expand_lag29_stop10",
+    "gross_expand_lag30",
+    "gross_expand_lag30_hold55",
+    "gross_expand_lag30_stop10",
+    "gross_expand_lag32",
+    "gross_expand_ma60_tp35",
+    "gross_expand_mid_hold45",
+    "gross_expand_mid_hold48",
+    "gross_expand_mid_hold50",
+    "gross_expand_mid_hold55",
+    "gross_expand_mid_lag20",
+    "gross_expand_mid_m22",
+    "gross_expand_mid_stop10",
+    "gross_expand_tight_hold40",
+    "gross_high_np_amp22",
+    "gross_high_np_brk100",
+    "gross_high_np_brk40",
+    "gross_high_np_brk50",
+    "gross_high_np_brk70",
+    "gross_high_np_brk75_m17",
+    "gross_high_np_brk80",
+    "gross_high_np_brk80_hold52",
+    "gross_high_np_brk80_imp005",
+    "gross_high_np_brk80_m16",
+    "gross_high_np_brk80_m17",
+    "gross_high_np_brk80_m17_hold52",
+    "gross_high_np_brk80_m17_imp005",
+    "gross_high_np_brk80_m17_lag27",
+    "gross_high_np_brk80_m17_lag29",
+    "gross_high_np_brk80_m17_nimp002",
+    "gross_high_np_brk80_m17_nimp003",
+    "gross_high_np_brk80_m17_np09",
+    "gross_high_np_brk80_m17_np11",
+    "gross_high_np_brk80_m18",
+    "gross_high_np_brk85_m17",
+    "gross_high_np_brk90",
+    "gross_high_np_champ_brk50",
+    "gross_high_np_champ_stop10",
+    "gross_high_np_champ_stop14",
+    "gross_high_np_either",
+    "gross_high_np_g03",
+    "gross_high_np_g03_m17",
+    "gross_high_np_g05",
+    "gross_high_np_g08",
+    "gross_high_np_g08_hold52",
+    "gross_high_np_g08_imp005",
+    "gross_high_np_g08_m17",
+    "gross_high_np_g12",
+    "gross_high_np_g15",
+    "gross_high_np_gacc05",
+    "gross_high_np_gacc05_m17",
+    "gross_high_np_gacc08",
+    "gross_high_np_imp0055_hold52",
+    "gross_high_np_imp005_hold52",
+    "gross_high_np_imp005_roe12",
+    "gross_high_np_lag27_np10",
+    "gross_high_np_lag28_hold51",
+    "gross_high_np_lag28_hold51_np10",
+    "gross_high_np_lag28_np09",
+    "gross_high_np_lag28_np10_hold52",
+    "gross_high_np_lag28_np11",
+    "gross_high_np_lag28_np12",
+    "gross_high_np_lag29_np10",
+    "gross_high_np_lag30_hold51",
+    "gross_high_np_m16_imp005_brk40",
+    "gross_high_np_m16_imp005_brk50",
+    "gross_high_np_m16_lag30_np10",
+    "gross_high_np_m17_imp005",
+    "gross_high_np_m17_imp0055",
+    "gross_high_np_m17_lag29_amp18",
+    "gross_high_np_m17_lag29_amp22",
+    "gross_high_np_m17_lag29_either",
+    "gross_high_np_m17_lag29_np10",
+    "gross_high_np_m17_lag29_reclaim",
+    "gross_high_np_m17_lag30_imp005_np10",
+    "gross_high_np_m17_lag30_np10",
+    "gross_high_np_m17_lag30_np10_hold52",
+    "gross_high_np_m18_imp005",
+    "gross_high_np_m18_lag29_np10",
+    "gross_high_np_m22_hold51",
+    "gross_high_np_ma60",
+    "gross_high_np_ma60_hold50",
+    "gross_high_np_ma60_hold52",
+    "gross_high_np_ma60_hold53",
+    "gross_high_np_ma60_imp005",
+    "gross_high_np_ma60_m17",
+    "gross_high_np_ma60_np11",
+    "gross_high_np_ma60_roe12",
+    "gross_high_np_nimp002_m16",
+    "gross_high_np_nimp002_m17",
+    "gross_high_np_nimp003",
+    "gross_high_np_nimp003_hold52",
+    "gross_high_np_nimp003_m15",
+    "gross_high_np_nimp003_m16",
+    "gross_high_np_nimp003_m16_hold52",
+    "gross_high_np_nimp003_m16_imp005",
+    "gross_high_np_nimp003_m16_lag27",
+    "gross_high_np_nimp003_m16_lag29",
+    "gross_high_np_nimp003_m17",
+    "gross_high_np_nimp003_m17_hold52",
+    "gross_high_np_nimp003_m17_imp005",
+    "gross_high_np_nimp003_m18",
+    "gross_high_np_nimp004_m17",
+    "gross_high_np_nimp005",
+    "gross_high_np_np10_hold50",
+    "gross_high_np_np10_hold53",
+    "gross_high_np_np10_imp004",
+    "gross_high_np_np10_imp005",
+    "gross_high_np_np10_imp0055",
+    "gross_high_np_np10_imp0065",
+    "gross_high_np_np10_m17",
+    "gross_high_np_np10_m18",
+    "gross_high_np_np10_m19",
+    "gross_high_np_np11_hold52",
+    "gross_high_np_np11_hold53",
+    "gross_high_np_pb30",
+    "gross_high_np_pe45",
+    "gross_high_np_pe55",
+    "gross_high_np_reclaim",
+    "gross_high_np_reclaim_hold52",
+    "gross_high_np_reclaim_ma60",
+    "gross_high_np_roe10",
+    "gross_high_np_roe12",
+    "gross_np_up_brk70",
+    "gross_np_up_brk75",
+    "gross_np_up_brk80",
+    "gross_np_up_brk80_hold52",
+    "gross_np_up_brk80_imp005",
+    "gross_np_up_brk80_lag27",
+    "gross_np_up_brk80_lag29",
+    "gross_np_up_brk80_m17",
+    "gross_np_up_brk80_nimp005",
+    "gross_np_up_brk80_np09",
+    "gross_np_up_brk80_np11",
+    "gross_np_up_brk85",
+    "gross_np_up_brk90",
+    "gross_np_up_lag28_hold51",
+    "gross_np_up_lag28_np08",
+    "gross_np_up_lag28_np10",
+    "gross_np_up_m17_lag29_np10",
+    "gross_np_up_np09",
+    "gross_np_up_np10_hold50",
+    "gross_np_up_np10_lag29",
+    "gross_np_up_np10_nimp005",
+    "gross_np_up_np11",
+    "gross_tight_base",
+    "high_margin_break_hold50",
+    "high_margin_break_hold51",
+    "high_margin_break_m15",
+    "high_margin_breakout",
+    "high_margin_m15_hold51",
+    "high_margin_m18_hold51",
+    "high_margin_m18_hold52",
+    "high_margin_m20_hold52",
+    "ni_quality_base",
+    "ni_quality_cheap_break",
+    "ni_quality_pullback",
+    "ni_quality_reclaim",
+    "np_expand_cheap_break",
+    "np_expand_cheap_pullback",
+    "np_regime_amp",
+    "np_regime_base",
+    "np_regime_break",
+    "np_regime_lag29_brk60",
+    "np_regime_ma60",
+    "np_regime_pullback",
+    "np_regime_roe",
+    "parent_eps_twin_base",
+    "parent_eps_twin_pullback",
+    "parent_eps_twin_quality",
+    "parent_eps_twin_reclaim",
+    "parent_lead_break",
+    "parent_lead_lag29_g12",
+    "parent_lead_reclaim",
+    "pb_floor_hold51",
+    "quality_coil_break",
+    "rev_accel_hold50",
+    "rev_per_share_accel",
+    "rev_per_share_accel_base",
+    "rev_qoq_pullback",
+    "rev_roe_sync_base",
+    "rev_roe_sync_break",
+    "rev_roe_sync_np",
+    "rev_roe_sync_pullback",
+    "roe_accel_base",
+    "roe_accel_break",
+    "roe_accel_np",
+    "roe_accel_pullback",
+    "roe_expand_brk80_np10",
+    "roe_expand_hold51",
+    "roe_expand_r12_hold51",
+    "roe_lag28_hold51",
+    "roe_lag28_np10",
+    "share_buyback_base",
+    "share_buyback_break",
+    "share_buyback_pullback",
+    "turn_dry_growth_roe",
+    "twin_yoy_breakout",
+    "twin_yoy_lag29_g10_hold52",
+    "twin_yoy_lag29_g15",
+    # 回测无腿 / 用户要求下线
+    "roe_dip_reclaim",
+    # 用户删除原 catchup/UI#192（Mongo 用 _gen_pad_ui165 / _gen_pad_ui193 占位保序）
+    "struct_catchup_gp28_lag26_csi500_r3",
+    # 用户删除 UI#239/#240/#242（Mongo pad 保序）
+    "phys_cip_convert_c35",
+    "phys_cip_convert_c35_ry05",
+    "phys_cash_collect_c38",
 )
 
 
@@ -829,6 +1296,7 @@ def _serialize_factor(doc: Dict[str, Any], *, include_backtest: bool = True) -> 
         "latest_asof": _json_time(doc.get("latest_asof")),
         "created_at": _json_time(doc.get("created_at")),
         "updated_at": _json_time(doc.get("updated_at")),
+        "last_backtest_error": doc.get("last_backtest_error"),
     }
     if include_backtest and factor_id:
         out["backtest"] = _build_backtest_summary(str(factor_id))
@@ -841,33 +1309,80 @@ class FactorsService:
     async def ensure_builtins(self) -> None:
         db = get_mongo_db()
         now = now_tz()
-        if RETIRED_FACTOR_IDS:
-            await db[FACTORS].delete_many({"factor_id": {"$in": list(RETIRED_FACTOR_IDS)}})
-            await db[FACTOR_SIGNALS].delete_many({"factor_id": {"$in": list(RETIRED_FACTOR_IDS)}})
+        # 仍在 BUILTIN / FACTOR_IMPL 的因子绝不能删：否则 UI 序号前移，会吞掉原 #166 等稳定位。
+        # 新因子应永远挂到 max(序号)+1，不要靠删旧号填空洞。
+        builtin_ids = {str(f.get("factor_id") or "") for f in BUILTIN_FACTORS}
+        builtin_ids.update(str(x) for x in FACTOR_IMPL.keys())
+        retired_to_drop = [
+            fid for fid in RETIRED_FACTOR_IDS if fid and str(fid) not in builtin_ids
+        ]
+        if retired_to_drop:
+            await db[FACTORS].delete_many({"factor_id": {"$in": list(retired_to_drop)}})
+            await db[FACTOR_SIGNALS].delete_many({"factor_id": {"$in": list(retired_to_drop)}})
         for f in BUILTIN_FACTORS:
-            # 内置因子元数据每次同步；created_at 用注册表生成时间，保证列表排序稳定
+            # 内置因子元数据每次同步；已有文档保留原 created_at，避免序号漂移。
+            # 新增因子：挂到 max(created_at)+1h，禁止用定义序合成时间插到中间挤占。
+            fid = f.get("factor_id")
+            existing = await db[FACTORS].find_one({"factor_id": fid}, {"created_at": 1}) if fid else None
             payload = {
                 **f,
                 "status": "active",
                 "builtin": True,
                 "updated_at": now,
             }
-            if f.get("created_at") is not None:
-                payload["created_at"] = f["created_at"]
+            if existing and existing.get("created_at") is not None:
+                payload["created_at"] = existing["created_at"]
             else:
-                payload.setdefault("created_at", now)
+                payload["created_at"] = await self._next_factor_created_at(db, now)
             await db[FACTORS].update_one(
                 {"factor_id": f["factor_id"]},
                 {"$set": payload},
                 upsert=True,
             )
 
+    @staticmethod
+    async def _next_factor_created_at(db: Any, now: datetime) -> datetime:
+        """新因子序号：永远挂到当前最大 created_at 之后。"""
+        latest = await db[FACTORS].find_one(
+            {"created_at": {"$ne": None}},
+            sort=[("created_at", -1)],
+            projection={"created_at": 1},
+        )
+        if not latest or latest.get("created_at") is None:
+            return now
+        try:
+            nxt = latest["created_at"] + timedelta(hours=1)
+        except Exception:
+            return now
+        return now if now > nxt else nxt
+
+
+    @staticmethod
+    def _is_seq_pad(doc: Dict[str, Any]) -> bool:
+        """序号占位（已删槽位），Mongo 保留保序，列表不展示。"""
+        fid = str(doc.get("factor_id") or "")
+        tags = doc.get("tags") or []
+        if fid.startswith("_gen_pad"):
+            return True
+        if "gen_seq_pad" in tags or "deleted_slot" in tags:
+            return True
+        return False
+
     async def list_factors(self) -> List[Dict[str, Any]]:
         await self.ensure_builtins()
         db = get_mongo_db()
         # 按生成时间升序：先做的在前；无时间戳的排最后
         cursor = db[FACTORS].find({}).sort([("created_at", 1), ("factor_id", 1)])
-        return [_serialize_factor(d) async for d in cursor]
+        docs = [d async for d in cursor]
+        out: List[Dict[str, Any]] = []
+        for i, d in enumerate(docs, 1):
+            if self._is_seq_pad(d):
+                # 占位仍占 UI 序号空洞（#165/#193），但不出现在因子列表
+                continue
+            row = _serialize_factor(d)
+            row["gen_seq"] = i
+            out.append(row)
+        return out
 
     async def get_factor(self, factor_id: str) -> Optional[Dict[str, Any]]:
         await self.ensure_builtins()
@@ -881,12 +1396,14 @@ class FactorsService:
         exists = await db[FACTORS].find_one({"factor_id": payload.factor_id})
         if exists:
             raise ValueError("factor_id already exists")
+        # 新因子永远挂到当前最大 created_at 之后（max+1），不填空洞、不挤占
+        created_at = await self._next_factor_created_at(db, now)
         doc = {
             **payload.model_dump(),
             "category": payload.category.value,
             "status": payload.status.value,
             "builtin": False,
-            "created_at": now,
+            "created_at": created_at,
             "updated_at": now,
         }
         await db[FACTORS].insert_one(doc)
@@ -907,6 +1424,12 @@ class FactorsService:
         if not doc:
             raise LookupError("factor not found")
         return _serialize_factor(doc)
+
+    async def match_stock(self, code: str, asof: Optional[str] = None) -> Dict[str, Any]:
+        """单票对 active 因子做当前入场信号匹配（本地缓存优先）。"""
+        await self.ensure_builtins()
+        items = await self.list_factors()
+        return await asyncio.to_thread(match_stock_against_factors, code, items, asof=asof)
 
     async def compute_signal(self, factor_id: str, asof: Optional[str] = None) -> Dict[str, Any]:
         await self.ensure_builtins()

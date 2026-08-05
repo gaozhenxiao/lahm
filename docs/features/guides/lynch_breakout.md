@@ -15,7 +15,7 @@
 
 信号实现：`signal_lynch_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/lynch_breakout_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sz.300308** |
 | 开仓 | 2016-10-13，约 9.953 元 |
 | 清仓 | 2016-11-09，约 14.48 元 |
-| 单腿涨跌 | **45.45%** |
+| 单笔涨跌 | **45.45%** |
 | 当日组合贡献 | NAV 7.50% |
 | 出场备注 | hold_end；买入2016-10-13 成本价9.9529 |
 

@@ -15,7 +15,7 @@
 
 信号实现：`signal_dual_improve_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_mid_hold50_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.601100** |
 | 开仓 | 2017-10-31，约 9.473 元 |
 | 清仓 | 2018-01-10，约 14.77 元 |
-| 单腿涨跌 | **55.92%** |
+| 单笔涨跌 | **55.92%** |
 | 当日组合贡献 | NAV 6.99% |
 | 出场备注 | hold_end；买入2017-10-31 成本价9.4732 |
 

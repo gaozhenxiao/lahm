@@ -16,7 +16,7 @@
 
 信号实现：`signal_growth_not_expensive_pullback`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/growth_not_expensive_pullback_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.600233** |
 | 开仓 | 2016-06-15，约 14.92 元 |
 | 清仓 | 2016-07-20，约 19.76 元 |
-| 单腿涨跌 | **32.42%** |
+| 单笔涨跌 | **32.42%** |
 | 当日组合贡献 | NAV 4.05% |
 | 出场备注 | hold_end；买入2016-06-15 成本价14.9219 |
 

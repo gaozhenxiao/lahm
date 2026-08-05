@@ -15,7 +15,7 @@
 
 信号实现：`signal_dual_improve_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_mid_hold42_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600009** |
 | 开仓 | 2017-03-21，约 26.84 元 |
 | 清仓 | 2017-05-23，约 37.3 元 |
-| 单腿涨跌 | **38.98%** |
+| 单笔涨跌 | **38.98%** |
 | 当日组合贡献 | NAV 4.87% |
 | 出场备注 | hold_end；买入2017-03-21 成本价26.8419 |
 

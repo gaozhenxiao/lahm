@@ -15,7 +15,7 @@
 
 信号实现：`signal_np_margin_regime`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/np_margin_regime_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600489** |
 | 开仓 | 2025-08-29，约 15.97 元 |
 | 清仓 | 2025-10-13，约 25.5 元 |
-| 单腿涨跌 | **59.67%** |
+| 单笔涨跌 | **59.67%** |
 | 当日组合贡献 | NAV 7.46% |
 | 出场备注 | hold_end；买入2025-08-29 成本价15.9700 |
 

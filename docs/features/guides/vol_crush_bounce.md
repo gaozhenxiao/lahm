@@ -13,7 +13,7 @@
 
 信号实现：`signal_vol_crush_bounce`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/vol_crush_bounce_trade_history.csv`
 
@@ -22,7 +22,7 @@
 | 标的 | **sz.300122 智飞生物** |
 | 开仓 | 2025-07-08，约 19.85 元 |
 | 清仓 | 2025-07-29，约 25.06 元 |
-| 单腿涨跌 | **26.25%** |
+| 单笔涨跌 | **26.25%** |
 | 当日组合贡献 | NAV 3.28% |
 | 出场备注 | hold_end；买入2025-07-08 成本价19.8500 |
 

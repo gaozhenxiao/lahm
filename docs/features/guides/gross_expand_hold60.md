@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_hold60_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.002475** |
 | 开仓 | 2019-10-22，约 22.28 元 |
 | 清仓 | 2020-01-15，约 32.59 元 |
-| 单腿涨跌 | **46.25%** |
+| 单笔涨跌 | **46.25%** |
 | 当日组合贡献 | NAV 5.78% |
 | 出场备注 | hold_end；买入2019-10-22 成本价22.2828 |
 

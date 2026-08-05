@@ -17,7 +17,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_champ_tp25_trade_history.csv`
 
@@ -26,7 +26,7 @@
 | 标的 | **sz.300033** |
 | 开仓 | 2023-03-23，约 113.2 元 |
 | 清仓 | 2023-04-03，约 160.7 元 |
-| 单腿涨跌 | **41.97%** |
+| 单笔涨跌 | **41.97%** |
 | 当日组合贡献 | NAV 5.25% |
 | 出场备注 | take_profit；买入2023-03-23 成本价113.1918 |
 

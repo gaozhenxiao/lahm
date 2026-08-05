@@ -16,7 +16,7 @@
 
 信号实现：`signal_growth_trend_pullback`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/growth_trend_pullback_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.600150** |
 | 开仓 | 2019-02-19，约 13.08 元 |
 | 清仓 | 2019-03-26，约 19.2 元 |
-| 单腿涨跌 | **46.79%** |
+| 单笔涨跌 | **46.79%** |
 | 当日组合贡献 | NAV 5.85% |
 | 出场备注 | hold_end；买入2019-02-19 成本价13.0807 |
 

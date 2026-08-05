@@ -17,7 +17,7 @@
 
 信号实现：`signal_gp_np_tight_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gp_np_tight_lag29_hold51_trade_history.csv`
 
@@ -26,7 +26,7 @@
 | 标的 | **sz.300014** |
 | 开仓 | 2019-12-04，约 24.59 元 |
 | 清仓 | 2020-02-24，约 39.26 元 |
-| 单腿涨跌 | **59.65%** |
+| 单笔涨跌 | **59.65%** |
 | 当日组合贡献 | NAV 7.46% |
 | 出场备注 | hold_end；买入2019-12-04 成本价24.5926 |
 

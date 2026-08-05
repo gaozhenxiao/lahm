@@ -16,7 +16,7 @@
 
 信号实现：`signal_growth_pullback_ma20`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/growth_pullback_ma20_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.601058** |
 | 开仓 | 2020-12-30，约 4.923 元 |
 | 清仓 | 2021-01-28，约 7.775 元 |
-| 单腿涨跌 | **57.92%** |
+| 单笔涨跌 | **57.92%** |
 | 当日组合贡献 | NAV 7.24% |
 | 出场备注 | hold_end；买入2020-12-30 成本价4.9234 |
 

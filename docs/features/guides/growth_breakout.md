@@ -14,7 +14,7 @@
 
 信号实现：`signal_growth_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/growth_breakout_trade_history.csv`
 
@@ -23,7 +23,7 @@
 | 标的 | **sz.300251** |
 | 开仓 | 2025-02-10，约 16.37 元 |
 | 清仓 | 2025-03-06，约 23.59 元 |
-| 单腿涨跌 | **44.06%** |
+| 单笔涨跌 | **44.06%** |
 | 当日组合贡献 | NAV 9.84% |
 | 出场备注 | hold_end；买入2025-02-10 成本价16.3720 |
 

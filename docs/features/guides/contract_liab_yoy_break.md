@@ -15,7 +15,7 @@
 
 信号实现：`signal_contract_liab_yoy_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/contract_liab_yoy_break_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600460** |
 | 开仓 | 2026-05-25，约 34.11 元 |
 | 清仓 | 2026-06-30，约 54.53 元 |
-| 单腿涨跌 | **59.87%** |
+| 单笔涨跌 | **59.87%** |
 | 当日组合贡献 | NAV 7.48% |
 | 出场备注 | hold_end；买入2026-05-25 成本价34.1076 |
 

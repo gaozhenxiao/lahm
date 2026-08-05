@@ -15,7 +15,7 @@
 
 信号实现：`signal_contract_liab_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/contract_liab_reclaim_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.601919** |
 | 开仓 | 2021-03-26，约 5.181 元 |
 | 清仓 | 2021-05-06，约 8.264 元 |
-| 单腿涨跌 | **59.53%** |
+| 单笔涨跌 | **59.53%** |
 | 当日组合贡献 | NAV 7.44% |
 | 出场备注 | hold_end；买入2021-03-26 成本价5.1805 |
 

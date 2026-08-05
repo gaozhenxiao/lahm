@@ -15,7 +15,7 @@
 
 信号实现：`signal_dual_improve_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_improve_base_tight2_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600219** |
 | 开仓 | 2024-02-29，约 2.615 元 |
 | 清仓 | 2024-04-08，约 3.003 元 |
-| 单腿涨跌 | **14.84%** |
+| 单笔涨跌 | **14.84%** |
 | 当日组合贡献 | NAV 1.85% |
 | 出场备注 | hold_end；买入2024-02-29 成本价2.6150 |
 

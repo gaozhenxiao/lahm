@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_dual_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_dual_base_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.601857** |
 | 开仓 | 2023-03-30，约 4.975 元 |
 | 清仓 | 2023-05-10，约 6.443 元 |
-| 单腿涨跌 | **29.50%** |
+| 单笔涨跌 | **29.50%** |
 | 当日组合贡献 | NAV 3.69% |
 | 出场备注 | hold_end；买入2023-03-30 成本价4.9750 |
 

@@ -5,7 +5,7 @@
 每个因子说明（页面或 `docs/features/guides/<id>.md`）现包含：
 
 1. **怎么选股（逐步）**：财务条件、热窗、横盘突破/趋势回踩等图形、出场  
-2. **举例**：回测 `*_trade_history.csv` 中的真实一腿（若有）  
+2. **举例**：回测 `*_trade_history.csv` 中的真实一笔（若有）  
 3. **回测摘要 / 怎么跑**
 
 批量重生成：`python scripts/generate_factor_guides.py`  

@@ -15,7 +15,7 @@
 
 信号实现：`signal_roe_expand_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/roe_expand_r12_hold51_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sz.002304** |
 | 开仓 | 2020-10-22，约 135.2 元 |
 | 清仓 | 2021-01-04，约 198.9 元 |
-| 单腿涨跌 | **47.17%** |
+| 单笔涨跌 | **47.17%** |
 | 当日组合贡献 | NAV 5.90% |
 | 出场备注 | hold_end；买入2020-10-22 成本价135.1795 |
 

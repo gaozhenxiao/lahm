@@ -14,7 +14,7 @@
 
 信号实现：`signal_pead_base_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/pead_base_reclaim_trade_history.csv`
 
@@ -23,7 +23,7 @@
 | 标的 | **sh.600160** |
 | 开仓 | 2026-05-22，约 35.5 元 |
 | 清仓 | 2026-06-29，约 53.8 元 |
-| 单腿涨跌 | **51.54%** |
+| 单笔涨跌 | **51.54%** |
 | 当日组合贡献 | NAV 6.44% |
 | 出场备注 | hold_end；买入2026-05-22 成本价35.5028 |
 

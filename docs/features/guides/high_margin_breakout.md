@@ -15,7 +15,7 @@
 
 信号实现：`signal_high_margin_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/high_margin_breakout_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sz.300059** |
 | 开仓 | 2024-09-26，约 13.99 元 |
 | 清仓 | 2024-10-29，约 22.01 元 |
-| 单腿涨跌 | **57.31%** |
+| 单笔涨跌 | **57.31%** |
 | 当日组合贡献 | NAV 10.68% |
 | 出场备注 | hold_end；买入2024-09-26 成本价13.9888 |
 

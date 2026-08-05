@@ -15,7 +15,7 @@
 
 信号实现：`signal_parent_profit_lead`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/parent_lead_lag29_g12_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600029** |
 | 开仓 | 2025-10-28，约 6.7 元 |
 | 清仓 | 2026-01-09，约 7.97 元 |
-| 单腿涨跌 | **18.96%** |
+| 单笔涨跌 | **18.96%** |
 | 当日组合贡献 | NAV 2.37% |
 | 出场备注 | hold_end；买入2025-10-28 成本价6.7000 |
 

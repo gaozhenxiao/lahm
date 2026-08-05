@@ -18,7 +18,7 @@
 
 信号实现：`signal_base_funda_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/base_funda_reclaim_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sh.600489** |
 | 开仓 | 2016-06-06，约 8.722 元 |
 | 清仓 | 2016-07-13，约 13.83 元 |
-| 单腿涨跌 | **58.56%** |
+| 单笔涨跌 | **58.56%** |
 | 当日组合贡献 | NAV 7.32% |
 | 出场备注 | hold_end；买入2016-06-06 成本价8.7219 |
 

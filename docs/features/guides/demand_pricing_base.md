@@ -18,7 +18,7 @@
 
 信号实现：`signal_demand_pricing_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/demand_pricing_base_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sh.601360** |
 | 开仓 | 2024-09-30，约 8.558 元 |
 | 清仓 | 2024-12-02，约 12.91 元 |
-| 单腿涨跌 | **50.85%** |
+| 单笔涨跌 | **50.85%** |
 | 当日组合贡献 | NAV 6.36% |
 | 出场备注 | hold_end；买入2024-09-30 成本价8.5584 |
 

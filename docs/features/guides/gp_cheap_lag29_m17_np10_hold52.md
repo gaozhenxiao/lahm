@@ -18,7 +18,7 @@
 
 信号实现：`signal_gp_expand_cheap_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gp_cheap_lag29_m17_np10_hold52_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sh.600009** |
 | 开仓 | 2017-03-21，约 26.84 元 |
 | 清仓 | 2017-06-08，约 36.55 元 |
-| 单腿涨跌 | **36.17%** |
+| 单笔涨跌 | **36.17%** |
 | 当日组合贡献 | NAV 4.52% |
 | 出场备注 | hold_end；买入2017-03-21 成本价26.8419 |
 

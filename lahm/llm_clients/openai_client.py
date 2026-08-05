@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Any, Optional
 
 from langchain_openai import ChatOpenAI
@@ -11,7 +12,54 @@ class NormalizedChatOpenAI(ChatOpenAI):
     """ChatOpenAI wrapper that normalizes typed content blocks to text."""
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        start = time.time()
+        provider = getattr(self, "_lahm_provider", None) or "unknown"
+        model = getattr(self, "model_name", None) or getattr(self, "model", None) or "unknown"
+        try:
+            from app.services.llm_call_log_service import messages_to_text
+
+            input_text = messages_to_text(input)
+        except Exception:  # noqa: BLE001
+            input_text = str(input)
+        try:
+            result = normalize_content(super().invoke(input, config, **kwargs))
+            try:
+                from app.services.llm_call_log_service import (
+                    extract_usage,
+                    log_llm_call,
+                    result_to_text,
+                )
+
+                usage = extract_usage(result)
+                log_llm_call(
+                    provider=str(provider),
+                    model=str(model),
+                    input_text=input_text,
+                    output_text=result_to_text(result),
+                    latency_ms=round((time.time() - start) * 1000, 1),
+                    input_tokens=usage.get("input_tokens"),
+                    output_tokens=usage.get("output_tokens"),
+                    total_tokens=usage.get("total_tokens"),
+                    meta={"adapter": "NormalizedChatOpenAI"},
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            return result
+        except Exception as exc:  # noqa: BLE001
+            try:
+                from app.services.llm_call_log_service import log_llm_call
+
+                log_llm_call(
+                    provider=str(provider),
+                    model=str(model),
+                    input_text=input_text,
+                    error=str(exc),
+                    latency_ms=round((time.time() - start) * 1000, 1),
+                    meta={"adapter": "NormalizedChatOpenAI"},
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            raise
 
 
 _PASSTHROUGH_KWARGS = (
@@ -103,7 +151,9 @@ class OpenAIClient(BaseLLMClient):
         if model_kwargs:
             logger.info(f"🔧 [OpenAIClient] model_kwargs={model_kwargs}")
 
-        return NormalizedChatOpenAI(**llm_kwargs)
+        llm = NormalizedChatOpenAI(**llm_kwargs)
+        object.__setattr__(llm, "_lahm_provider", self.provider)
+        return llm
 
     def validate_model(self) -> bool:
         return validate_model(self.provider, self.model)

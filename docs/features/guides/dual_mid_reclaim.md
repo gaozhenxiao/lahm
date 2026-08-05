@@ -15,7 +15,7 @@
 
 信号实现：`signal_dual_improve_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_mid_reclaim_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600196** |
 | 开仓 | 2017-09-07，约 27.38 元 |
 | 清仓 | 2017-11-02，约 36.78 元 |
-| 单腿涨跌 | **34.31%** |
+| 单笔涨跌 | **34.31%** |
 | 当日组合贡献 | NAV 4.29% |
 | 出场备注 | hold_end；买入2017-09-07 成本价27.3808 |
 

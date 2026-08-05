@@ -36,6 +36,27 @@ async def ashare_fin_status(current_user: dict = Depends(get_current_user)):
     return ok(fin_db.summary())
 
 
+@router.get("/match-stock")
+@router.post("/match-stock")
+async def match_stock(
+    code: Optional[str] = Query(None, description="股票代码，如 600887 / sh.600887 / 600887.SH"),
+    asof: Optional[str] = Query(None, description="YYYY-MM-DD，默认最新可得交易日"),
+    current_user: dict = Depends(get_current_user),
+):
+    """单票当前是否符合 Factors 列表中 active 因子的入场/选股信号。"""
+    raw = (code or "").strip()
+    if not raw:
+        raise HTTPException(status_code=400, detail="code is required")
+    try:
+        result = await factors_service.match_stock(raw, asof=asof)
+        return ok(result)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:  # noqa: BLE001
+        logger.exception("match-stock failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{factor_id}")
 async def get_factor(factor_id: str, current_user: dict = Depends(get_current_user)):
     item = await factors_service.get_factor(factor_id)

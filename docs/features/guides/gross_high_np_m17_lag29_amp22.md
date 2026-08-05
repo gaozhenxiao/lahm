@@ -17,7 +17,7 @@
 
 信号实现：`signal_gross_high_np_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_high_np_m17_lag29_amp22_trade_history.csv`
 
@@ -26,7 +26,7 @@
 | 标的 | **sh.600309** |
 | 开仓 | 2018-06-04，约 32.89 元 |
 | 清仓 | 2018-08-15，约 40.94 元 |
-| 单腿涨跌 | **24.48%** |
+| 单笔涨跌 | **24.48%** |
 | 当日组合贡献 | NAV 3.06% |
 | 出场备注 | hold_end；买入2018-06-04 成本价32.8910 |
 

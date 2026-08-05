@@ -14,7 +14,7 @@ PB小于1时，收盘站上MA20再买。
 
 信号实现：`signal_pb_below_one_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/pb_below_one_reclaim_trade_history.csv`
 
@@ -23,7 +23,7 @@ PB小于1时，收盘站上MA20再买。
 | 标的 | **sz.000617** |
 | 开仓 | 2024-09-20，约 4.973 元 |
 | 清仓 | 2024-10-25，约 7.906 元 |
-| 单腿涨跌 | **58.98%** |
+| 单笔涨跌 | **58.98%** |
 | 当日组合贡献 | NAV 7.37% |
 | 出场备注 | hold_end；买入2024-09-20 成本价4.9731 |
 

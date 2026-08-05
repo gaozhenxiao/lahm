@@ -18,7 +18,7 @@
 
 信号实现：`signal_parent_lead_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/parent_lead_base_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sz.000063** |
 | 开仓 | 2017-09-22，约 24.35 元 |
 | 清仓 | 2017-11-24，约 34.81 元 |
-| 单腿涨跌 | **43.00%** |
+| 单笔涨跌 | **43.00%** |
 | 当日组合贡献 | NAV 5.37% |
 | 出场备注 | hold_end；买入2017-09-22 成本价24.3455 |
 

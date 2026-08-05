@@ -18,7 +18,7 @@
 
 信号实现：`signal_gross_high_np_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_high_np_pe45_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sh.600031** |
 | 开仓 | 2020-09-02，约 20.68 元 |
 | 清仓 | 2020-11-20，约 25.76 元 |
-| 单腿涨跌 | **24.60%** |
+| 单笔涨跌 | **24.60%** |
 | 当日组合贡献 | NAV 3.08% |
 | 出场备注 | hold_end；买入2020-09-02 成本价20.6751 |
 

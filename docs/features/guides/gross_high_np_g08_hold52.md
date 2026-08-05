@@ -18,7 +18,7 @@
 
 信号实现：`signal_gross_high_np_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_high_np_g08_hold52_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sz.002493** |
 | 开仓 | 2020-11-23，约 15.89 元 |
 | 清仓 | 2021-02-04，约 25.02 元 |
-| 单腿涨跌 | **57.48%** |
+| 单笔涨跌 | **57.48%** |
 | 当日组合贡献 | NAV 7.18% |
 | 出场备注 | hold_end；买入2020-11-23 成本价15.8866 |
 

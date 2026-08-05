@@ -15,7 +15,7 @@
 
 信号实现：`signal_parent_lead_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/parent_lead_lag28_hold51_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600196** |
 | 开仓 | 2021-04-01，约 37.3 元 |
 | 清仓 | 2021-06-18，约 58.26 元 |
-| 单腿涨跌 | **56.16%** |
+| 单笔涨跌 | **56.16%** |
 | 当日组合贡献 | NAV 7.02% |
 | 出场备注 | hold_end；买入2021-04-01 成本价37.3036 |
 

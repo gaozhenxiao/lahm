@@ -1,6 +1,7 @@
 """本地「1.0_A股财务数据库.db」只读适配。
 
 Wind 风格 SQLite：三大报表 + 业绩预告/快报 + 公司基本资料。
+默认路径：data/factors/_shared/1.0_A股财务数据库.db（与腾讯日线同目录）。
 代码映射：600160.SH ↔ sh.600160；输出统一带 pubDate/statDate，供 merge_asof。
 """
 from __future__ import annotations
@@ -65,6 +66,8 @@ BALANCE_MAP = {
     "LT_BORROW": "fin_lt_borrow",
     "TOT_SHR": "fin_tot_share",
     "FIX_ASSETS": "fin_fix_assets",
+    "CONST_IN_PROG": "fin_cip",
+    "ACCT_PAYABLE": "fin_acct_pay",
     "INTANG_ASSETS": "fin_intang_assets",
     "GOODWILL": "fin_goodwill",
 }
@@ -74,6 +77,7 @@ CASHFLOW_MAP = {
     "NET_CASH_FLOWS_INV_ACT": "cfi",
     "NET_CASH_FLOWS_FNC_ACT": "cff",
     "CASH_RECP_SG_AND_RS": "fin_cash_from_sales",
+    "CASH_PAY_ACQ_CONST_FIOLTA": "fin_capex",
     "NET_INCR_CASH_CASH_EQU": "fin_net_cash_incr",
 }
 
@@ -87,6 +91,10 @@ EXPRESS_MAP = {
     "S_FA_YOYSALES": "expr_yoy_sales",
     "S_FA_YOYNETPROFIT_DEDUCTED": "expr_yoy_np_deducted",
     "S_FA_YOYEPS_BASIC": "expr_yoy_eps",
+    # 上年同期（同公告行内，便于 PIT 算 ΔROS，无需跨行对齐）
+    "LAST_YEAR_OPER_REV": "expr_ly_oper_rev",
+    "LAST_YEAR_NET_PROFIT_EXCL_INC": "expr_ly_net_profit",
+    "YOYNET_PROFIT_EXCL_MIN_INT_INC": "expr_yoy_np",
 }
 
 FORECAST_MAP = {
@@ -104,7 +112,10 @@ def project_root() -> Path:
 
 
 def resolve_db_path(explicit: str | Path | None = None) -> Optional[Path]:
-    """查找财务库路径：显式参数 > Settings/环境变量 > 项目根目录 1.0_*.db。"""
+    """查找财务库路径。
+
+    优先级：显式参数 > Settings/环境变量 > data/factors/_shared > data/ > 项目根。
+    """
     if explicit:
         p = Path(explicit)
         return p if p.exists() else None
@@ -123,11 +134,20 @@ def resolve_db_path(explicit: str | Path | None = None) -> Optional[Path]:
         p = Path(env)
         if p.exists():
             return p
-    matches = sorted(ROOT.glob("1.0_*.db"))
-    if matches:
-        return matches[0]
-    matches = sorted((ROOT / "data").glob("1.0_*.db")) if (ROOT / "data").exists() else []
-    return matches[0] if matches else None
+
+    candidates: list[Path] = [
+        ROOT / "data" / "factors" / "_shared",
+        ROOT / "data" / "market",
+        ROOT / "data",
+        ROOT,
+    ]
+    for base in candidates:
+        if not base.exists():
+            continue
+        matches = sorted(base.glob("1.0_*.db"))
+        if matches:
+            return matches[0]
+    return None
 
 
 def db_available(explicit: str | Path | None = None) -> bool:
@@ -190,8 +210,8 @@ def connect(explicit: str | Path | None = None) -> sqlite3.Connection:
     path = resolve_db_path(explicit)
     if path is None:
         raise FileNotFoundError(
-            "A股财务数据库未找到。请将 1.0_A股财务数据库.db 放在项目根目录，"
-            "或设置环境变量 ASHARE_FIN_DB。"
+            "A股财务数据库未找到。请将 1.0_A股财务数据库.db 放在 "
+            "data/factors/_shared/ ，或设置环境变量 ASHARE_FIN_DB。"
         )
     return _connect_ro(str(path.resolve()))
 
@@ -275,7 +295,10 @@ def _fetch_statement(
     cache_fp = cdir / f"{bs_code.replace('.', '_')}.parquet"
     if cache_fp.exists():
         try:
-            return pd.read_parquet(cache_fp)
+            cached = pd.read_parquet(cache_fp)
+            need_cols = list(col_map.values())
+            if cached is not None and (not need_cols or all(c in cached.columns for c in need_cols)):
+                return cached
         except Exception:  # noqa: BLE001
             pass
 
@@ -365,8 +388,52 @@ def fetch_cashflow(code: str, *, explicit: str | Path | None = None, cache_base:
     )
 
 
+def _attach_express_ros(df: pd.DataFrame) -> pd.DataFrame:
+    """快报派生 ROS=净利/营收，及同比 ΔROS（优先用上年同行字段）。"""
+    if df is None or df.empty:
+        return df
+    out = df.copy()
+    rev = (
+        pd.to_numeric(out["expr_oper_rev"], errors="coerce")
+        if "expr_oper_rev" in out.columns
+        else pd.Series(pd.NA, index=out.index)
+    )
+    np_ = (
+        pd.to_numeric(out["expr_net_profit"], errors="coerce")
+        if "expr_net_profit" in out.columns
+        else pd.Series(pd.NA, index=out.index)
+    )
+    ros = np_ / rev.replace(0, pd.NA)
+    out["expr_ros"] = ros
+
+    ros_ly = pd.Series(float("nan"), index=out.index, dtype="float64")
+    if "expr_ly_oper_rev" in out.columns and "expr_ly_net_profit" in out.columns:
+        ly_rev = pd.to_numeric(out["expr_ly_oper_rev"], errors="coerce")
+        ly_np = pd.to_numeric(out["expr_ly_net_profit"], errors="coerce")
+        ros_ly = ly_np / ly_rev.replace(0, pd.NA)
+    elif "statDate" in out.columns and ros.notna().sum() >= 2:
+        tmp = pd.DataFrame({"statDate": out["statDate"], "ros": ros})
+        tmp = tmp.dropna(subset=["statDate", "ros"]).sort_values("statDate")
+        by_ym = {
+            (int(sd.year), int(sd.month)): float(rv)
+            for sd, rv in zip(tmp["statDate"], tmp["ros"])
+        }
+        aligned = []
+        for dt, v in zip(out["statDate"], ros):
+            if pd.isna(dt) or pd.isna(v):
+                aligned.append(float("nan"))
+                continue
+            prev = by_ym.get((int(dt.year) - 1, int(dt.month)))
+            aligned.append(float(prev) if prev is not None else float("nan"))
+        ros_ly = pd.Series(aligned, index=out.index, dtype="float64")
+
+    out["expr_ros_ly"] = ros_ly
+    out["expr_dros"] = ros.astype(float) - pd.to_numeric(ros_ly, errors="coerce")
+    return out
+
+
 def fetch_express(code: str, *, explicit: str | Path | None = None, cache_base: Path | None = None) -> pd.DataFrame:
-    return _fetch_statement(
+    raw = _fetch_statement(
         TABLE_EXPRESS,
         code,
         EXPRESS_MAP,
@@ -377,6 +444,28 @@ def fetch_express(code: str, *, explicit: str | Path | None = None, cache_base: 
         explicit=explicit,
         cache_base=cache_base,
     )
+    # 缓存缺新列时回源（LAST_YEAR / YoY 字段扩展后）
+    need = ("expr_ly_oper_rev", "expr_ly_net_profit")
+    if raw is not None and not raw.empty and any(c not in raw.columns for c in need):
+        cdir = cache_dir(cache_base) / TABLE_EXPRESS
+        fp = cdir / f"{wind_to_bs(bs_to_wind(code)).replace('.', '_')}.parquet"
+        if fp.exists():
+            try:
+                fp.unlink()
+            except Exception:  # noqa: BLE001
+                pass
+        raw = _fetch_statement(
+            TABLE_EXPRESS,
+            code,
+            EXPRESS_MAP,
+            ann_col="ANN_DT",
+            period_col="REPORT_PERIOD",
+            actual_ann_col="ACTUAL_ANN_DT",
+            statement_type=None,
+            explicit=explicit,
+            cache_base=cache_base,
+        )
+    return _attach_express_ros(raw)
 
 
 def fetch_forecast(code: str, *, explicit: str | Path | None = None, cache_base: Path | None = None) -> pd.DataFrame:
@@ -456,6 +545,166 @@ def _attach_contract_fields(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def _attach_single_q_np_fields(df: pd.DataFrame) -> pd.DataFrame:
+    """累计净利差分 → 单季 NP，并派生同比/环比/上年同季同比。
+
+    口径：归属母公司净利润（fin_net_profit_parent），缺省回退 fin_net_profit。
+    Q1 单季=当期累计；Q2/Q3/Q4 单季=当期累计−同年上一报告期累计。
+    同比按 (年, 月) 对齐上年同季，基期≤0 时 YoY 置空（排除扭亏伪翻倍）。
+    """
+    if df is None or df.empty:
+        return df
+    np_col = None
+    for c in ("fin_net_profit_parent", "fin_net_profit"):
+        if c in df.columns:
+            np_col = c
+            break
+    if np_col is None or "statDate" not in df.columns:
+        return df
+
+    out = df.copy()
+    tmp = out.dropna(subset=["statDate"]).copy()
+    tmp["_cum_np"] = pd.to_numeric(tmp[np_col], errors="coerce")
+    period = (
+        tmp.dropna(subset=["_cum_np"])
+        .sort_values(["statDate", "pubDate"] if "pubDate" in tmp.columns else ["statDate"])
+        .drop_duplicates("statDate", keep="last")
+        .loc[:, ["statDate", "_cum_np"]]
+        .sort_values("statDate")
+        .reset_index(drop=True)
+    )
+    if period.empty:
+        out["q_np"] = float("nan")
+        out["q_np_yoy"] = float("nan")
+        out["q_np_qoq"] = float("nan")
+        out["q_np_prior_yoy"] = float("nan")
+        return out
+
+    period["year"] = period["statDate"].dt.year
+    period["month"] = period["statDate"].dt.month
+    cum_by_ym = {
+        (int(y), int(m)): float(v)
+        for y, m, v in zip(period["year"], period["month"], period["_cum_np"])
+    }
+
+    q_list: list[float | None] = []
+    for y, m, cum in zip(period["year"], period["month"], period["_cum_np"]):
+        y_i, m_i, cum_f = int(y), int(m), float(cum)
+        if m_i == 3:
+            q_list.append(cum_f)
+            continue
+        prev_m = {6: 3, 9: 6, 12: 9}.get(m_i)
+        if prev_m is None:
+            q_list.append(None)
+            continue
+        prev_cum = cum_by_ym.get((y_i, prev_m))
+        if prev_cum is None:
+            q_list.append(None)
+        else:
+            q_list.append(cum_f - prev_cum)
+    period["q_np"] = q_list
+
+    q_by_ym = {
+        (int(y), int(m)): q
+        for y, m, q in zip(period["year"], period["month"], period["q_np"])
+        if q is not None and pd.notna(q)
+    }
+
+    yoy_list: list[float | None] = []
+    qoq_list: list[float | None] = []
+    for y, m, q in zip(period["year"], period["month"], period["q_np"]):
+        if q is None or pd.isna(q):
+            yoy_list.append(None)
+            qoq_list.append(None)
+            continue
+        q_f = float(q)
+        prior = q_by_ym.get((int(y) - 1, int(m)))
+        if prior is None or prior <= 0 or q_f <= 0:
+            yoy_list.append(None)
+        else:
+            yoy_list.append(q_f / prior - 1.0)
+
+        prev_m = {3: 12, 6: 3, 9: 6, 12: 9}.get(int(m))
+        prev_y = int(y) - 1 if int(m) == 3 else int(y)
+        if prev_m is None:
+            qoq_list.append(None)
+        else:
+            pq = q_by_ym.get((prev_y, prev_m))
+            if pq is None or pq <= 0 or q_f <= 0:
+                qoq_list.append(None)
+            else:
+                qoq_list.append(q_f / pq - 1.0)
+
+    period["q_np_yoy"] = yoy_list
+    period["q_np_qoq"] = qoq_list
+    yoy_by_ym = {
+        (int(y), int(m)): yy
+        for y, m, yy in zip(period["year"], period["month"], period["q_np_yoy"])
+        if yy is not None and pd.notna(yy)
+    }
+    period["q_np_prior_yoy"] = [
+        yoy_by_ym.get((int(y) - 1, int(m))) for y, m in zip(period["year"], period["month"])
+    ]
+
+    meta = period[["statDate", "q_np", "q_np_yoy", "q_np_qoq", "q_np_prior_yoy"]]
+    # 去掉旧列再合并，避免重复后缀
+    for c in ("q_np", "q_np_yoy", "q_np_qoq", "q_np_prior_yoy"):
+        if c in out.columns:
+            out = out.drop(columns=[c])
+    out = out.merge(meta, on="statDate", how="left")
+    # 仅在当期累计净利已披露的行保留派生，避免资负/现流更早公告日带入前视
+    has_np = pd.to_numeric(out[np_col], errors="coerce").notna()
+    for c in ("q_np", "q_np_yoy", "q_np_qoq", "q_np_prior_yoy"):
+        out.loc[~has_np, c] = float("nan")
+    return out
+
+
+def _attach_same_period_yoy(df: pd.DataFrame, src_col: str, out_col: str) -> pd.DataFrame:
+    """累计口径同报告期同比：按 (年, 月) 对齐上年同期。
+
+    口径：累计值（如 OPER_REV / 归母净利累计）相对上年同月报告期；
+    基期≤0 或当期≤0 时置空（排除扭亏伪高增）。
+    """
+    if df is None or df.empty or src_col not in df.columns or "statDate" not in df.columns:
+        return df
+    out = df.copy()
+    if out_col in out.columns:
+        out = out.drop(columns=[out_col])
+    tmp = out.dropna(subset=["statDate"]).copy()
+    tmp["_v"] = pd.to_numeric(tmp[src_col], errors="coerce")
+    period = (
+        tmp.dropna(subset=["_v"])
+        .sort_values(["statDate", "pubDate"] if "pubDate" in tmp.columns else ["statDate"])
+        .drop_duplicates("statDate", keep="last")
+        .loc[:, ["statDate", "_v"]]
+        .sort_values("statDate")
+        .reset_index(drop=True)
+    )
+    if period.empty:
+        out[out_col] = float("nan")
+        return out
+    period["year"] = period["statDate"].dt.year
+    period["month"] = period["statDate"].dt.month
+    by_ym = {
+        (int(y), int(m)): float(v)
+        for y, m, v in zip(period["year"], period["month"], period["_v"])
+    }
+    yoy_list: list[float | None] = []
+    for y, m, v in zip(period["year"], period["month"], period["_v"]):
+        prior = by_ym.get((int(y) - 1, int(m)))
+        cur = float(v)
+        if prior is None or prior <= 0 or cur <= 0:
+            yoy_list.append(None)
+        else:
+            yoy_list.append(cur / prior - 1.0)
+    period[out_col] = yoy_list
+    meta = period[["statDate", out_col]]
+    out = out.merge(meta, on="statDate", how="left")
+    has_src = pd.to_numeric(out[src_col], errors="coerce").notna()
+    out.loc[~has_src, out_col] = float("nan")
+    return out
+
+
 def fetch_contract_bundle(code: str, *, explicit: str | Path | None = None, cache_base: Path | None = None) -> pd.DataFrame:
     """兼容旧 balance 接口：合同负债 + 预收 + 同比。"""
     bal = fetch_balance(code, explicit=explicit, cache_base=cache_base)
@@ -520,6 +769,16 @@ def merged_funda_frame(
         return pd.DataFrame(columns=["pubDate", "statDate"])
     base = base.sort_values(["statDate", "pubDate"], na_position="last").reset_index(drop=True)
     base = _attach_contract_fields(base)
+    base = _attach_single_q_np_fields(base)
+    # 累计口径同报告期 YoY（营收/归母净利）：标准「同比增长」
+    base = _attach_same_period_yoy(base, "fin_oper_rev", "fin_rev_yoy")
+    np_yoy_src = (
+        "fin_net_profit_parent"
+        if "fin_net_profit_parent" in base.columns
+        else ("fin_net_profit" if "fin_net_profit" in base.columns else None)
+    )
+    if np_yoy_src:
+        base = _attach_same_period_yoy(base, np_yoy_src, "fin_np_yoy")
     # 派生：现金流质量 / 资产周转
     if "cfo" in base.columns and "fin_net_profit_parent" in base.columns:
         np_ = pd.to_numeric(base["fin_net_profit_parent"], errors="coerce")
@@ -529,6 +788,79 @@ def merged_funda_frame(
         rev = pd.to_numeric(base["fin_oper_rev"], errors="coerce")
         assets = pd.to_numeric(base["fin_tot_assets"], errors="coerce")
         base["fin_asset_turn"] = rev / assets.replace(0, pd.NA)
+    # 结构挖掘：杠杆 / ROA（与 profit 表 roeAvg 互补）
+    if "fin_tot_liab" in base.columns and "fin_tot_assets" in base.columns:
+        liab = pd.to_numeric(base["fin_tot_liab"], errors="coerce")
+        assets = pd.to_numeric(base["fin_tot_assets"], errors="coerce")
+        base["fin_lev"] = liab / assets.replace(0, pd.NA)
+    if "fin_net_profit_parent" in base.columns and "fin_tot_assets" in base.columns:
+        np_ = pd.to_numeric(base["fin_net_profit_parent"], errors="coerce")
+        assets = pd.to_numeric(base["fin_tot_assets"], errors="coerce")
+        base["fin_roa"] = np_ / assets.replace(0, pd.NA)
+    elif "fin_net_profit" in base.columns and "fin_tot_assets" in base.columns:
+        np_ = pd.to_numeric(base["fin_net_profit"], errors="coerce")
+        assets = pd.to_numeric(base["fin_tot_assets"], errors="coerce")
+        base["fin_roa"] = np_ / assets.replace(0, pd.NA)
+
+    # 利润因果链 L2：费用率 / 营运资本强度 / 合同负债 YoY 二阶
+    # 按报告期排序后做相邻报告差分（日线 merge_asof 后用 _funda_event 对齐披露日）
+    base = base.sort_values(["statDate", "pubDate"], na_position="last").reset_index(drop=True)
+    rev = (
+        pd.to_numeric(base["fin_oper_rev"], errors="coerce")
+        if "fin_oper_rev" in base.columns
+        else None
+    )
+    if rev is not None:
+        sell = (
+            pd.to_numeric(base["fin_selling_exp"], errors="coerce")
+            if "fin_selling_exp" in base.columns
+            else pd.Series(pd.NA, index=base.index)
+        )
+        admin = (
+            pd.to_numeric(base["fin_admin_exp"], errors="coerce")
+            if "fin_admin_exp" in base.columns
+            else pd.Series(pd.NA, index=base.index)
+        )
+        opex = sell.fillna(0.0) + admin.fillna(0.0)
+        has_opex = sell.notna() | admin.notna()
+        base["fin_opex_ratio"] = (opex / rev.replace(0, pd.NA)).where(has_opex)
+        if "fin_inventories" in base.columns:
+            inv = pd.to_numeric(base["fin_inventories"], errors="coerce")
+            base["fin_inv_to_rev"] = inv / rev.replace(0, pd.NA)
+        if "fin_acct_rcv" in base.columns:
+            ar = pd.to_numeric(base["fin_acct_rcv"], errors="coerce")
+            base["fin_ar_to_rev"] = ar / rev.replace(0, pd.NA)
+    if "contract_liab_yoy" in base.columns:
+        cl_yoy = pd.to_numeric(base["contract_liab_yoy"], errors="coerce")
+        cl_yoy = cl_yoy.where(cl_yoy.abs() <= 5.0, cl_yoy / 100.0)
+        base["contract_liab_yoy"] = cl_yoy
+        base["contract_liab_yoy_accel"] = cl_yoy - cl_yoy.shift(1)
+
+    # ----- 物理世界结构：收现 / 在建工程转固 / 应付授信 / 资本开支 -----
+    if rev is not None:
+        if "fin_cash_from_sales" in base.columns:
+            cash_sales = pd.to_numeric(base["fin_cash_from_sales"], errors="coerce")
+            base["fin_cash_collect"] = cash_sales / rev.replace(0, pd.NA)
+        if "fin_acct_pay" in base.columns:
+            ap = pd.to_numeric(base["fin_acct_pay"], errors="coerce")
+            base["fin_ap_to_rev"] = ap / rev.replace(0, pd.NA)
+        if "fin_capex" in base.columns:
+            capex = pd.to_numeric(base["fin_capex"], errors="coerce").abs()
+            base["fin_capex_to_rev"] = capex / rev.replace(0, pd.NA)
+    if "fin_cip" in base.columns and "fin_fix_assets" in base.columns:
+        cip = pd.to_numeric(base["fin_cip"], errors="coerce")
+        fa = pd.to_numeric(base["fin_fix_assets"], errors="coerce")
+        denom = (cip.fillna(0.0) + fa.fillna(0.0)).replace(0, pd.NA)
+        base["fin_cip_share"] = cip / denom
+        # 转固信号原料：CIP 环比下降 + FA 环比上升（同报告期相邻）
+        base["fin_cip_delta"] = cip - cip.shift(1)
+        base["fin_fa_delta"] = fa - fa.shift(1)
+    if "cfo" in base.columns:
+        base = _attach_same_period_yoy(base, "cfo", "fin_cfo_yoy")
+        if "fin_cfo_yoy" in base.columns:
+            cy = pd.to_numeric(base["fin_cfo_yoy"], errors="coerce")
+            base["fin_cfo_yoy_accel"] = cy - cy.shift(1)
+
     return base.sort_values("pubDate").reset_index(drop=True)
 
 
@@ -569,3 +901,169 @@ def summary(explicit: str | Path | None = None) -> Dict[str, Any]:
         "tables": tables,
         "stmt_merged": STMT_MERGED,
     }
+
+
+def profit_like_from_income(
+    *,
+    explicit: str | Path | None = None,
+    codes: Optional[Sequence[str]] = None,
+) -> pd.DataFrame:
+    """从利润表派生 baostock 风格 profit 字段（gpMargin/npMargin/netProfit/MBRevenue）。
+
+    毛利率 ≈ (营业收入 - 营业成本) / 营业收入；净利率 ≈ 归母净利 / 营业收入。
+    银证保等无营业成本时 gpMargin 为空（与 baostock 一致）。
+    总股本优先取同期资产负债表 TOT_SHR。
+    """
+    sql = (
+        f'SELECT S_INFO_WINDCODE, ANN_DT, ACTUAL_ANN_DT, REPORT_PERIOD, '
+        f"OPER_REV, LESS_OPER_COST, NET_PROFIT_EXCL_MIN_INT_INC, S_FA_EPS_BASIC "
+        f'FROM "{TABLE_INCOME}" WHERE STATEMENT_TYPE = ?'
+    )
+    df = _query_df(sql, (STMT_MERGED,), explicit=explicit)
+    if df.empty:
+        return df
+    df["code"] = df["S_INFO_WINDCODE"].map(wind_to_bs)
+    if codes is not None:
+        want = {str(c) for c in codes}
+        df = df[df["code"].isin(want)]
+    pub = _ymd_to_ts(df["ACTUAL_ANN_DT"])
+    pub = pub.fillna(_ymd_to_ts(df["ANN_DT"]))
+    df["pubDate"] = pub
+    df["statDate"] = _ymd_to_ts(df["REPORT_PERIOD"])
+    rev = pd.to_numeric(df["OPER_REV"], errors="coerce")
+    cost = pd.to_numeric(df["LESS_OPER_COST"], errors="coerce")
+    np_ = pd.to_numeric(df["NET_PROFIT_EXCL_MIN_INT_INC"], errors="coerce")
+    eps = pd.to_numeric(df["S_FA_EPS_BASIC"], errors="coerce")
+    df["MBRevenue"] = rev
+    df["netProfit"] = np_
+    df["epsTTM"] = eps
+    df["gpMargin"] = (rev - cost) / rev.replace(0, pd.NA)
+    df["npMargin"] = np_ / rev.replace(0, pd.NA)
+    df["roeAvg"] = pd.NA
+    # 同期总股本
+    bal_sql = (
+        f'SELECT S_INFO_WINDCODE, REPORT_PERIOD, TOT_SHR '
+        f'FROM "{TABLE_BALANCE}" WHERE STATEMENT_TYPE = ?'
+    )
+    bal = _query_df(bal_sql, (STMT_MERGED,), explicit=explicit)
+    if not bal.empty:
+        bal["code"] = bal["S_INFO_WINDCODE"].map(wind_to_bs)
+        if codes is not None:
+            bal = bal[bal["code"].isin(want)]
+        bal["statDate"] = _ymd_to_ts(bal["REPORT_PERIOD"])
+        bal["totalShare"] = pd.to_numeric(bal["TOT_SHR"], errors="coerce")
+        bal = (
+            bal.dropna(subset=["code", "statDate"])
+            .sort_values(["code", "statDate"])
+            .drop_duplicates(["code", "statDate"], keep="last")
+        )
+        df = df.merge(bal[["code", "statDate", "totalShare"]], on=["code", "statDate"], how="left")
+    else:
+        df["totalShare"] = pd.NA
+    df["liqaShare"] = df["totalShare"]
+    out = (
+        df.dropna(subset=["pubDate", "code"])
+        .sort_values(["code", "pubDate", "statDate"])
+        .drop_duplicates(["code", "statDate"], keep="last")
+    )
+    cols = [
+        "code",
+        "pubDate",
+        "statDate",
+        "roeAvg",
+        "npMargin",
+        "gpMargin",
+        "netProfit",
+        "epsTTM",
+        "MBRevenue",
+        "totalShare",
+        "liqaShare",
+    ]
+    return out[cols].reset_index(drop=True)
+
+
+def fill_total_share_in_profit_cache(
+    out_dir: Path,
+    *,
+    codes: Optional[Sequence[str]] = None,
+    explicit: str | Path | None = None,
+) -> Dict[str, int]:
+    """给已有 profit parquet 补 totalShare（缺或全空时用财务库同期股本）。"""
+    out_dir = Path(out_dir)
+    wide = profit_like_from_income(explicit=explicit, codes=codes)
+    if wide.empty:
+        return {"patched": 0, "skipped": 0}
+    share = (
+        wide.dropna(subset=["totalShare"])
+        .sort_values(["code", "statDate"])[["code", "statDate", "totalShare", "liqaShare"]]
+    )
+    patched = 0
+    skipped = 0
+    for code, g in share.groupby("code", sort=False):
+        fp = out_dir / f"{str(code).replace('.', '_')}.parquet"
+        if not fp.exists():
+            skipped += 1
+            continue
+        try:
+            old = pd.read_parquet(fp)
+        except Exception:  # noqa: BLE001
+            skipped += 1
+            continue
+        if old.empty:
+            skipped += 1
+            continue
+        if "totalShare" in old.columns and pd.to_numeric(old["totalShare"], errors="coerce").notna().any():
+            skipped += 1
+            continue
+        old = old.copy()
+        old["statDate"] = pd.to_datetime(old["statDate"], errors="coerce")
+        g2 = g.copy()
+        g2["statDate"] = pd.to_datetime(g2["statDate"], errors="coerce")
+        merged = old.merge(
+            g2[["statDate", "totalShare", "liqaShare"]],
+            on="statDate",
+            how="left",
+            suffixes=("", "_new"),
+        )
+        if "totalShare_new" in merged.columns:
+            merged["totalShare"] = pd.to_numeric(merged.get("totalShare"), errors="coerce")
+            merged["totalShare"] = merged["totalShare"].fillna(merged["totalShare_new"])
+            merged.drop(columns=["totalShare_new"], inplace=True)
+        if "liqaShare_new" in merged.columns:
+            merged["liqaShare"] = pd.to_numeric(merged.get("liqaShare"), errors="coerce")
+            merged["liqaShare"] = merged["liqaShare"].fillna(merged["liqaShare_new"])
+            merged.drop(columns=["liqaShare_new"], inplace=True)
+        merged.to_parquet(fp, index=False)
+        patched += 1
+    return {"patched": patched, "skipped": skipped}
+
+
+def export_profit_cache_from_fin_db(
+    out_dir: Path,
+    *,
+    codes: Optional[Sequence[str]] = None,
+    only_missing: bool = True,
+    explicit: str | Path | None = None,
+) -> Dict[str, int]:
+    """把利润表派生的 profit 写入 `_shared/profit/*.parquet`。"""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    wide = profit_like_from_income(explicit=explicit, codes=codes)
+    if wide.empty:
+        return {"codes": 0, "written": 0, "skipped": 0}
+    written = 0
+    skipped = 0
+    for code, g in wide.groupby("code", sort=False):
+        fp = out_dir / f"{str(code).replace('.', '_')}.parquet"
+        if only_missing and fp.exists():
+            try:
+                old = pd.read_parquet(fp)
+                if not old.empty and "gpMargin" in old.columns and old["gpMargin"].notna().any():
+                    skipped += 1
+                    continue
+            except Exception:  # noqa: BLE001
+                pass
+        g = g.sort_values("pubDate").reset_index(drop=True)
+        g.to_parquet(fp, index=False)
+        written += 1
+    return {"codes": int(wide["code"].nunique()), "written": written, "skipped": skipped}

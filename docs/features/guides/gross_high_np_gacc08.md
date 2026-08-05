@@ -19,7 +19,7 @@
 
 信号实现：`signal_gross_high_np_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_high_np_gacc08_trade_history.csv`
 
@@ -28,7 +28,7 @@
 | 标的 | **sz.300308** |
 | 开仓 | 2025-08-27，约 324.4 元 |
 | 清仓 | 2025-11-14，约 462.3 元 |
-| 单腿涨跌 | **42.51%** |
+| 单笔涨跌 | **42.51%** |
 | 当日组合贡献 | NAV 5.31% |
 | 出场备注 | hold_end；买入2025-08-27 成本价324.3828 |
 

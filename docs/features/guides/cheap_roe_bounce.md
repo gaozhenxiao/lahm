@@ -16,7 +16,7 @@ PE分位偏低且ROE达标，急跌后收盘站上MA20。
 
 信号实现：`signal_cheap_roe_bounce`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/cheap_roe_bounce_trade_history.csv`
 
@@ -25,7 +25,7 @@ PE分位偏低且ROE达标，急跌后收盘站上MA20。
 | 标的 | **sz.002714** |
 | 开仓 | 2021-01-18，约 53.87 元 |
 | 清仓 | 2021-02-08，约 75.15 元 |
-| 单腿涨跌 | **39.50%** |
+| 单笔涨跌 | **39.50%** |
 | 当日组合贡献 | NAV 4.94% |
 | 出场备注 | hold_end；买入2021-01-18 成本价53.8704 |
 

@@ -17,7 +17,7 @@
 
 信号实现：`signal_eps_dual_confirm_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/eps_dual_lag28_accel08_brk80_trade_history.csv`
 
@@ -26,7 +26,7 @@
 | 标的 | **sz.000408** |
 | 开仓 | 2021-05-20，约 14.7 元 |
 | 清仓 | 2021-08-02，约 23.44 元 |
-| 单腿涨跌 | **59.51%** |
+| 单笔涨跌 | **59.51%** |
 | 当日组合贡献 | NAV 7.44% |
 | 出场备注 | hold_end；买入2021-05-20 成本价14.6969 |
 

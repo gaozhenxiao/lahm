@@ -17,7 +17,7 @@
 
 信号实现：`signal_gross_high_np_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_high_np_np11_hold53_trade_history.csv`
 
@@ -26,7 +26,7 @@
 | 标的 | **sz.000858** |
 | 开仓 | 2020-04-28，约 113.7 元 |
 | 清仓 | 2020-07-17，约 170.3 元 |
-| 单腿涨跌 | **49.75%** |
+| 单笔涨跌 | **49.75%** |
 | 当日组合贡献 | NAV 6.22% |
 | 出场备注 | hold_end；买入2020-04-28 成本价113.7477 |
 

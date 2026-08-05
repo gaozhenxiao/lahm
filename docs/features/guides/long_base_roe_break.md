@@ -15,7 +15,7 @@
 
 信号实现：`signal_long_base_roe_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/long_base_roe_break_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600030** |
 | 开仓 | 2024-09-25，约 20.26 元 |
 | 清仓 | 2024-11-13，约 31.53 元 |
-| 单腿涨跌 | **55.58%** |
+| 单笔涨跌 | **55.58%** |
 | 当日组合贡献 | NAV 6.95% |
 | 出场备注 | hold_end；买入2024-09-25 成本价20.2648 |
 

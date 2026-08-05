@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_mid_hold48_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.601919** |
 | 开仓 | 2021-05-06，约 8.264 元 |
 | 清仓 | 2021-07-14，约 12.7 元 |
-| 单腿涨跌 | **53.72%** |
+| 单笔涨跌 | **53.72%** |
 | 当日组合贡献 | NAV 6.71% |
 | 出场备注 | hold_end；买入2021-05-06 成本价8.2643 |
 

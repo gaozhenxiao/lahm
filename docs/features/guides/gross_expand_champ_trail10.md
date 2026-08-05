@@ -17,7 +17,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_champ_trail10_trade_history.csv`
 
@@ -26,7 +26,7 @@
 | 标的 | **sz.002493** |
 | 开仓 | 2020-11-23，约 15.89 元 |
 | 清仓 | 2021-02-03，约 24.92 元 |
-| 单腿涨跌 | **56.88%** |
+| 单笔涨跌 | **56.88%** |
 | 当日组合贡献 | NAV 7.11% |
 | 出场备注 | hold_end；买入2020-11-23 成本价15.8866 |
 

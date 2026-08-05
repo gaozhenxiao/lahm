@@ -13,7 +13,7 @@
 
 信号实现：`signal_boll_lower_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/boll_lower_reclaim_trade_history.csv`
 
@@ -22,7 +22,7 @@
 | 标的 | **sh.601058** |
 | 开仓 | 2020-12-28，约 5.004 元 |
 | 清仓 | 2021-01-14，约 7.874 元 |
-| 单腿涨跌 | **57.35%** |
+| 单笔涨跌 | **57.35%** |
 | 当日组合贡献 | NAV 7.17% |
 | 出场备注 | hold_end；买入2020-12-28 成本价5.0041 |
 

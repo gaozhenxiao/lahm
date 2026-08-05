@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_mid_hold55_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.300308** |
 | 开仓 | 2026-04-10，约 733.8 元 |
 | 清仓 | 2026-07-02，约 1143 元 |
-| 单腿涨跌 | **55.77%** |
+| 单笔涨跌 | **55.77%** |
 | 当日组合贡献 | NAV 6.97% |
 | 出场备注 | hold_end；买入2026-04-10 成本价733.7816 |
 

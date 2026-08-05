@@ -15,7 +15,7 @@
 
 信号实现：`signal_contract_liab_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/contract_liab_base_break_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.601669** |
 | 开仓 | 2021-07-23，约 3.89 元 |
 | 清仓 | 2021-09-03，约 6.202 元 |
-| 单腿涨跌 | **59.45%** |
+| 单笔涨跌 | **59.45%** |
 | 当日组合贡献 | NAV 7.43% |
 | 出场备注 | hold_end；买入2021-07-23 成本价3.8899 |
 

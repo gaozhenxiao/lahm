@@ -16,7 +16,7 @@
 
 信号实现：`signal_quality_base_dual`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/quality_base_dual_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.600346** |
 | 开仓 | 2019-08-12，约 10.72 元 |
 | 清仓 | 2019-09-17，约 13.34 元 |
-| 单腿涨跌 | **24.48%** |
+| 单笔涨跌 | **24.48%** |
 | 当日组合贡献 | NAV 3.06% |
 | 出场备注 | hold_end；买入2019-08-12 成本价10.7172 |
 

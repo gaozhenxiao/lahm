@@ -15,7 +15,7 @@ ROE扩张突破 + 持有51。
 
 信号实现：`signal_roe_expand_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/roe_expand_hold51_trade_history.csv`
 
@@ -24,7 +24,7 @@ ROE扩张突破 + 持有51。
 | 标的 | **sh.601336** |
 | 开仓 | 2024-08-30，约 31.37 元 |
 | 清仓 | 2024-11-20，约 47.59 元 |
-| 单腿涨跌 | **51.68%** |
+| 单笔涨跌 | **51.68%** |
 | 当日组合贡献 | NAV 6.46% |
 | 出场备注 | hold_end；买入2024-08-30 成本价31.3724 |
 

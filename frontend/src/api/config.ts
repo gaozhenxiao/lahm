@@ -219,6 +219,20 @@ export const configApi = {
     return unwrapResponse(ApiClient.post<{ message: string; data: any }>('/api/config/llm/providers/migrate-env'))
   },
 
+  // 大模型 API 输入/输出调用记录（配置页 API 密钥下方）
+  getLLMCallLogs(params?: {
+    provider?: string
+    limit?: number
+    only_errors?: boolean
+  }): Promise<{ records: Array<Record<string, any>>; total: number }> {
+    return unwrapResponse(
+      ApiClient.get<{ records: Array<Record<string, any>>; total: number }>(
+        '/api/config/llm/call-logs',
+        params
+      )
+    )
+  },
+
   // 🆕 初始化聚合渠道厂家配置
   initAggregatorProviders(): Promise<{ success: boolean; message: string; data: { added_count: number; skipped_count: number } }> {
     return unwrapResponse(ApiClient.post<{ success: boolean; message: string; data: { added_count: number; skipped_count: number } }>('/api/config/llm/providers/init-aggregators'))

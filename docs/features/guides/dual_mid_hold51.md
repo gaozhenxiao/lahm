@@ -15,7 +15,7 @@ hold51 迁移到双改善中档。
 
 信号实现：`signal_dual_improve_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_mid_hold51_trade_history.csv`
 
@@ -24,7 +24,7 @@ hold51 迁移到双改善中档。
 | 标的 | **sh.600460** |
 | 开仓 | 2017-08-15，约 6.579 元 |
 | 清仓 | 2017-11-01，约 10.23 元 |
-| 单腿涨跌 | **55.54%** |
+| 单笔涨跌 | **55.54%** |
 | 当日组合贡献 | NAV 6.94% |
 | 出场备注 | hold_end；买入2017-08-15 成本价6.5786 |
 

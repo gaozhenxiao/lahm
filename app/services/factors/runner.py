@@ -59,11 +59,16 @@ def build_legs_from_entries(
     stop_loss: float,
     take_profit: float | None = None,
     trail_stop: float | None = None,
+    trail_activate: float | None = None,
 ) -> List[dict]:
     """由入场点生成交易腿。
 
     持有期超出行情末日时不强制平仓（reason=open，exit_date 落在末日之后），
     回测净值继续盯市，交易史不写清仓。
+
+    trail_stop：相对持仓峰值回撤出场。
+    trail_activate：可选；仅当峰值相对成本浮盈 ≥ 该阈值后，才启用 trail_stop。
+    take_profit 与 trail 可叠加（任一先触发）。
     """
     if entries is None or entries.empty:
         return []
@@ -105,13 +110,17 @@ def build_legs_from_entries(
                 reason = "take_profit"
                 truncated = False
                 break
-            if trail_stop is not None and clf <= peak * (1.0 - float(trail_stop)):
-                exit_i = j
-                exit_px = clf
-                exit_dt = pd.Timestamp(p.loc[j, "date"])
-                reason = "trail_stop"
-                truncated = False
-                break
+            if trail_stop is not None:
+                activated = True
+                if trail_activate is not None:
+                    activated = peak >= entry_px * (1.0 + float(trail_activate))
+                if activated and clf <= peak * (1.0 - float(trail_stop)):
+                    exit_i = j
+                    exit_px = clf
+                    exit_dt = pd.Timestamp(p.loc[j, "date"])
+                    reason = "trail_stop"
+                    truncated = False
+                    break
         if reason == "hold_end" and truncated:
             # 行情不够持满：保持持仓，不在末日伪造清仓
             reason = "open"
@@ -144,15 +153,24 @@ def load_or_fetch_universe_prices(
     out: Dict[str, pd.DataFrame] = {}
     kit.clear_proxy()
     bs = None
+    cache_only = False
     try:
         bs = kit.bs_login()
     except Exception as exc:  # noqa: BLE001
+        cache_only = True
         logger.warning("login fail, cache only: %s", exc)
+        print(f"login fail, cache only: {exc}", flush=True)
     try:
         for i, code in enumerate(codes, 1):
             try:
                 raw = kit.fetch_daily_valuation(
-                    code, start, end, limiter, cache_dir, bs=bs
+                    code,
+                    start,
+                    end,
+                    limiter,
+                    cache_dir,
+                    bs=bs,
+                    cache_only=cache_only,
                 )
                 if raw.empty:
                     continue
@@ -162,7 +180,7 @@ def load_or_fetch_universe_prices(
             except Exception as exc:  # noqa: BLE001
                 logger.warning("daily %s: %s", code, exc)
             if progress_every and i % progress_every == 0:
-                print(f"[daily] {i}/{len(codes)}")
+                print(f"[daily] {i}/{len(codes)}", flush=True)
     finally:
         if bs is not None:
             bs.logout()
@@ -254,6 +272,8 @@ def collect_legs(
     take_profit = float(tp_raw) if tp_raw is not None else None
     tr_raw = params.get("trail_stop")
     trail_stop = float(tr_raw) if tr_raw is not None else None
+    ta_raw = params.get("trail_activate")
+    trail_activate = float(ta_raw) if ta_raw is not None else None
     all_legs: List[dict] = []
     for code, px in price_map.items():
         try:
@@ -270,6 +290,7 @@ def collect_legs(
                     stop_loss=stop,
                     take_profit=take_profit,
                     trail_stop=trail_stop,
+                    trail_activate=trail_activate,
                 )
             )
         except Exception as exc:  # noqa: BLE001
@@ -282,19 +303,91 @@ def collect_legs(
     return legs.reset_index(drop=True)
 
 
-def legs_to_trade_history(legs: pd.DataFrame, *, max_positions: int = 8) -> pd.DataFrame:
+def legs_to_trade_history(
+    legs: pd.DataFrame,
+    *,
+    max_positions: int = 8,
+    weight_mode: str = "fixed",
+) -> pd.DataFrame:
+    """将入账腿写成交易流水。
+
+    weight_mode:
+      - fixed（默认）：每腿买/卖仓位 = 1/max_positions（历史口径，其它因子不变）
+      - actual：按开仓腿等权 1/n 再平衡；buy_position=开仓日收盘后权重；
+        nav_pnl≈股价涨跌×持有期隔夜平均权重（与引擎满仓等权近似一致）
+    """
     if legs is None or legs.empty:
         return pd.DataFrame()
-    w = 1.0 / max(1, int(max_positions or 8))
+    mode = str(weight_mode or "fixed").strip().lower()
+    max_pos = max(1, int(max_positions or 8))
+    fixed_w = 1.0 / max_pos
+
+    df = legs.copy()
+    df["entry_date"] = pd.to_datetime(df["entry_date"])
+    df["exit_date"] = pd.to_datetime(df["exit_date"])
+    df = df.sort_values(["entry_date", "code"]).reset_index(drop=True)
+    df["_leg_id"] = np.arange(len(df), dtype=np.int64)
+    df["_reason"] = df.get("reason", "").astype(str).fillna("").str.strip()
+
+    entry_w: Dict[int, float] = {}
+    avg_w: Dict[int, float] = {}
+    if mode == "actual":
+        # 隔夜：entry < day <= exit（exit 当日仍吃涨跌，随后平仓）
+        # 开仓后权重：entry <= day 且 (exit > day 或 reason=open)
+        day_lo = df["entry_date"].min()
+        day_hi = df["exit_date"].max()
+        cal = pd.bdate_range(day_lo, day_hi)
+        w_sum: Dict[int, float] = {int(i): 0.0 for i in df["_leg_id"]}
+        w_cnt: Dict[int, int] = {int(i): 0 for i in df["_leg_id"]}
+        for day in cal:
+            overnight = df[(df["entry_date"] < day) & (df["exit_date"] >= day)]
+            if len(overnight) > 0:
+                w = 1.0 / len(overnight)
+                for lid in overnight["_leg_id"].astype(int):
+                    w_sum[lid] += w
+                    w_cnt[lid] += 1
+            # 开仓日收盘后持仓（已平当日腿已剔除）
+            opened_today = df[df["entry_date"] == day]
+            if len(opened_today) == 0:
+                continue
+            held_eod = df[
+                (df["entry_date"] <= day)
+                & (
+                    (df["exit_date"] > day)
+                    | ((df["exit_date"] == day) & (df["_reason"] == "open"))
+                )
+            ]
+            if len(held_eod) > 0:
+                w_eod = 1.0 / len(held_eod)
+                for lid in opened_today["_leg_id"].astype(int):
+                    if lid in set(held_eod["_leg_id"].astype(int)):
+                        entry_w[lid] = w_eod
+        for lid in df["_leg_id"].astype(int):
+            if lid not in entry_w:
+                row = df.loc[df["_leg_id"] == lid].iloc[0]
+                ed = pd.Timestamp(row["entry_date"])
+                before_close = df[(df["entry_date"] <= ed) & (df["exit_date"] >= ed)]
+                entry_w[lid] = 1.0 / max(1, len(before_close))
+            avg_w[lid] = (
+                w_sum[lid] / w_cnt[lid] if w_cnt[lid] > 0 else entry_w[lid]
+            )
+    else:
+        for lid in df["_leg_id"].astype(int):
+            entry_w[lid] = fixed_w
+            avg_w[lid] = fixed_w
+
     rows = []
-    for _, r in legs.iterrows():
+    for _, r in df.iterrows():
+        lid = int(r["_leg_id"])
+        w = float(entry_w.get(lid, fixed_w))
+        w_nav = float(avg_w.get(lid, w))
         entry = float(r["entry_price"])
         exit_px = float(r["exit_price"])
         ret = exit_px / entry - 1.0 if entry else 0.0
-        nav = ret * w
+        nav = ret * w_nav
         entry_date = pd.Timestamp(r["entry_date"]).strftime("%Y-%m-%d")
         exit_date = pd.Timestamp(r["exit_date"]).strftime("%Y-%m-%d")
-        reason = str(r.get("reason") or "").strip()
+        reason = str(r.get("_reason") or r.get("reason") or "").strip()
         rows.append(
             {
                 "date": entry_date,
@@ -327,6 +420,15 @@ def legs_to_trade_history(legs: pd.DataFrame, *, max_positions: int = 8) -> pd.D
             }
         )
     return pd.DataFrame(rows).sort_values("date")
+
+
+def _trade_history_weight_mode(params: Dict[str, Any]) -> str:
+    """fixed_leg_weight → fixed；position_display=actual → actual；默认 fixed。"""
+    if bool(params.get("fixed_leg_weight")):
+        return "fixed"
+    if str(params.get("position_display") or "").strip().lower() == "actual":
+        return "actual"
+    return "fixed"
 
 
 def enrich_with_balance(
@@ -412,7 +514,11 @@ def run_factor_pipeline(
     limiter = kit.RateLimiter(float(params.get("request_interval_sec") or 0.35))
     if price_map is None:
         universe = str(params.get("universe") or "hs300")
-        codes = kit.fetch_universe_codes(universe, limiter, cache_dir)
+        override = params.get("_codes") or params.get("codes")
+        if override:
+            codes = [str(c) for c in override]
+        else:
+            codes = kit.fetch_universe_codes(universe, limiter, cache_dir)
         if limit and limit > 0:
             codes = codes[:limit]
         print(f"[{factor_id}] codes={len(codes)} cache={cache_dir.name}", flush=True)
@@ -460,7 +566,9 @@ def run_factor_pipeline(
         return summary
     # 交易历史只写组合实际入账的腿（与净值一致；已按 start 过滤）
     trades = legs_to_trade_history(
-        accepted, max_positions=int(params.get("max_positions") or 8)
+        accepted,
+        max_positions=int(params.get("max_positions") or 8),
+        weight_mode=_trade_history_weight_mode(params),
     )
     kit.write_factor_artifacts(factor_id, daily, summary, trades, params=params, title=title)
     return summary
@@ -474,20 +582,31 @@ def prepare_shared_panel(
     need_balance: bool = False,
     need_fin_db: bool = False,
     limit: int = 0,
+    codes: Optional[Sequence[str]] = None,
 ) -> Dict[str, pd.DataFrame]:
-    """批量跑多个因子时先准备一次面板。"""
+    """批量跑多个因子时先准备一次面板。
+
+    codes: 显式股票池（行业/自定义范围）；缺省则按 params['universe'] 拉取。
+    """
     cache_dir = kit.shared_cache_dir()
     limiter = kit.RateLimiter(float(params.get("request_interval_sec") or 0.35))
-    universe = str(params.get("universe") or "hs300")
-    codes = kit.fetch_universe_codes(universe, limiter, cache_dir)
+    if codes is not None:
+        code_list = [str(c) for c in codes]
+    else:
+        override = params.get("_codes") or params.get("codes")
+        if override:
+            code_list = [str(c) for c in override]
+        else:
+            universe = str(params.get("universe") or "hs300")
+            code_list = kit.fetch_universe_codes(universe, limiter, cache_dir)
     if limit and limit > 0:
-        codes = codes[:limit]
+        code_list = code_list[:limit]
     print(
-        f"[panel] codes={len(codes)} profit={need_profit} growth={need_growth} "
+        f"[panel] codes={len(code_list)} profit={need_profit} growth={need_growth} "
         f"balance={need_balance} fin_db={need_fin_db}",
         flush=True,
     )
-    price_map = load_or_fetch_universe_prices(codes, params, cache_dir)
+    price_map = load_or_fetch_universe_prices(code_list, params, cache_dir)
     if need_profit:
         price_map = enrich_with_profit(price_map, params, cache_dir)
     if need_growth:

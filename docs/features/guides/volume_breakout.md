@@ -14,7 +14,7 @@
 
 信号实现：`signal_volume_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/volume_breakout_trade_history.csv`
 
@@ -23,7 +23,7 @@
 | 标的 | **sh.600118** |
 | 开仓 | 2020-01-08，约 22.72 元 |
 | 清仓 | 2020-02-06，约 36.21 元 |
-| 单腿涨跌 | **59.35%** |
+| 单笔涨跌 | **59.35%** |
 | 当日组合贡献 | NAV 7.42% |
 | 出场备注 | hold_end；买入2020-01-08 成本价22.7211 |
 

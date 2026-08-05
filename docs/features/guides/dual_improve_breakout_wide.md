@@ -15,7 +15,7 @@
 
 信号实现：`signal_dual_improve_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_improve_breakout_wide_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.601633 长城汽车** |
 | 开仓 | 2020-09-02，约 14.67 元 |
 | 清仓 | 2020-10-22，约 22.78 元 |
-| 单腿涨跌 | **55.30%** |
+| 单笔涨跌 | **55.30%** |
 | 当日组合贡献 | NAV 6.91% |
 | 出场备注 | hold_end；买入2020-09-02 成本价14.6684 |
 

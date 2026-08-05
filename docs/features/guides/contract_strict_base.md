@@ -15,7 +15,7 @@
 
 信号实现：`signal_contract_liab_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/contract_strict_base_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sz.300014** |
 | 开仓 | 2025-08-20，约 48.18 元 |
 | 清仓 | 2025-09-24，约 76.08 元 |
-| 单腿涨跌 | **57.92%** |
+| 单笔涨跌 | **57.92%** |
 | 当日组合贡献 | NAV 7.24% |
 | 出场备注 | hold_end；买入2025-08-20 成本价48.1799 |
 

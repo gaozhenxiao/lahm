@@ -160,19 +160,59 @@ class OpenAICompatibleBase(ChatOpenAI):
         **kwargs: Any,
     ) -> ChatResult:
         """
-        生成聊天响应，并记录token使用量
+        生成聊天响应，并记录token使用量 / 输入输出
         """
-        
-        # 记录开始时间
         start_time = time.time()
-        
-        # 调用父类生成方法
-        result = super()._generate(messages, stop, run_manager, **kwargs)
-        
-        # 记录token使用
-        self._track_token_usage(result, kwargs, start_time)
-        
-        return result
+        provider = getattr(self, "provider_name", None) or "unknown"
+        model = getattr(self, "model_name", None) or getattr(self, "_model_name_alias", None) or "unknown"
+        input_text = ""
+        try:
+            from app.services.llm_call_log_service import messages_to_text
+
+            input_text = messages_to_text(messages)
+        except Exception:  # noqa: BLE001
+            input_text = str(messages)
+
+        try:
+            result = super()._generate(messages, stop, run_manager, **kwargs)
+            self._track_token_usage(result, kwargs, start_time)
+            self._persist_call_log(provider, model, input_text, result, None, start_time)
+            return result
+        except Exception as exc:  # noqa: BLE001
+            self._persist_call_log(provider, model, input_text, None, str(exc), start_time)
+            raise
+
+    def _persist_call_log(
+        self,
+        provider: str,
+        model: str,
+        input_text: str,
+        result: Optional[ChatResult],
+        error: Optional[str],
+        start_time: float,
+    ) -> None:
+        try:
+            from app.services.llm_call_log_service import (
+                extract_usage,
+                log_llm_call,
+                result_to_text,
+            )
+
+            usage = extract_usage(result) if result is not None else {}
+            log_llm_call(
+                provider=str(provider),
+                model=str(model),
+                input_text=input_text,
+                output_text=result_to_text(result) if result is not None else "",
+                error=error,
+                latency_ms=round((time.time() - start_time) * 1000, 1),
+                input_tokens=usage.get("input_tokens"),
+                output_tokens=usage.get("output_tokens"),
+                total_tokens=usage.get("total_tokens"),
+                meta={"adapter": "OpenAICompatibleBase"},
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.debug("persist llm call log skipped: %s", e)
 
     def _track_token_usage(self, result: ChatResult, kwargs: Dict, start_time: float):
         """记录token使用量并输出日志"""

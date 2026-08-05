@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_dual_stack_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_dual_stack_hold52_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.002493** |
 | 开仓 | 2020-11-04，约 13.83 元 |
 | 清仓 | 2021-01-18，约 20.92 元 |
-| 单腿涨跌 | **51.32%** |
+| 单笔涨跌 | **51.32%** |
 | 当日组合贡献 | NAV 6.42% |
 | 出场备注 | hold_end；买入2020-11-04 成本价13.8260 |
 

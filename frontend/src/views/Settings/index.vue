@@ -16,65 +16,55 @@
       <el-col :span="6">
         <el-card class="settings-menu" shadow="never">
           <el-menu
+            :key="activeTab"
             :default-active="activeTab"
             @select="handleMenuSelect"
             class="settings-nav"
           >
-            <!-- 个人设置菜单 -->
-            <template v-if="currentSection === 'personal'">
-              <el-menu-item index="general">
-                <el-icon><User /></el-icon>
-                <span>通用设置</span>
-              </el-menu-item>
-              <el-menu-item index="appearance">
-                <el-icon><Brush /></el-icon>
-                <span>外观设置</span>
-              </el-menu-item>
-              <el-menu-item index="analysis">
-                <el-icon><TrendCharts /></el-icon>
-                <span>分析偏好</span>
-              </el-menu-item>
-              <el-menu-item index="notifications">
-                <el-icon><Bell /></el-icon>
-                <span>通知设置</span>
-              </el-menu-item>
-              <el-menu-item index="security">
-                <el-icon><Lock /></el-icon>
-                <span>安全设置</span>
-              </el-menu-item>
-            </template>
-
-            <!-- 系统配置菜单 -->
-            <template v-else-if="currentSection === 'config'">
-              <el-menu-item index="config">
-                <el-icon><Tools /></el-icon>
-                <span>配置管理</span>
-              </el-menu-item>
-              <el-menu-item index="usage">
-                <el-icon><DataAnalysis /></el-icon>
-                <span>使用统计</span>
-              </el-menu-item>
-              <el-menu-item index="cache">
-                <el-icon><Coin /></el-icon>
-                <span>缓存管理</span>
-              </el-menu-item>
-            </template>
-
-            <!-- 系统管理菜单 -->
-            <template v-else-if="currentSection === 'admin'">
-              <el-menu-item index="database">
-                <el-icon><Monitor /></el-icon>
-                <span>数据库管理</span>
-              </el-menu-item>
-              <el-menu-item index="logs">
-                <el-icon><Document /></el-icon>
-                <span>操作日志</span>
-              </el-menu-item>
-              <el-menu-item index="sync">
-                <el-icon><Refresh /></el-icon>
-                <span>多数据源同步</span>
-              </el-menu-item>
-            </template>
+            <el-menu-item index="general">
+              <el-icon><User /></el-icon>
+              <span>通用</span>
+            </el-menu-item>
+            <el-menu-item index="appearance">
+              <el-icon><Brush /></el-icon>
+              <span>外观</span>
+            </el-menu-item>
+            <el-menu-item index="analysis">
+              <el-icon><TrendCharts /></el-icon>
+              <span>分析偏好</span>
+            </el-menu-item>
+            <el-menu-item index="notifications">
+              <el-icon><Bell /></el-icon>
+              <span>通知</span>
+            </el-menu-item>
+            <el-menu-item index="security">
+              <el-icon><Lock /></el-icon>
+              <span>安全</span>
+            </el-menu-item>
+            <el-menu-item index="config">
+              <el-icon><Tools /></el-icon>
+              <span>配置管理</span>
+            </el-menu-item>
+            <el-menu-item index="cache">
+              <el-icon><Coin /></el-icon>
+              <span>缓存</span>
+            </el-menu-item>
+            <el-menu-item index="database">
+              <el-icon><Monitor /></el-icon>
+              <span>数据库</span>
+            </el-menu-item>
+            <el-menu-item index="logs">
+              <el-icon><Document /></el-icon>
+              <span>操作日志</span>
+            </el-menu-item>
+            <el-menu-item index="sync">
+              <el-icon><Refresh /></el-icon>
+              <span>多源同步</span>
+            </el-menu-item>
+            <el-menu-item index="usage">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>使用统计</span>
+            </el-menu-item>
           </el-menu>
         </el-card>
       </el-col>
@@ -459,76 +449,33 @@ const route = useRoute()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 
-// 当前分组：personal（个人设置）、config（系统配置）、admin（系统管理）
-const currentSection = ref('personal')
+const pageTitle = computed(() => '设置')
+const pageDescription = computed(() => '偏好与系统配置（扁平入口，侧栏直达）')
 
-// 页面标题和描述
-const pageTitle = computed(() => {
-  switch (currentSection.value) {
-    case 'personal':
-      return '个人设置'
-    case 'config':
-      return '系统配置'
-    case 'admin':
-      return '系统管理'
-    default:
-      return '设置'
-  }
-})
-
-const pageDescription = computed(() => {
-  switch (currentSection.value) {
-    case 'personal':
-      return '个性化配置和偏好设置'
-    case 'config':
-      return 'LLM、数据源、使用统计和缓存配置'
-    case 'admin':
-      return '数据库、日志和同步管理'
-    default:
-      return '个性化配置和系统管理'
-  }
-})
-
-// 响应式数据
 const activeTab = ref('general')
 
-// 根据路由路径和 query 参数确定当前分组和默认激活的标签
-const updateSectionFromRoute = () => {
-  const path = route.path
-  const tab = route.query.tab as string
-
-  if (path === '/settings') {
-    // 个人设置页面
-    currentSection.value = 'personal'
-    // 根据 tab 参数切换标签
-    if (tab) {
-      activeTab.value = tab
-    } else {
-      activeTab.value = 'general'
-    }
-  } else if (path === '/settings/config') {
-    currentSection.value = 'config'
-    activeTab.value = 'config'
-  } else if (path === '/settings/usage') {
-    currentSection.value = 'config'
-    activeTab.value = 'usage'
-  } else if (path === '/settings/cache') {
-    currentSection.value = 'config'
-    activeTab.value = 'cache'
-  } else if (path === '/settings/database') {
-    currentSection.value = 'admin'
-    activeTab.value = 'database'
-  } else if (path === '/settings/logs') {
-    currentSection.value = 'admin'
-    activeTab.value = 'logs'
-  } else if (path === '/settings/sync') {
-    currentSection.value = 'admin'
-    activeTab.value = 'sync'
-  }
+const EXTERNAL_TABS: Record<string, string> = {
+  config: '/settings/config',
+  cache: '/settings/cache',
+  database: '/settings/database',
+  logs: '/settings/logs',
+  sync: '/settings/sync',
+  usage: '/settings/usage',
+  'system-logs': '/settings/system-logs',
+  scheduler: '/settings/scheduler',
 }
 
-// 监听路由变化（包括 query 参数）
-watch(() => [route.path, route.query.tab], updateSectionFromRoute, { immediate: true })
+const updateTabFromRoute = () => {
+  if (route.path !== '/settings') return
+  const tab = route.query.tab as string
+  if (tab && EXTERNAL_TABS[tab]) {
+    router.replace(EXTERNAL_TABS[tab])
+    return
+  }
+  activeTab.value = tab || 'general'
+}
+
+watch(() => [route.path, route.query.tab], updateTabFromRoute, { immediate: true })
 
 // 从 authStore 获取用户信息（使用 computed 实现响应式）
 const generalSettings = ref({
@@ -607,7 +554,13 @@ watch(() => authStore.user, (newUser) => {
 
 // 方法
 const handleMenuSelect = (index: string) => {
+  const external = EXTERNAL_TABS[index]
+  if (external) {
+    router.push(external)
+    return
+  }
   activeTab.value = index
+  router.replace({ path: '/settings', query: index === 'general' ? {} : { tab: index } })
 }
 
 const handleThemeChange = (theme: string | number | boolean | undefined) => {

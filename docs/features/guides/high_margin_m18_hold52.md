@@ -15,7 +15,7 @@
 
 信号实现：`signal_high_margin_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/high_margin_m18_hold52_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sz.002558 巨人网络** |
 | 开仓 | 2023-03-21，约 11.52 元 |
 | 清仓 | 2023-06-07，约 18.39 元 |
-| 单腿涨跌 | **59.68%** |
+| 单笔涨跌 | **59.68%** |
 | 当日组合贡献 | NAV 7.46% |
 | 出场备注 | hold_end；买入2023-03-21 成本价11.5164 |
 

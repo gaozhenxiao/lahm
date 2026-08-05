@@ -21,12 +21,48 @@ logger = logging.getLogger("webapi")
 # 股票名称缓存
 _stock_name_cache = {}
 
+
+def _clean_code(v: Any) -> str:
+    if v is None:
+        return ""
+    s = str(v).strip()
+    if not s or s.lower() in ("none", "null", "unknown", "nan"):
+        return ""
+    return s
+
+
+def build_report_title(stock_name: Optional[str], stock_code: Optional[str], analysis_date: Optional[str] = None) -> str:
+    """列表/详情统一标题：海康威视（002415）· 2026-08-05"""
+    code = _clean_code(stock_code)
+    name = _clean_code(stock_name)
+    if name.lower() in ("none", "null") or name.startswith("股票") and code and name == f"股票{code}":
+        # 「股票002415」视为占位，后面用代码查真名
+        name = ""
+    if not name and code:
+        name = get_stock_name(code)
+    if name and code and name != code:
+        title = f"{name}（{code}）"
+    elif name:
+        title = name
+    elif code:
+        title = code
+    else:
+        title = "分析报告"
+    date_s = _clean_code(analysis_date)
+    if date_s and date_s[:10] != "None":
+        title = f"{title} · {date_s[:10]}"
+    return title
+
+
 def get_stock_name(stock_code: str) -> str:
     """
     获取股票名称
     优先级：缓存 -> MongoDB（按数据源优先级） -> 默认返回股票代码
     """
     global _stock_name_cache
+    stock_code = _clean_code(stock_code)
+    if not stock_code:
+        return ""
 
     # 检查缓存
     if stock_code in _stock_name_cache:
@@ -87,13 +123,14 @@ def get_stock_name(stock_code: str) -> str:
 
 # 统一构建报告查询：支持 _id(ObjectId) / analysis_id / task_id 三种
 def _build_report_query(report_id: str) -> Dict[str, Any]:
+    rid = _clean_code(report_id) or str(report_id or "")
     ors = [
-        {"analysis_id": report_id},
-        {"task_id": report_id},
+        {"analysis_id": rid},
+        {"task_id": rid},
     ]
     try:
         from bson import ObjectId
-        ors.append({"_id": ObjectId(report_id)})
+        ors.append({"_id": ObjectId(rid)})
     except Exception:
         pass
     return {"$or": ors}
@@ -172,49 +209,67 @@ async def get_reports_list(
 
         reports = []
         async for doc in cursor:
-            # 转换为前端需要的格式
-            stock_code = doc.get("stock_symbol", "")
-            # 🔥 优先使用MongoDB中保存的股票名称，如果没有则查询
-            stock_name = doc.get("stock_name")
-            if not stock_name:
+            stock_code = _clean_code(doc.get("stock_symbol") or doc.get("stock_code"))
+            stock_name = _clean_code(doc.get("stock_name"))
+            # 回填：报告缺代码/名称时从任务取
+            if (not stock_code or not stock_name or stock_name.startswith("股票")) and doc.get("task_id"):
+                task = await db.analysis_tasks.find_one(
+                    {"task_id": doc.get("task_id")},
+                    {"stock_code": 1, "stock_symbol": 1, "symbol": 1, "stock_name": 1},
+                )
+                if task:
+                    stock_code = stock_code or _clean_code(
+                        task.get("stock_symbol") or task.get("stock_code") or task.get("symbol")
+                    )
+                    if not stock_name or stock_name.startswith("股票"):
+                        stock_name = _clean_code(task.get("stock_name")) or stock_name
+            if not stock_name and stock_code:
                 stock_name = get_stock_name(stock_code)
+            elif stock_name.startswith("股票") and stock_code:
+                resolved = get_stock_name(stock_code)
+                if resolved and resolved != stock_code:
+                    stock_name = resolved
 
-            # 🔥 获取市场类型，如果没有则根据股票代码推断
             market_type = doc.get("market_type")
-            if not market_type:
+            if not market_type and stock_code:
                 from lahm.utils.stock_utils import StockUtils
                 market_info = StockUtils.get_market_info(stock_code)
                 market_type_map = {
                     "china_a": "A股",
                     "hong_kong": "港股",
                     "us": "美股",
-                    "unknown": "A股"
+                    "unknown": "A股",
                 }
                 market_type = market_type_map.get(market_info.get("market", "unknown"), "A股")
 
-            # 获取创建时间（数据库中是 UTC 时间，需要转换为 UTC+8）
             created_at = doc.get("created_at", datetime.utcnow())
-            created_at_tz = to_config_tz(created_at)  # 转换为 UTC+8 并添加时区信息
+            created_at_tz = to_config_tz(created_at)
+            analysis_id = _clean_code(doc.get("analysis_id")) or str(doc["_id"])
+            # 查看链接：脏 analysis_id（None_…）改用 Mongo _id / task_id
+            view_id = analysis_id
+            if not view_id or view_id.lower().startswith("none_") or view_id.lower() == "none":
+                view_id = _clean_code(doc.get("task_id")) or str(doc["_id"])
 
             report = {
-                "id": str(doc["_id"]),
-                "analysis_id": doc.get("analysis_id", ""),
-                "title": f"{stock_name}({stock_code}) 分析报告",
+                "id": view_id,
+                "mongo_id": str(doc["_id"]),
+                "analysis_id": analysis_id,
+                "title": build_report_title(stock_name, stock_code, doc.get("analysis_date")),
                 "stock_code": stock_code,
-                "stock_name": stock_name,
-                "market_type": market_type,  # 🔥 添加市场类型字段
-                "model_info": doc.get("model_info", "Unknown"),  # 🔥 添加模型信息字段
-                "type": "single",  # 目前主要是单股分析
-                "format": "markdown",  # 主要格式
+                "stock_name": stock_name or stock_code or "未知",
+                "market_type": market_type or "A股",
+                "model_info": doc.get("model_info", "Unknown"),
+                "type": "single",
+                "format": "markdown",
                 "status": doc.get("status", "completed"),
                 "created_at": created_at_tz.isoformat() if created_at_tz else str(created_at),
                 "analysis_date": doc.get("analysis_date", ""),
                 "analysts": doc.get("analysts", []),
                 "research_depth": doc.get("research_depth", 1),
                 "summary": doc.get("summary", ""),
-                "file_size": len(str(doc.get("reports", {}))),  # 估算大小
+                "file_size": len(str(doc.get("reports", {}))),
                 "source": doc.get("source", "unknown"),
-                "task_id": doc.get("task_id", "")
+                "task_id": doc.get("task_id", ""),
             }
             reports.append(report)
 
@@ -255,7 +310,16 @@ async def get_report_detail(
             logger.info(f"⚠️ 未在analysis_reports找到，尝试从analysis_tasks还原: {report_id}")
             tasks_doc = await db.analysis_tasks.find_one(
                 {"$or": [{"task_id": report_id}, {"result.analysis_id": report_id}]},
-                {"result": 1, "task_id": 1, "stock_code": 1, "created_at": 1, "completed_at": 1}
+                {
+                    "result": 1,
+                    "task_id": 1,
+                    "stock_code": 1,
+                    "stock_symbol": 1,
+                    "symbol": 1,
+                    "stock_name": 1,
+                    "created_at": 1,
+                    "completed_at": 1,
+                },
             )
             if not tasks_doc or not tasks_doc.get("result"):
                 raise HTTPException(status_code=404, detail="报告不存在")
@@ -273,17 +337,24 @@ async def get_report_detail(
                     return x.isoformat()
                 return x or ""
 
-            stock_symbol = r.get("stock_symbol", r.get("stock_code", tasks_doc.get("stock_code", "")))
-            stock_name = r.get("stock_name")
-            if not stock_name:
-                stock_name = get_stock_name(stock_symbol)
+            stock_symbol = _clean_code(
+                r.get("stock_symbol")
+                or r.get("stock_code")
+                or tasks_doc.get("stock_symbol")
+                or tasks_doc.get("stock_code")
+                or tasks_doc.get("symbol")
+            )
+            stock_name = _clean_code(r.get("stock_name") or tasks_doc.get("stock_name"))
+            if not stock_name or stock_name.startswith("股票"):
+                stock_name = get_stock_name(stock_symbol) or stock_name or stock_symbol
 
             report = {
                 "id": tasks_doc.get("task_id", report_id),
                 "analysis_id": r.get("analysis_id", ""),
+                "title": build_report_title(stock_name, stock_symbol, r.get("analysis_date")),
                 "stock_symbol": stock_symbol,
-                "stock_name": stock_name,  # 🔥 添加股票名称字段
-                "model_info": r.get("model_info", "Unknown"),  # 🔥 添加模型信息字段
+                "stock_name": stock_name,
+                "model_info": r.get("model_info", "Unknown"),
                 "analysis_date": r.get("analysis_date", ""),
                 "status": r.get("status", "completed"),
                 "created_at": to_iso(created_at_tz),
@@ -303,10 +374,21 @@ async def get_report_detail(
             }
         else:
             # 转换为详细格式（analysis_reports 命中）
-            stock_symbol = doc.get("stock_symbol", "")
-            stock_name = doc.get("stock_name")
-            if not stock_name:
-                stock_name = get_stock_name(stock_symbol)
+            stock_symbol = _clean_code(doc.get("stock_symbol") or doc.get("stock_code"))
+            stock_name = _clean_code(doc.get("stock_name"))
+            if (not stock_symbol or not stock_name or stock_name.startswith("股票")) and doc.get("task_id"):
+                task = await db.analysis_tasks.find_one(
+                    {"task_id": doc.get("task_id")},
+                    {"stock_code": 1, "stock_symbol": 1, "symbol": 1, "stock_name": 1},
+                )
+                if task:
+                    stock_symbol = stock_symbol or _clean_code(
+                        task.get("stock_symbol") or task.get("stock_code") or task.get("symbol")
+                    )
+                    if not stock_name or stock_name.startswith("股票"):
+                        stock_name = _clean_code(task.get("stock_name")) or stock_name
+            if not stock_name or stock_name.startswith("股票"):
+                stock_name = get_stock_name(stock_symbol) or stock_name or stock_symbol
 
             # 获取时间（数据库中是 UTC 时间，需要转换为 UTC+8）
             created_at = doc.get("created_at", datetime.utcnow())
@@ -319,9 +401,10 @@ async def get_report_detail(
             report = {
                 "id": str(doc["_id"]),
                 "analysis_id": doc.get("analysis_id", ""),
+                "title": build_report_title(stock_name, stock_symbol, doc.get("analysis_date")),
                 "stock_symbol": stock_symbol,
-                "stock_name": stock_name,  # 🔥 添加股票名称字段
-                "model_info": doc.get("model_info", "Unknown"),  # 🔥 添加模型信息字段
+                "stock_name": stock_name,
+                "model_info": doc.get("model_info", "Unknown"),
                 "analysis_date": doc.get("analysis_date", ""),
                 "status": doc.get("status", "completed"),
                 "created_at": created_at_tz.isoformat() if created_at_tz else str(created_at),

@@ -62,13 +62,13 @@
               <el-icon class="action-arrow"><ArrowRight /></el-icon>
             </div>
 
-            <div class="action-item" @click="goToQueue">
+            <div class="action-item" @click="router.push('/multi-asset/cb')">
               <div class="action-icon">
-                <el-icon><List /></el-icon>
+                <el-icon><Connection /></el-icon>
               </div>
               <div class="action-content">
-                <h3>任务中心</h3>
-                <p>查看和管理任务列表</p>
+                <h3>多资产</h3>
+                <p>可转债 / 双低 / 网格等</p>
               </div>
               <el-icon class="action-arrow"><ArrowRight /></el-icon>
             </div>
@@ -278,7 +278,7 @@ import {
   DataLine,
   Flag,
   Wallet,
-  List,
+  Connection,
   ArrowRight,
   InfoFilled
 } from '@element-plus/icons-vue'
@@ -337,12 +337,8 @@ const goToInvestments = () => {
   router.push('/investments')
 }
 
-const goToQueue = () => {
-  router.push('/tasks')
-}
-
 const goToHistory = () => {
-  router.push('/tasks?tab=completed')
+  router.push('/reports')
 }
 
 const viewAnalysis = (analysis: AnalysisTask) => {
@@ -350,8 +346,7 @@ const viewAnalysis = (analysis: AnalysisTask) => {
   if (status === 'completed') {
     router.push({ name: 'ReportDetail', params: { id: analysis.task_id } })
   } else {
-    // 未完成任务跳转到任务中心的“进行中”标签页
-    router.push('/tasks?tab=running')
+    router.push('/reports')
   }
 }
 

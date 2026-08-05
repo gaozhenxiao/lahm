@@ -16,7 +16,7 @@
 
 信号实现：`signal_cashcow_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/cashcow_reclaim_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.601688** |
 | 开仓 | 2024-08-23，约 12.02 元 |
 | 清仓 | 2024-10-08，约 18.74 元 |
-| 单腿涨跌 | **55.88%** |
+| 单笔涨跌 | **55.88%** |
 | 当日组合贡献 | NAV 6.99% |
 | 出场备注 | hold_end；买入2024-08-23 成本价12.0209 |
 

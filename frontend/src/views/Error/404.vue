@@ -37,15 +37,15 @@
           </el-link>
           <el-link type="primary" @click="$router.push('/factors')">
             <el-icon><DataLine /></el-icon>
-            因子列表
+            多因子
           </el-link>
           <el-link type="primary" @click="$router.push('/leads')">
             <el-icon><Flag /></el-icon>
             机会列表
           </el-link>
-          <el-link type="primary" @click="$router.push('/tasks')">
-            <el-icon><List /></el-icon>
-            任务中心
+          <el-link type="primary" @click="$router.push('/multi-asset/cb')">
+            <el-icon><Connection /></el-icon>
+            多资产
           </el-link>
         </div>
       </div>
@@ -61,7 +61,7 @@ import {
   House,
   DataLine,
   Flag,
-  List
+  Connection
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

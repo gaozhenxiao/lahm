@@ -3,7 +3,7 @@
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
@@ -530,6 +530,30 @@ async def fetch_provider_models(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"获取模型列表失败: {str(e)}"
+        )
+
+
+@router.get("/llm/call-logs", response_model=dict)
+async def get_llm_call_logs(
+    provider: Optional[str] = None,
+    limit: int = 50,
+    only_errors: bool = False,
+    current_user: User = Depends(get_current_user),
+):
+    """获取大模型 API 输入/输出调用记录（配置页 API 密钥下方展示）。"""
+    try:
+        from app.services.llm_call_log_service import list_llm_call_logs
+
+        rows = await list_llm_call_logs(
+            provider=provider or None,
+            limit=limit,
+            only_errors=only_errors,
+        )
+        return ok(data={"records": rows, "total": len(rows)}, message=f"获取到 {len(rows)} 条调用记录")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取 LLM 调用记录失败: {e}",
         )
 
 

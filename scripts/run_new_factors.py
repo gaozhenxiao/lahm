@@ -47,7 +47,8 @@ def main() -> None:
     need_growth = any(FACTOR_IMPL[i]["need_growth"] for i in ids)
     need_balance = any(bool(FACTOR_IMPL[i].get("need_balance")) for i in ids)
     need_fin_db = any(bool(FACTOR_IMPL[i].get("need_fin_db")) for i in ids)
-    base_params = dict(next(iter(FACTOR_IMPL.values()))["params"])
+    # 共享面板按「第一个选中因子」的宇宙准备，避免 --only 时误用默认 hs300
+    base_params = dict(FACTOR_IMPL[ids[0]]["params"])
 
     price_map = None
     if not args.no_shared_panel:

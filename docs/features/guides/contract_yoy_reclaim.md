@@ -15,7 +15,7 @@
 
 信号实现：`signal_contract_yoy_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/contract_yoy_reclaim_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sz.002558 巨人网络** |
 | 开仓 | 2025-05-26，约 14.35 元 |
 | 清仓 | 2025-07-01，约 22.81 元 |
-| 单腿涨跌 | **58.97%** |
+| 单笔涨跌 | **58.97%** |
 | 当日组合贡献 | NAV 7.37% |
 | 出场备注 | hold_end；买入2025-05-26 成本价14.3461 |
 

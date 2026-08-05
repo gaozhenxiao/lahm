@@ -15,7 +15,7 @@
 
 信号实现：`signal_dual_improve_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_tight_amp16_hold52_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600460** |
 | 开仓 | 2017-08-15，约 6.579 元 |
 | 清仓 | 2017-11-02，约 10.08 元 |
-| 单腿涨跌 | **53.29%** |
+| 单笔涨跌 | **53.29%** |
 | 当日组合贡献 | NAV 6.66% |
 | 出场备注 | hold_end；买入2017-08-15 成本价6.5786 |
 

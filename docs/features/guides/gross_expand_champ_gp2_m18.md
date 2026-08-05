@@ -18,7 +18,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_champ_gp2_m18_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sz.000625** |
 | 开仓 | 2022-06-02，约 10.85 元 |
 | 清仓 | 2022-08-15，约 15.57 元 |
-| 单腿涨跌 | **43.51%** |
+| 单笔涨跌 | **43.51%** |
 | 当日组合贡献 | NAV 5.44% |
 | 出场备注 | hold_end；买入2022-06-02 成本价10.8505 |
 

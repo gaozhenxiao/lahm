@@ -15,7 +15,7 @@ ROE环比改善且PB分位偏低，站上MA20。
 
 信号实现：`signal_roe_improve_pb_cheap`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/roe_improve_pb_cheap_trade_history.csv`
 
@@ -24,7 +24,7 @@ ROE环比改善且PB分位偏低，站上MA20。
 | 标的 | **sh.603986** |
 | 开仓 | 2017-08-28，约 28.19 元 |
 | 清仓 | 2017-09-25，约 44.46 元 |
-| 单腿涨跌 | **57.72%** |
+| 单笔涨跌 | **57.72%** |
 | 当日组合贡献 | NAV 7.21% |
 | 出场备注 | hold_end；买入2017-08-28 成本价28.1856 |
 

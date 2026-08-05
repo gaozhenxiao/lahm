@@ -24,6 +24,14 @@ class LeadSource(str, Enum):
     OTHER = "other"
 
 
+class LeadKind(str, Enum):
+    """因子持仓书条目语义。"""
+    OPPORTUNITY = "opportunity"  # 优质因子持仓（主机会）
+    MIXED = "mixed"  # 既有优质又有弱势/中性
+    ALERT = "alert"  # 仅弱势因子持仓（警醒）
+    WATCH = "watch"  # 仅中性因子持仓
+
+
 class LeadCreate(BaseModel):
     code: str = Field(..., description="股票代码，如 600519 或 600519.SH")
     name: str = Field("", description="股票名称")
@@ -36,6 +44,12 @@ class LeadCreate(BaseModel):
     screening_snapshot: Optional[Dict[str, Any]] = Field(None, description="筛选时字段快照")
     analysis_id: Optional[str] = None
     factor_id: Optional[str] = None
+    kind: Optional[str] = Field(None, description="opportunity|mixed|alert|watch")
+    factors_good: List[Dict[str, Any]] = Field(default_factory=list)
+    factors_warn: List[Dict[str, Any]] = Field(default_factory=list)
+    factors_neutral: List[Dict[str, Any]] = Field(default_factory=list)
+    as_of: Optional[str] = None
+    weights: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class LeadUpdate(BaseModel):
@@ -46,6 +60,11 @@ class LeadUpdate(BaseModel):
     tags: Optional[List[str]] = None
     analysis_id: Optional[str] = None
     factor_id: Optional[str] = None
+    kind: Optional[str] = None
+    factors_good: Optional[List[Dict[str, Any]]] = None
+    factors_warn: Optional[List[Dict[str, Any]]] = None
+    factors_neutral: Optional[List[Dict[str, Any]]] = None
+    as_of: Optional[str] = None
 
 
 class LeadBulkFromScreening(BaseModel):
@@ -55,9 +74,22 @@ class LeadBulkFromScreening(BaseModel):
     score: Optional[float] = None
 
 
+class FactorRef(BaseModel):
+    factor_id: str
+    name: str = ""
+    sharpe: Optional[float] = None
+    quality: str = "unknown"
+    weight: Optional[float] = None
+    buy_date: Optional[str] = None
+    buy_price: Optional[float] = None
+    as_of: Optional[str] = None
+    is_champion: bool = False
+    note: str = ""
+
+
 class LeadOut(BaseModel):
     id: str
-    user_id: str
+    user_id: str = ""
     code: str
     name: str
     market: str
@@ -69,5 +101,11 @@ class LeadOut(BaseModel):
     screening_snapshot: Optional[Dict[str, Any]] = None
     analysis_id: Optional[str] = None
     factor_id: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
+    kind: Optional[str] = None
+    factors_good: List[Dict[str, Any]] = Field(default_factory=list)
+    factors_warn: List[Dict[str, Any]] = Field(default_factory=list)
+    factors_neutral: List[Dict[str, Any]] = Field(default_factory=list)
+    weights: List[Dict[str, Any]] = Field(default_factory=list)
+    as_of: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

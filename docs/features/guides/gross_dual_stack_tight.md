@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_dual_stack_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_dual_stack_tight_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.300308** |
 | 开仓 | 2026-04-08，约 687.3 元 |
 | 清仓 | 2026-05-18，约 1045 元 |
-| 单腿涨跌 | **52.04%** |
+| 单笔涨跌 | **52.04%** |
 | 当日组合贡献 | NAV 6.50% |
 | 出场备注 | hold_end；买入2026-04-08 成本价687.3266 |
 

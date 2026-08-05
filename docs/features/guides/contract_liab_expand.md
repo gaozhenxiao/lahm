@@ -14,7 +14,7 @@
 
 信号实现：`signal_contract_liab_expand`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/contract_liab_expand_trade_history.csv`
 
@@ -23,7 +23,7 @@
 | 标的 | **sz.002602** |
 | 开仓 | 2016-10-25，约 9.131 元 |
 | 清仓 | 2016-12-06，约 14.11 元 |
-| 单腿涨跌 | **54.54%** |
+| 单笔涨跌 | **54.54%** |
 | 当日组合贡献 | NAV 6.82% |
 | 出场备注 | hold_end；买入2016-10-25 成本价9.1309 |
 

@@ -15,7 +15,7 @@ PE分位偏低且ROE达标时，MA20上穿MA60。
 
 信号实现：`signal_pe_quality_cross`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/pe_quality_cross_trade_history.csv`
 
@@ -24,7 +24,7 @@ PE分位偏低且ROE达标时，MA20上穿MA60。
 | 标的 | **sh.603392** |
 | 开仓 | 2020-12-23，约 68.58 元 |
 | 清仓 | 2021-01-28，约 108.6 元 |
-| 单腿涨跌 | **58.32%** |
+| 单笔涨跌 | **58.32%** |
 | 当日组合贡献 | NAV 7.29% |
 | 出场备注 | hold_end；买入2020-12-23 成本价68.5794 |
 

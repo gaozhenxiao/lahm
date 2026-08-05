@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_dual_stack_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_dual_stack_hold51_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.300014** |
 | 开仓 | 2020-11-05，约 59.24 元 |
 | 清仓 | 2021-01-18，约 90.82 元 |
-| 单腿涨跌 | **53.31%** |
+| 单笔涨跌 | **53.31%** |
 | 当日组合贡献 | NAV 6.66% |
 | 出场备注 | hold_end；买入2020-11-05 成本价59.2425 |
 

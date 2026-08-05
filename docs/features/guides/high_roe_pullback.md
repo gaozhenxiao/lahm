@@ -15,7 +15,7 @@
 
 信号实现：`signal_high_roe_pullback`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/high_roe_pullback_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sz.002709** |
 | 开仓 | 2021-04-19，约 27.2 元 |
 | 清仓 | 2021-05-27，约 38.2 元 |
-| 单腿涨跌 | **40.44%** |
+| 单笔涨跌 | **40.44%** |
 | 当日组合贡献 | NAV 5.05% |
 | 出场备注 | hold_end；买入2021-04-19 成本价27.2019 |
 

@@ -15,7 +15,7 @@
 
 信号实现：`signal_cheap_quality_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/cheap_quality_base_break_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600346** |
 | 开仓 | 2019-02-25，约 8.862 元 |
 | 清仓 | 2019-04-09，约 11.3 元 |
-| 单腿涨跌 | **27.46%** |
+| 单笔涨跌 | **27.46%** |
 | 当日组合贡献 | NAV 3.43% |
 | 出场备注 | hold_end；买入2019-02-25 成本价8.8621 |
 

@@ -15,7 +15,7 @@
 
 信号实现：`signal_dual_margin_expand`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_margin_expand_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sz.300033** |
 | 开仓 | 2024-10-24，约 137 元 |
 | 清仓 | 2024-11-28，约 212.7 元 |
-| 单腿涨跌 | **55.26%** |
+| 单笔涨跌 | **55.26%** |
 | 当日组合贡献 | NAV 6.91% |
 | 出场备注 | hold_end；买入2024-10-24 成本价137.0162 |
 

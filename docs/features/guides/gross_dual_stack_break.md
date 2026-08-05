@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_dual_stack_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_dual_stack_break_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.000988** |
 | 开仓 | 2023-03-01，约 20.71 元 |
 | 清仓 | 2023-04-06，约 31.48 元 |
-| 单腿涨跌 | **52.00%** |
+| 单笔涨跌 | **52.00%** |
 | 当日组合贡献 | NAV 6.50% |
 | 出场备注 | hold_end；买入2023-03-01 成本价20.7116 |
 

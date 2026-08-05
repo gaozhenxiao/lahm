@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_dual_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_dual_mid_hold50_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.601100** |
 | 开仓 | 2019-08-29，约 20.67 元 |
 | 清仓 | 2019-11-15，约 28.1 元 |
-| 单腿涨跌 | **35.95%** |
+| 单笔涨跌 | **35.95%** |
 | 当日组合贡献 | NAV 4.49% |
 | 出场备注 | hold_end；买入2019-08-29 成本价20.6703 |
 

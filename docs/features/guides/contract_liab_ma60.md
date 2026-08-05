@@ -15,7 +15,7 @@
 
 信号实现：`signal_contract_liab_ma60`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/contract_liab_ma60_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600196** |
 | 开仓 | 2020-06-12，约 30.45 元 |
 | 清仓 | 2020-07-28，约 47.31 元 |
-| 单腿涨跌 | **55.39%** |
+| 单笔涨跌 | **55.39%** |
 | 当日组合贡献 | NAV 6.92% |
 | 出场备注 | hold_end；买入2020-06-12 成本价30.4466 |
 

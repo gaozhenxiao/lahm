@@ -13,7 +13,7 @@
 
 信号实现：`signal_ret20_extreme_bounce`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/ret20_extreme_bounce_trade_history.csv`
 
@@ -22,7 +22,7 @@
 | 标的 | **sz.300450 先导智能** |
 | 开仓 | 2016-02-02，约 7.813 元 |
 | 清仓 | 2016-02-23，约 11.15 元 |
-| 单腿涨跌 | **42.74%** |
+| 单笔涨跌 | **42.74%** |
 | 当日组合贡献 | NAV 5.34% |
 | 出场备注 | hold_end；买入2016-02-02 成本价7.8130 |
 

@@ -60,12 +60,12 @@ export default function EarningsForecastWorstTrades() {{
     <Stack gap={{20}}>
       <H1>业绩预告因子 · 亏损最大成交</H1>
       <Text tone="secondary" size="small">
-        组合已接受腿（最多8仓等权）· 按单笔亏损从大到小 · 2018-01 至 2026-07 · 完整表见 data/factors/earnings_forecast_worst_trades.csv
+        组合已接受笔（最多8仓等权）· 按单笔亏损从大到小 · 2018-01 至 2026-07 · 完整表见 data/factors/earnings_forecast_worst_trades.csv
       </Text>
       <Grid columns={{3}} gap={{12}}>
         <Stat value={{ROWS[0][0]}} label="最大单笔亏损" tone="danger" />
         <Stat value="40" label="本表展示笔数" />
-        <Stat value="600" label="组合接受总腿数" />
+        <Stat value="600" label="组合接受总笔数" />
       </Grid>
       <Callout tone="info" title="字段说明">
         买入仓位 = 开仓后 1/同时持仓数；公告前涨幅 = 公告日前20个交易日涨幅；价格为后复权。

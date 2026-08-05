@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_lag30_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.601689** |
 | 开仓 | 2020-06-08，约 17.11 元 |
 | 清仓 | 2020-08-19，约 26.97 元 |
-| 单腿涨跌 | **57.59%** |
+| 单笔涨跌 | **57.59%** |
 | 当日组合贡献 | NAV 7.20% |
 | 出场备注 | hold_end；买入2020-06-08 成本价17.1144 |
 

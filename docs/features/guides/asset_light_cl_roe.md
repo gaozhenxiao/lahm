@@ -18,7 +18,7 @@
 
 信号实现：`signal_asset_light_cl_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/asset_light_cl_roe_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sz.002709** |
 | 开仓 | 2020-11-09，约 20.69 元 |
 | 清仓 | 2021-01-05，约 33 元 |
-| 单腿涨跌 | **59.49%** |
+| 单笔涨跌 | **59.49%** |
 | 当日组合贡献 | NAV 7.44% |
 | 出场备注 | hold_end；买入2020-11-09 成本价20.6916 |
 

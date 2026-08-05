@@ -15,7 +15,7 @@ ROE与净利率同时改善后突破60日高。
 
 信号实现：`signal_dual_improve_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_improve_breakout_trade_history.csv`
 
@@ -24,7 +24,7 @@ ROE与净利率同时改善后突破60日高。
 | 标的 | **sz.000408** |
 | 开仓 | 2021-05-07，约 10.97 元 |
 | 清仓 | 2021-06-11，约 17.25 元 |
-| 单腿涨跌 | **57.21%** |
+| 单笔涨跌 | **57.21%** |
 | 当日组合贡献 | NAV 7.15% |
 | 出场备注 | hold_end；买入2021-05-07 成本价10.9718 |
 

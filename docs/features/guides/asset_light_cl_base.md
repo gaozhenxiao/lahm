@@ -18,7 +18,7 @@
 
 信号实现：`signal_asset_light_cl_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/asset_light_cl_base_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sh.600415** |
 | 开仓 | 2024-09-27，约 8.509 元 |
 | 清仓 | 2024-11-29，约 13.36 元 |
-| 单腿涨跌 | **57.06%** |
+| 单笔涨跌 | **57.06%** |
 | 当日组合贡献 | NAV 7.13% |
 | 出场备注 | hold_end；买入2024-09-27 成本价8.5089 |
 

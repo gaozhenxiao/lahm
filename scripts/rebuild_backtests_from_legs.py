@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT))
 
 from app.services.factors import bs_kit as kit  # noqa: E402
 from app.services.factors.factor_registry import FACTOR_IMPL  # noqa: E402
-from app.services.factors.runner import legs_to_trade_history  # noqa: E402
+from app.services.factors.runner import legs_to_trade_history, _trade_history_weight_mode  # noqa: E402
 
 
 def _load_params(fid: str) -> dict:
@@ -35,6 +35,11 @@ def _load_params(fid: str) -> dict:
                 params = {**params, **payload["params"]}
         except Exception:  # noqa: BLE001
             pass
+    # 注册表仓位开关优先，避免旧产物盖住新规则
+    reg_p = meta.get("params") or {}
+    for k in ("fixed_leg_weight", "position_display", "max_name_weight", "max_positions"):
+        if k in reg_p:
+            params[k] = reg_p[k]
     params["position_logic"] = fid
     return params
 
@@ -64,7 +69,9 @@ def rebuild_one(
     if daily.empty:
         return summary
     trades = legs_to_trade_history(
-        accepted, max_positions=int(params.get("max_positions") or 8)
+        accepted,
+        max_positions=int(params.get("max_positions") or 8),
+        weight_mode=_trade_history_weight_mode(params),
     )
     kit.write_factor_artifacts(
         fid, daily, summary, trades, params=params, title=title, plot=plot

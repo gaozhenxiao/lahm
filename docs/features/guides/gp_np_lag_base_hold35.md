@@ -17,7 +17,7 @@
 
 信号实现：`signal_gp_np_tight_base`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gp_np_lag_base_hold35_trade_history.csv`
 
@@ -26,7 +26,7 @@
 | 标的 | **sh.600460** |
 | 开仓 | 2017-09-18，约 7.495 元 |
 | 清仓 | 2017-11-13，约 11.69 元 |
-| 单腿涨跌 | **55.98%** |
+| 单笔涨跌 | **55.98%** |
 | 当日组合贡献 | NAV 7.00% |
 | 出场备注 | hold_end；买入2017-09-18 成本价7.4945 |
 

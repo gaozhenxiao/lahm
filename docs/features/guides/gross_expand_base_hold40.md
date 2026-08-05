@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_expand_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_base_hold40_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.600460** |
 | 开仓 | 2017-09-04，约 6.815 元 |
 | 清仓 | 2017-11-06，约 10.32 元 |
-| 单腿涨跌 | **51.45%** |
+| 单笔涨跌 | **51.45%** |
 | 当日组合贡献 | NAV 6.43% |
 | 出场备注 | hold_end；买入2017-09-04 成本价6.8150 |
 

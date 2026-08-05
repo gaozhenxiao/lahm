@@ -15,7 +15,7 @@
 
 信号实现：`signal_high_margin_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/high_margin_m20_hold51_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sz.000858** |
 | 开仓 | 2019-02-11，约 52.04 元 |
 | 清仓 | 2019-04-24，约 83.24 元 |
-| 单腿涨跌 | **59.97%** |
+| 单笔涨跌 | **59.97%** |
 | 当日组合贡献 | NAV 7.50% |
 | 出场备注 | hold_end；买入2019-02-11 成本价52.0372 |
 

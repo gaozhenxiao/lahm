@@ -18,7 +18,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_champ_pb40_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sh.600219** |
 | 开仓 | 2024-04-30，约 3.126 元 |
 | 清仓 | 2024-07-16，约 3.537 元 |
-| 单腿涨跌 | **13.13%** |
+| 单笔涨跌 | **13.13%** |
 | 当日组合贡献 | NAV 1.64% |
 | 出场备注 | hold_end；买入2024-04-30 成本价3.1262 |
 

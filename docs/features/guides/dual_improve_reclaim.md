@@ -15,7 +15,7 @@ ROE与净利率双改善后，回踩站上MA20。
 
 信号实现：`signal_dual_improve_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_improve_reclaim_trade_history.csv`
 
@@ -24,7 +24,7 @@ ROE与净利率双改善后，回踩站上MA20。
 | 标的 | **sz.000301** |
 | 开仓 | 2020-11-02，约 6.267 元 |
 | 清仓 | 2020-12-07，约 9.737 元 |
-| 单腿涨跌 | **55.38%** |
+| 单笔涨跌 | **55.38%** |
 | 当日组合贡献 | NAV 6.92% |
 | 出场备注 | hold_end；买入2020-11-02 成本价6.2667 |
 

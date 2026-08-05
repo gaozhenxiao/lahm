@@ -15,7 +15,7 @@
 
 信号实现：`signal_dual_improve_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_tight_hold35_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.601336** |
 | 开仓 | 2024-08-30，约 31.37 元 |
 | 清仓 | 2024-10-29，约 46.27 元 |
-| 单腿涨跌 | **47.47%** |
+| 单笔涨跌 | **47.47%** |
 | 当日组合贡献 | NAV 5.93% |
 | 出场备注 | hold_end；买入2024-08-30 成本价31.3724 |
 

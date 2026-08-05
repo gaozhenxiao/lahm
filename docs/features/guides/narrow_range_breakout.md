@@ -13,7 +13,7 @@
 
 信号实现：`signal_narrow_range_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/narrow_range_breakout_trade_history.csv`
 
@@ -22,7 +22,7 @@
 | 标的 | **sz.000977** |
 | 开仓 | 2023-01-19，约 23.55 元 |
 | 清仓 | 2023-02-16，约 37.63 元 |
-| 单腿涨跌 | **59.80%** |
+| 单笔涨跌 | **59.80%** |
 | 当日组合贡献 | NAV 7.47% |
 | 出场备注 | hold_end；买入2023-01-19 成本价23.5504 |
 

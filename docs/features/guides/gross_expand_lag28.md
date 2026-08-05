@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_lag28_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.002558 巨人网络** |
 | 开仓 | 2025-06-13，约 19.25 元 |
 | 清仓 | 2025-08-22，约 30.03 元 |
-| 单腿涨跌 | **55.96%** |
+| 单笔涨跌 | **55.96%** |
 | 当日组合贡献 | NAV 7.00% |
 | 出场备注 | hold_end；买入2025-06-13 成本价19.2535 |
 

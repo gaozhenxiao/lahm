@@ -18,7 +18,7 @@
 
 信号实现：`signal_gross_high_np_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_high_np_roe10_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sz.002709** |
 | 开仓 | 2020-09-17，约 13.71 元 |
 | 清仓 | 2020-12-07，约 21.47 元 |
-| 单腿涨跌 | **56.59%** |
+| 单笔涨跌 | **56.59%** |
 | 当日组合贡献 | NAV 7.07% |
 | 出场备注 | hold_end；买入2020-09-17 成本价13.7131 |
 

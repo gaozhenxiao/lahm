@@ -18,7 +18,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_champ_roe10_trade_history.csv`
 
@@ -27,7 +27,7 @@
 | 标的 | **sz.300274 阳光电源** |
 | 开仓 | 2020-12-10，约 38.69 元 |
 | 清仓 | 2021-03-01，约 61.24 元 |
-| 单腿涨跌 | **58.27%** |
+| 单笔涨跌 | **58.27%** |
 | 当日组合贡献 | NAV 7.28% |
 | 出场备注 | hold_end；买入2020-12-10 成本价38.6916 |
 

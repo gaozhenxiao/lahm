@@ -13,7 +13,7 @@
 
 信号实现：`signal_turn_surge_ma_reclaim`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/turn_surge_ma_reclaim_trade_history.csv`
 
@@ -22,7 +22,7 @@
 | 标的 | **sz.000725** |
 | 开仓 | 2019-02-11，约 2.411 元 |
 | 清仓 | 2019-03-04，约 3.801 元 |
-| 单腿涨跌 | **57.66%** |
+| 单笔涨跌 | **57.66%** |
 | 当日组合贡献 | NAV 7.21% |
 | 出场备注 | hold_end；买入2019-02-11 成本价2.4106 |
 

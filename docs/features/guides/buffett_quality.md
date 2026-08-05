@@ -16,7 +16,7 @@
 
 信号实现：`signal_buffett_quality`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/buffett_quality_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sz.300442** |
 | 开仓 | 2025-12-09，约 50.05 元 |
 | 清仓 | 2026-01-22，约 77.81 元 |
-| 单腿涨跌 | **55.46%** |
+| 单笔涨跌 | **55.46%** |
 | 当日组合贡献 | NAV 6.93% |
 | 出场备注 | hold_end；买入2025-12-09 成本价50.0512 |
 

@@ -15,7 +15,7 @@
 
 信号实现：`signal_quality_mom_breakout`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/quality_mom_breakout_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sh.600346** |
 | 开仓 | 2020-12-24，约 23.72 元 |
 | 清仓 | 2021-01-22，约 36.84 元 |
-| 单腿涨跌 | **55.28%** |
+| 单笔涨跌 | **55.28%** |
 | 当日组合贡献 | NAV 6.91% |
 | 出场备注 | hold_end；买入2020-12-24 成本价23.7235 |
 

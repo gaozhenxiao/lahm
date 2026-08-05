@@ -17,7 +17,7 @@ EPS双确认 × brk80 × hold52。
 
 信号实现：`signal_eps_dual_confirm_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/eps_dual_lag28_brk80_hold52_trade_history.csv`
 
@@ -26,7 +26,7 @@ EPS双确认 × brk80 × hold52。
 | 标的 | **sz.002028 思源电气** |
 | 开仓 | 2025-09-17，约 96.97 元 |
 | 清仓 | 2025-12-08，约 154.4 元 |
-| 单腿涨跌 | **59.20%** |
+| 单笔涨跌 | **59.20%** |
 | 当日组合贡献 | NAV 7.40% |
 | 出场备注 | hold_end；买入2025-09-17 成本价96.9693 |
 

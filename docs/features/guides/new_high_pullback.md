@@ -14,7 +14,7 @@
 
 信号实现：`signal_new_high_pullback`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/new_high_pullback_trade_history.csv`
 
@@ -23,7 +23,7 @@
 | 标的 | **sh.601618** |
 | 开仓 | 2021-08-23，约 3.467 元 |
 | 清仓 | 2021-09-13，约 5.411 元 |
-| 单腿涨跌 | **56.08%** |
+| 单笔涨跌 | **56.08%** |
 | 当日组合贡献 | NAV 7.01% |
 | 出场备注 | hold_end；买入2021-08-23 成本价3.4669 |
 

@@ -232,10 +232,10 @@ class Settings(BaseSettings):
     QUOTES_BACKFILL_ON_STARTUP: bool = Field(default=True)
     QUOTES_BACKFILL_ON_OFFHOURS: bool = Field(default=True)
 
-    # 本地 Wind 风格 A 股财务 SQLite（三大表/预告/快报）；空则自动找项目根 1.0_*.db
+    # 本地 Wind 风格 A 股财务 SQLite；空则自动找 data/factors/_shared/1.0_*.db
     ASHARE_FIN_DB: str = Field(
         default="",
-        description="本地 A 股财务数据库路径（如 D:/data/1.0_A股财务数据库.db）",
+        description="本地 A 股财务数据库路径（如 data/factors/_shared/1.0_A股财务数据库.db）",
     )
 
     # 国家队因子：启动刷新 + 定时刷新（点信号写入 Mongo）
@@ -250,6 +250,50 @@ class Settings(BaseSettings):
     NATIONAL_TEAM_FACTOR_REFRESH_CRON: str = Field(
         default="30 18 * * 1-5",
         description="national_team 点信号刷新 Cron（默认工作日 18:30）",
+    )
+
+    # 因子机会列表：定时重算（遇分析任务则用默认 DeepSeek）
+    FACTOR_SIGNALS_AUTO_REFRESH_ENABLED: bool = Field(
+        default=True,
+        description="是否定时重算因子今日机会信号",
+    )
+    FACTOR_SIGNALS_AUTO_REFRESH_CRON: str = Field(
+        default="0 12,19 * * *",
+        description="因子机会信号刷新 Cron（默认每天 12:00 与 19:00）",
+    )
+    FACTOR_SIGNALS_AUTO_REFRESH_INTERVAL_HOURS: int = Field(
+        default=0,
+        description="若 >0 则用固定小时间隔覆盖 Cron（0=仅用 Cron）",
+    )
+
+    # 公告/业绩预告/快报监控（对齐同花顺栏目；采集走东财 AKShare）
+    DISCLOSURE_POLL_ENABLED: bool = Field(
+        default=True,
+        description="是否启用公告监控轮询",
+    )
+    DISCLOSURE_POLL_INTERVAL_MINUTES: int = Field(
+        default=10,
+        description="公告监控轮询间隔（分钟）；仅在 07-08 / 11:30-13 / 19-21 窗口内真正执行",
+    )
+    DISCLOSURE_POLL_LOOKBACK_DAYS: int = Field(
+        default=1,
+        description="有效公告日天数：1=仅当天（默认，公告仅1个交易日有效）；2=含昨日",
+    )
+    DISCLOSURE_LLM_FILTER_ENABLED: bool = Field(
+        default=True,
+        description="规则未命中的公告速递是否调用 DeepSeek 二次筛选",
+    )
+    DISCLOSURE_LLM_MAX_PER_RUN: int = Field(
+        default=20,
+        description="单次轮询最多送 LLM 的公告条数（控成本）",
+    )
+    DISCLOSURE_TRIGGER_FACTORS: bool = Field(
+        default=True,
+        description="发现有用新增后是否触发业绩相关因子重算",
+    )
+    DISCLOSURE_FACTOR_TIMEOUT_SEC: int = Field(
+        default=1200,
+        description="因子重算超时秒数",
     )
 
     # 实时行情接口轮换配置

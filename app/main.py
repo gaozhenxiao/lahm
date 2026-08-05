@@ -28,8 +28,11 @@ from pathlib import Path
 from app.core.config import settings
 from app.core.database import init_db, close_db
 from app.core.logging_config import setup_logging
-from app.routers import auth_db as auth, analysis, screening, queue, sse, health, favorites, config, reports, database, operation_logs, tags, tushare_init, akshare_init, baostock_init, historical_data, multi_period_sync, financial_data, news_data, social_media, internal_messages, usage_statistics, model_capabilities, cache, logs
+from app.routers import auth_db as auth, analysis, screening, queue, sse, health, favorites, config, reports, database, operation_logs, tags, tushare_init, akshare_init, baostock_init, historical_data, multi_period_sync, financial_data, news_data, social_media, internal_messages, usage_statistics, model_capabilities, cache, logs, disclosure_monitor, cats_bridge
+from app.routers import news_radar as news_radar_router
 from app.routers import leads as leads_router, factors as factors_router, investments as investments_router
+from app.routers import cb as cb_router
+from app.routers import strategies as strategies_router
 from app.routers import sync as sync_router, multi_source_sync
 from app.routers import stocks as stocks_router
 from app.routers import stock_data as stock_data_router
@@ -614,6 +617,121 @@ async def lifespan(app: FastAPI):
                 settings.TIMEZONE,
             )
 
+        # 因子机会信号定时重算（日线/财务更新后；分析任务默认走 DeepSeek）
+        async def run_factor_signals_auto_refresh(reason: str = "cron"):
+            import asyncio
+            import subprocess
+            import sys
+            from pathlib import Path
+
+            root = Path(__file__).resolve().parent.parent
+            script = root / "scripts" / "recompute_factor_signals_today.py"
+            if not script.exists():
+                logger.warning("因子机会重算脚本不存在: %s", script)
+                return
+            asof = datetime.now().strftime("%Y-%m-%d")
+            cmd = [sys.executable, str(script), "--asof", asof]
+            logger.info("📈 开始因子机会定时重算 (%s): %s", reason, " ".join(cmd))
+
+            def _run():
+                return subprocess.run(
+                    cmd,
+                    cwd=str(root),
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="ignore",
+                )
+
+            try:
+                proc = await asyncio.to_thread(_run)
+                tail = (proc.stdout or "")[-800:]
+                if proc.returncode == 0:
+                    logger.info("📈 因子机会重算完成 (%s) rc=0\n%s", reason, tail)
+                else:
+                    logger.warning(
+                        "📈 因子机会重算失败 (%s) rc=%s\n%s\n%s",
+                        reason,
+                        proc.returncode,
+                        tail,
+                        (proc.stderr or "")[-500:],
+                    )
+            except Exception as e:  # noqa: BLE001
+                logger.error("📈 因子机会重算异常 (%s): %s", reason, e)
+
+        interval_h = int(getattr(settings, "FACTOR_SIGNALS_AUTO_REFRESH_INTERVAL_HOURS", 0) or 0)
+        if interval_h > 0:
+            trigger = IntervalTrigger(hours=interval_h, timezone=settings.TIMEZONE)
+            trigger_desc = f"每 {interval_h} 小时"
+        else:
+            trigger = CronTrigger.from_crontab(
+                settings.FACTOR_SIGNALS_AUTO_REFRESH_CRON,
+                timezone=settings.TIMEZONE,
+            )
+            trigger_desc = settings.FACTOR_SIGNALS_AUTO_REFRESH_CRON
+        scheduler.add_job(
+            run_factor_signals_auto_refresh,
+            trigger,
+            id="factor_signals_auto_refresh",
+            name="因子机会信号定时重算",
+            kwargs={"reason": "auto"},
+        )
+        if not settings.FACTOR_SIGNALS_AUTO_REFRESH_ENABLED:
+            scheduler.pause_job("factor_signals_auto_refresh")
+            logger.info("⏸️ 因子机会定时重算已添加但暂停: %s", trigger_desc)
+        else:
+            logger.info("📈 因子机会定时重算: %s (%s)", trigger_desc, settings.TIMEZONE)
+
+        # 公告/预告/快报监控：窗口内每 N 分钟拉取，与本地对比后触发相关因子
+        async def run_disclosure_poll_job(reason: str = "interval"):
+            import asyncio
+
+            from app.services.disclosure_monitor_service import run_disclosure_poll
+
+            try:
+                stats = await asyncio.to_thread(
+                    run_disclosure_poll,
+                    force=False,
+                    lookback_days=int(settings.DISCLOSURE_POLL_LOOKBACK_DAYS),
+                )
+                if stats.get("skipped"):
+                    logger.debug("disclosure poll skipped (%s): %s", reason, stats.get("reason"))
+                else:
+                    logger.info(
+                        "📢 公告监控完成 (%s): fetched=%s new=%s useful=%s",
+                        reason,
+                        stats.get("fetched"),
+                        stats.get("new"),
+                        stats.get("useful"),
+                    )
+            except Exception as e:  # noqa: BLE001
+                logger.error("📢 公告监控失败 (%s): %s", reason, e)
+
+        scheduler.add_job(
+            run_disclosure_poll_job,
+            IntervalTrigger(
+                minutes=int(settings.DISCLOSURE_POLL_INTERVAL_MINUTES),
+                timezone=settings.TIMEZONE,
+            ),
+            id="disclosure_poll",
+            name="公告预告快报监控（窗口内10分钟）",
+            kwargs={"reason": "interval"},
+            max_instances=1,
+            coalesce=True,
+        )
+        if not settings.DISCLOSURE_POLL_ENABLED:
+            scheduler.pause_job("disclosure_poll")
+            logger.info(
+                "⏸️ 公告监控已添加但暂停: 每 %sm",
+                settings.DISCLOSURE_POLL_INTERVAL_MINUTES,
+            )
+        else:
+            logger.info(
+                "📢 公告监控: 每 %s 分钟（窗口 07-08/11:30-13/19-21，%s）",
+                settings.DISCLOSURE_POLL_INTERVAL_MINUTES,
+                settings.TIMEZONE,
+            )
+
         scheduler.start()
 
         # 设置调度器实例到服务中，以便API可以管理任务
@@ -732,11 +850,14 @@ app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
 app.include_router(reports.router, tags=["reports"])
+app.include_router(news_radar_router.router, tags=["news-radar"])
 app.include_router(screening.router, prefix="/api/screening", tags=["screening"])
 app.include_router(queue.router, prefix="/api/queue", tags=["queue"])
 app.include_router(favorites.router, prefix="/api", tags=["favorites"])
 app.include_router(leads_router.router, prefix="/api", tags=["leads"])
 app.include_router(factors_router.router, prefix="/api", tags=["factors"])
+app.include_router(cb_router.router, prefix="/api", tags=["convertible-bonds"])
+app.include_router(strategies_router.router, prefix="/api", tags=["strategies"])
 app.include_router(investments_router.router, prefix="/api", tags=["investments"])
 app.include_router(stocks_router.router, prefix="/api", tags=["stocks"])
 app.include_router(multi_market_stocks_router.router, prefix="/api", tags=["multi-market"])
@@ -774,6 +895,8 @@ app.include_router(historical_data.router, tags=["historical-data"])
 app.include_router(multi_period_sync.router, tags=["multi-period-sync"])
 app.include_router(financial_data.router, tags=["financial-data"])
 app.include_router(news_data.router, tags=["news-data"])
+app.include_router(disclosure_monitor.router, tags=["disclosure-monitor"])
+app.include_router(cats_bridge.router, tags=["cats-bridge"])
 app.include_router(social_media.router, tags=["social-media"])
 app.include_router(internal_messages.router, tags=["internal-messages"])
 

@@ -18,7 +18,7 @@ np_up × brk80 × hold52。
 
 信号实现：`signal_gross_np_up_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_np_up_brk80_hold52_trade_history.csv`
 
@@ -27,7 +27,7 @@ np_up × brk80 × hold52。
 | 标的 | **sh.600183 生益科技** |
 | 开仓 | 2026-05-12，约 85.14 元 |
 | 清仓 | 2026-07-24，约 118.7 元 |
-| 单腿涨跌 | **39.42%** |
+| 单笔涨跌 | **39.42%** |
 | 当日组合贡献 | NAV 4.93% |
 | 出场备注 | hold_end；买入2026-05-12 成本价85.1442 |
 

@@ -15,7 +15,7 @@
 
 信号实现：`signal_dual_improve_base_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/dual_mid_hold52_trade_history.csv`
 
@@ -24,7 +24,7 @@
 | 标的 | **sz.000708** |
 | 开仓 | 2019-08-20，约 6.386 元 |
 | 清仓 | 2019-11-08，约 9.808 元 |
-| 单腿涨跌 | **53.60%** |
+| 单笔涨跌 | **53.60%** |
 | 当日组合贡献 | NAV 6.70% |
 | 出场备注 | hold_end；买入2019-08-20 成本价6.3858 |
 

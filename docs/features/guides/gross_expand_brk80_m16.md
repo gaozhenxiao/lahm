@@ -16,7 +16,7 @@
 
 信号实现：`signal_gross_expand_break`（`app/services/factors/signal_specs.py`）。
 
-## 举例：回测里真实成交的一腿
+## 举例：回测里真实成交的一笔
 
 来源：`data/factors/gross_expand_brk80_m16_trade_history.csv`
 
@@ -25,7 +25,7 @@
 | 标的 | **sh.601633 长城汽车** |
 | 开仓 | 2020-11-04，约 25.49 元 |
 | 清仓 | 2021-01-15，约 40.01 元 |
-| 单腿涨跌 | **56.96%** |
+| 单笔涨跌 | **56.96%** |
 | 当日组合贡献 | NAV 7.12% |
 | 出场备注 | hold_end；买入2020-11-04 成本价25.4926 |
 
