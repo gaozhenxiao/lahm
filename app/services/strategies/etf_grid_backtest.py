@@ -18,7 +18,11 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
-from app.services.factors.dividend_etf_swing import load_or_fetch_etf
+from app.services.factors.dividend_etf_swing import (
+    dividends_as_series,
+    fetch_etf_dividends,
+    load_or_fetch_etf,
+)
 
 logger = logging.getLogger("webapi.strategies.etf_grid_backtest")
 
@@ -73,6 +77,9 @@ DEFAULT_PARAMS_V3: Dict[str, Any] = {
     "drift_daily": 0.0,
     "start": "2018-01-01",
     "cash_annual": 0.014,
+    # 不复权价成交；持仓按份额收现金分红，分红进现金并可再买网格档
+    "price_adjust": "",
+    "dividend_reinvest": True,
 }
 
 
@@ -457,6 +464,8 @@ def run_grid_backtest_slope_up(
     commission_rate: float = 0.0001,
     stamp_tax_sell: float = 0.0,
     cash_annual: float = 0.014,
+    dividends: Optional[pd.Series] = None,
+    dividend_reinvest: bool = True,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, Dict[str, Any]]:
     """向上倾斜网格。
 
@@ -464,6 +473,8 @@ def run_grid_backtest_slope_up(
     - 相对中枢跌超 step → 加仓一档；涨超 step → 减仓一档
     - 减仓时不少于 min_layers（保留向上底座，避免卖成空仓错过慢牛）
     - 初始建仓 max(min_layers, n_grids//2) 档
+    - 行情用不复权收盘价；除息日按隔夜持仓份额发放现金分红，默认进入现金并可再买网格
+    - 买入持有对照同样计入分红并再投资（分红当日收盘加仓）
     """
     px = df.copy()
     px["date"] = pd.to_datetime(px["date"], errors="coerce")
@@ -477,13 +488,37 @@ def run_grid_backtest_slope_up(
     unit = 1.0 / n_grids
     ma = px["close"].astype(float).rolling(int(ma_center)).mean()
 
+    div_map: Dict[pd.Timestamp, float] = {}
+    if dividends is not None and len(dividends) > 0:
+        s = dividends.copy()
+        s.index = pd.to_datetime(s.index)
+        for dt, v in s.items():
+            try:
+                fv = float(v)
+            except Exception:  # noqa: BLE001
+                continue
+            if fv > 0:
+                div_map[pd.Timestamp(dt).normalize()] = fv
+
     cash = 1.0
     lots: List[float] = []
     center: Optional[float] = None
     trades: List[Dict[str, Any]] = []
     rows: List[Dict[str, Any]] = []
+    total_div_cash = 0.0
+    n_div_events = 0
+    total_cash_interest = 0.0
+    # 空闲现金按货币基金近似计息（交易日复利）
+    cash_d = (1.0 + float(cash_annual)) ** (1.0 / 252.0) - 1.0 if cash_annual else 0.0
 
-    def _buy(price: float, d) -> None:
+    # 买入持有：分红再投资
+    bh_cash = 0.0
+    bh_shares = 0.0
+    bh_started = False
+    bh_div_cash = 0.0
+    bh_cash_interest = 0.0
+
+    def _buy(price: float, d, *, note: str = "") -> None:
         nonlocal cash
         if len(lots) >= n_grids or cash < unit * 0.5:
             return
@@ -494,7 +529,17 @@ def run_grid_backtest_slope_up(
         shares = (spend - fee) / price
         cash -= spend
         lots.append(shares)
-        trades.append({"date": d, "side": "buy", "price": price, "shares": shares, "layers": len(lots), "center": center})
+        trades.append(
+            {
+                "date": d,
+                "side": "buy",
+                "price": price,
+                "shares": shares,
+                "layers": len(lots),
+                "center": center,
+                "note": note,
+            }
+        )
 
     def _sell(price: float, d) -> None:
         nonlocal cash
@@ -504,14 +549,57 @@ def run_grid_backtest_slope_up(
         gross = shares * price
         fee = gross * (commission_rate + stamp_tax_sell)
         cash += gross - fee
-        trades.append({"date": d, "side": "sell", "price": price, "shares": shares, "layers": len(lots), "center": center})
+        trades.append(
+            {
+                "date": d,
+                "side": "sell",
+                "price": price,
+                "shares": shares,
+                "layers": len(lots),
+                "center": center,
+                "note": "",
+            }
+        )
 
     for i in range(len(px)):
         d = px.at[i, "date"]
+        d_norm = pd.Timestamp(d).normalize()
         price = float(px.at[i, "close"])
         if price <= 0 or np.isnan(price):
             continue
         ma_i = float(ma.at[i]) if pd.notna(ma.at[i]) else price
+        day_div = 0.0
+        day_interest = 0.0
+
+        # 隔夜现金计息（网格；首日前无持仓也计初始现金）
+        if cash_d > 0 and cash > 0:
+            day_interest = cash * cash_d
+            cash += day_interest
+            total_cash_interest += day_interest
+        if cash_d > 0 and bh_cash > 0:
+            bi = bh_cash * cash_d
+            bh_cash += bi
+            bh_cash_interest += bi
+
+        # 除息：隔夜持仓领取现金分红（网格）
+        dps = float(div_map.get(d_norm, 0.0) or 0.0)
+        if dps > 0 and lots:
+            held = float(sum(lots))
+            day_div = held * dps
+            cash += day_div
+            total_div_cash += day_div
+            n_div_events += 1
+            trades.append(
+                {
+                    "date": d,
+                    "side": "dividend",
+                    "price": dps,
+                    "shares": held,
+                    "layers": len(lots),
+                    "center": center,
+                    "note": f"现金分红 dps={dps:.4f} cash+={day_div:.6f}",
+                }
+            )
 
         if center is None:
             center = price
@@ -527,15 +615,39 @@ def run_grid_backtest_slope_up(
 
             guard = 0
             while len(lots) < n_grids and price <= center * (1.0 - step) and guard < n_grids:
-                _buy(price, d)
+                _buy(price, d, note="grid" if day_div <= 0 else "grid_reinvest_div")
                 guard += 1
             guard = 0
             while len(lots) > min_layers and price >= center * (1.0 + step) and guard < n_grids:
                 _sell(price, d)
                 guard += 1
 
+            # 分红进现金后若未触发网格加档，仍可用剩余现金尽量加一档（再投入）
+            if dividend_reinvest and day_div > 0 and len(lots) < n_grids and cash >= unit * 0.5:
+                _buy(price, d, note="div_reinvest")
+
+        # 买入持有对照（分红再投资）
+        if not bh_started:
+            spend = 1.0
+            fee = spend * commission_rate
+            bh_shares = (spend - fee) / price
+            bh_cash = 0.0
+            bh_started = True
+        else:
+            if dps > 0 and bh_shares > 0:
+                got = bh_shares * dps
+                bh_cash += got
+                bh_div_cash += got
+            if dividend_reinvest and bh_cash > 1e-12:
+                fee = bh_cash * commission_rate
+                buyable = bh_cash - fee
+                if buyable > 0:
+                    bh_shares += buyable / price
+                    bh_cash = 0.0
+
         pos_val = sum(s * price for s in lots)
         equity = cash + pos_val
+        bh_equity = bh_cash + bh_shares * price
         rows.append(
             {
                 "date": d,
@@ -546,6 +658,9 @@ def run_grid_backtest_slope_up(
                 "equity": equity,
                 "layers": len(lots),
                 "exposure": pos_val / equity if equity > 1e-12 else 0.0,
+                "dividend_cash": day_div,
+                "cash_interest": day_interest,
+                "bh_equity": bh_equity,
             }
         )
 
@@ -553,15 +668,19 @@ def run_grid_backtest_slope_up(
     if daily.empty:
         return daily, pd.DataFrame(), {"error": "empty_daily"}
 
-    bh0 = float(px.iloc[0]["close"])
-    bh_shares = (1.0 * (1.0 - commission_rate)) / bh0
-    daily["bh_equity"] = bh_shares * daily["close"]
-    daily.loc[daily.index[-1], "bh_equity"] *= 1.0 - commission_rate
+    # 末日卖出摩擦（对照）
+    if len(daily) and bh_shares > 0:
+        last_px = float(daily["close"].iloc[-1])
+        daily.loc[daily.index[-1], "bh_equity"] = (
+            bh_cash + bh_shares * last_px * (1.0 - commission_rate)
+        )
 
     daily = daily.set_index("date", drop=False)
     grid_m = _metrics(daily["equity"], ann_cash=cash_annual)
     bh_m = _metrics(daily["bh_equity"], ann_cash=cash_annual)
     trade_df = pd.DataFrame(trades)
+    n_buys = int((trade_df["side"] == "buy").sum()) if not trade_df.empty else 0
+    n_sells = int((trade_df["side"] == "sell").sum()) if not trade_df.empty else 0
     summary = {
         "version": "v3_slope_up",
         "step_pct": step,
@@ -569,9 +688,17 @@ def run_grid_backtest_slope_up(
         "min_layers": min_layers,
         "ma_center": int(ma_center),
         "drift_daily": float(drift_daily),
-        "n_trades": int(len(trade_df)),
-        "n_buys": int((trade_df["side"] == "buy").sum()) if not trade_df.empty else 0,
-        "n_sells": int((trade_df["side"] == "sell").sum()) if not trade_df.empty else 0,
+        "price_adjust": "raw",
+        "dividend_reinvest": bool(dividend_reinvest),
+        "cash_annual": float(cash_annual),
+        "n_dividend_events": int(n_div_events),
+        "total_dividend_cash": round(float(total_div_cash), 6),
+        "total_cash_interest": round(float(total_cash_interest), 6),
+        "bh_total_dividend_cash": round(float(bh_div_cash), 6),
+        "bh_total_cash_interest": round(float(bh_cash_interest), 6),
+        "n_trades": int(n_buys + n_sells),
+        "n_buys": n_buys,
+        "n_sells": n_sells,
         "final_layers": int(daily["layers"].iloc[-1]),
         "final_center": float(daily["center"].iloc[-1]),
         "grid": grid_m,
@@ -602,11 +729,17 @@ def backtest_symbol(
         base = DEFAULT_PARAMS
     p = {**base, **(params or {})}
     step = float(step_pct if step_pct is not None else p["step_pct"])
+    # v3：不复权成交 + 现金分红再投入；其它版本保持原口径
+    if version == "v3":
+        adjust = str(p.get("price_adjust") or "")
+    else:
+        adjust = str(p.get("price_adjust") or "")
     df = load_or_fetch_etf(
         code,
         start=start.replace("-", ""),
         end=(end or datetime.now().strftime("%Y%m%d")).replace("-", ""),
         force=force_fetch,
+        adjust=adjust,
     )
     if df is None or df.empty:
         return {"code": code, "name": name, "error": "no_data"}
@@ -617,6 +750,10 @@ def backtest_symbol(
         df = df[df["date"] <= pd.Timestamp(end)]
 
     if version == "v3":
+        div_series = None
+        if bool(p.get("dividend_reinvest", True)):
+            div_df = fetch_etf_dividends(code, force=force_fetch)
+            div_series = dividends_as_series(div_df)
         daily, trades, summary = run_grid_backtest_slope_up(
             df,
             step_pct=step,
@@ -627,6 +764,8 @@ def backtest_symbol(
             commission_rate=float(p["commission_rate"]),
             stamp_tax_sell=float(p["stamp_tax_sell"]),
             cash_annual=float(p.get("cash_annual") or 0.014),
+            dividends=div_series,
+            dividend_reinvest=bool(p.get("dividend_reinvest", True)),
         )
     elif version == "v2":
         daily, trades, summary = run_grid_backtest_v2(
@@ -714,6 +853,9 @@ def run_dividend_grid_batch(
             "group": "dividend" if code in {x[0] for x in DIVIDEND_ETFS} else "compare",
             "step_pct": r.get("step_pct"),
             "n_trades": r.get("n_trades"),
+            "n_dividend_events": r.get("n_dividend_events"),
+            "total_dividend_cash": r.get("total_dividend_cash"),
+            "total_cash_interest": r.get("total_cash_interest"),
             "grid_cagr": g.get("cagr"),
             "grid_sharpe": g.get("sharpe"),
             "grid_max_dd": g.get("max_dd"),
@@ -738,11 +880,13 @@ def run_dividend_grid_batch(
         table = table.sort_values(["group", "grid_sharpe"], ascending=[True, False])
 
     if version == "v3":
-        rule = "v3 向上倾斜网格：中枢=max(旧, MA90) 只升不降；默认 10 档/步长0.8%/底仓≥2"
+        rule = "v3 向上倾斜网格：中枢=max(旧, MA90) 只升不降；默认 10 档/步长0.8%/底仓≥2；现金分红再投入"
         notes = [
             "扫描后默认：step=0.8%、min_layers=2、n_grids=10、ma_center=90。",
             "中枢只跟均线上移（不贴日线），回踩加仓、冲高减仓但不卖光底座。",
-            "非对称买卖步长提升有限；优先调步长/档数/均线窗口。",
+            "不复权价成交；除息日按持仓份额发放现金分红，进入现金并可再买网格档。",
+            "空闲现金按约1.4%年化（交易日复利）计息，计入净值；买入持有对照同样分红再投资。",
+            "分红数据来自新浪ETF累计分红差分。",
         ]
         base_params = DEFAULT_PARAMS_V3
     elif version == "v2":

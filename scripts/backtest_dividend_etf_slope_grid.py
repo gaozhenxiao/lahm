@@ -160,6 +160,7 @@ def main() -> None:
             "红利ETF向上倾斜网格：中枢=max(旧, MA90) 只升不降",
             f"默认 step={params['step_pct']*100:.1f}% / grids={params['n_grids']} / min_layers={params['min_layers']} / MA{params['ma_center']}",
             "相对中枢跌超步长加仓、涨超步长减仓；底仓不少于 min_layers",
+            "不复权成交；除息日按持仓份额发现金分红并再投入网格；买入持有对照同步再投资",
             "ETF免印花税；佣金万一；与策略「红利倾斜网格」同源",
         ],
     }

@@ -17,7 +17,12 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from app.services.factors.dividend_etf_swing import load_or_fetch_etf, resolve_etf_panel
+from app.services.factors.dividend_etf_swing import (
+    dividends_as_series,
+    fetch_etf_dividends,
+    load_or_fetch_etf,
+    resolve_etf_panel,
+)
 from app.services.strategies.etf_grid_backtest import (
     DEFAULT_PARAMS_V3,
     run_grid_backtest_slope_up,
@@ -31,6 +36,9 @@ FACTOR_ID = "dividend_etf_slope_grid"
 DEFAULT_PARAMS: Dict[str, Any] = {
     "etf_code": "515080",
     "fallback_etfs": ["512890", "510880", "515180"],
+    # 不复权成交；现金分红按持仓份额入账并再投入
+    "price_adjust": "",
+    "dividend_reinvest": True,
     "n_grids": int(DEFAULT_PARAMS_V3["n_grids"]),
     "step_pct": float(DEFAULT_PARAMS_V3["step_pct"]),
     "min_layers": int(DEFAULT_PARAMS_V3["min_layers"]),
@@ -70,9 +78,23 @@ def _to_ui_trades(
         price = float(t["price"])
         layers = int(t.get("layers") or 0)
         center = t.get("center")
-        action = "加仓" if side == "buy" else "减仓"
-        exp = round(layers * unit, 4)
+        if side == "dividend":
+            action = "分红"
+            exp = prev_exp
+        elif side == "buy":
+            action = "加仓"
+            exp = round(layers * unit, 4)
+        else:
+            action = "减仓"
+            exp = round(layers * unit, 4)
         eq = float(eq_map.get(dt, np.nan))
+        note = str(t.get("note") or "")
+        if not note:
+            note = (
+                f"倾斜网格·中枢{float(center):.4f}·当前{layers}档"
+                if center is not None and pd.notna(center)
+                else f"倾斜网格·当前{layers}档"
+            )
         rows.append(
             {
                 "date": dt,
@@ -81,20 +103,16 @@ def _to_ui_trades(
                 "action": action,
                 "side": side,
                 "price": round(price, 4),
-                "close": round(price, 4),
+                "close": round(price, 4) if side != "dividend" else "",
                 "layers": layers,
                 "center": round(float(center), 4) if center is not None and pd.notna(center) else "",
-                "buy_position": round(unit, 4),
+                "buy_position": round(unit, 4) if side != "dividend" else "",
                 "position_before": round(prev_exp, 4),
                 "position_after": exp,
                 "delta": round(exp - prev_exp, 4),
                 "equity": round(eq, 4) if np.isfinite(eq) else "",
                 "nav_pnl": "",
-                "note": (
-                    f"倾斜网格·中枢{float(center):.4f}·当前{layers}档"
-                    if center is not None and pd.notna(center)
-                    else f"倾斜网格·当前{layers}档"
-                ),
+                "note": note,
             }
         )
         prev_exp = exp
@@ -149,14 +167,16 @@ def run_backtest(
     code = str(p.get("etf_code") or "515080")
     start = start or str(p.get("start") or "2018-01-01")
 
-    # 优先走 resolve（含 fallback），再按指定代码强制拉取
-    resolved_code, raw = resolve_etf_panel(p, force=force_fetch)
+    adjust = str(p.get("price_adjust") or "")
+    # 优先走 resolve（含 fallback），再按指定代码强制拉取；倾斜网格用未复权价
+    resolved_code, raw = resolve_etf_panel({**p, "price_adjust": adjust}, force=force_fetch)
     if raw.empty:
         raw = load_or_fetch_etf(
             code,
             start=start.replace("-", ""),
             end=(end or datetime.now().strftime("%Y%m%d")).replace("-", ""),
             force=force_fetch,
+            adjust=adjust,
         )
         resolved_code = code
     else:
@@ -173,6 +193,12 @@ def run_backtest(
         px = px[px["date"] <= pd.Timestamp(end)]
     px = px.reset_index(drop=True)
 
+    div_series = None
+    if bool(p.get("dividend_reinvest", True)):
+        # 代码里若带代理后缀，取数字代码拉分红
+        div_code = "".join(ch for ch in str(code) if ch.isdigit())[:6] or str(p.get("etf_code") or "515080")
+        div_series = dividends_as_series(fetch_etf_dividends(div_code, force=force_fetch))
+
     daily_raw, trades_raw, eng = run_grid_backtest_slope_up(
         px,
         step_pct=float(p["step_pct"]),
@@ -183,6 +209,8 @@ def run_backtest(
         commission_rate=float(p["commission_rate"]),
         stamp_tax_sell=float(p["stamp_tax_sell"]),
         cash_annual=float(p.get("cash_annual") or 0.014),
+        dividends=div_series,
+        dividend_reinvest=bool(p.get("dividend_reinvest", True)),
     )
     if eng.get("error") or daily_raw is None or daily_raw.empty:
         return pd.DataFrame(), {**eng, "etf_code": code, "error": eng.get("error") or "empty"}, pd.DataFrame()
@@ -219,9 +247,18 @@ def run_backtest(
         "ma_center": eng.get("ma_center"),
         "commission_rate": float(p["commission_rate"]),
         "stamp_tax_sell": float(p["stamp_tax_sell"]),
+        "price_adjust": adjust or "raw",
+        "dividend_reinvest": bool(p.get("dividend_reinvest", True)),
+        "n_dividend_events": eng.get("n_dividend_events"),
+        "total_dividend_cash": eng.get("total_dividend_cash"),
+        "total_cash_interest": eng.get("total_cash_interest"),
+        "cash_annual": eng.get("cash_annual"),
         "excess_cagr": eng.get("excess_cagr"),
         "excess_sharpe": eng.get("excess_sharpe"),
-        "note": f"红利ETF倾斜网格 · {code} · step{float(p['step_pct'])*100:.1f}%/档{p['n_grids']}/底仓≥{p['min_layers']}/MA{p['ma_center']}",
+        "note": (
+            f"红利ETF倾斜网格 · {code} · 不复权+分红再投入+现金约{float(p.get('cash_annual') or 0)*100:.1f}%计息 · "
+            f"step{float(p['step_pct'])*100:.1f}%/档{p['n_grids']}/底仓≥{p['min_layers']}/MA{p['ma_center']}"
+        ),
     }
     return daily, summary, trades
 

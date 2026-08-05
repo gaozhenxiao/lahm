@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from app.services.factors.national_team import fetch_etf_hist
+from app.services.factors.national_team import _normalize_etf_adjust, fetch_etf_hist
 
 logger = logging.getLogger("webapi.factors.dividend_etf_swing")
 
@@ -47,8 +47,99 @@ DEFAULT_PARAMS: Dict[str, Any] = {
 }
 
 
-def _cache_path(symbol: str) -> Path:
+def _cache_path(symbol: str, *, adjust: str = "") -> Path:
+    adj = _normalize_etf_adjust(adjust)
+    if adj == "qfq":
+        return FACTORS_DATA / f"{symbol}_daily_qfq.parquet"
+    if adj == "hfq":
+        return FACTORS_DATA / f"{symbol}_daily_hfq.parquet"
     return FACTORS_DATA / f"{symbol}_daily.parquet"
+
+
+def _dividend_cache_path(symbol: str) -> Path:
+    return FACTORS_DATA / f"{symbol}_dividends.parquet"
+
+
+def fetch_etf_dividends(
+    symbol: str,
+    *,
+    force: bool = False,
+) -> pd.DataFrame:
+    """ETF 现金分红（除息日 / 每股分红）。来源：新浪累计分红差分。
+
+    返回列：date, dps, cum_div
+    """
+    code = str(symbol).strip()
+    path = _dividend_cache_path(code)
+    if path.exists() and not force:
+        try:
+            cached = pd.read_parquet(path)
+            cached["date"] = pd.to_datetime(cached["date"], errors="coerce")
+            cached["dps"] = pd.to_numeric(cached["dps"], errors="coerce")
+            out = cached.dropna(subset=["date", "dps"])
+            out = out[out["dps"] > 0].sort_values("date").reset_index(drop=True)
+            if not out.empty:
+                return out
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("dividend cache read %s failed: %s", path, exc)
+
+    import os
+
+    for k in list(os.environ.keys()):
+        if "proxy" in k.lower():
+            os.environ.pop(k, None)
+    os.environ["NO_PROXY"] = "*"
+
+    try:
+        import akshare as ak
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("akshare unavailable for dividends: %s", exc)
+        return pd.DataFrame(columns=["date", "dps", "cum_div"])
+
+    sina = f"sh{code}" if code.startswith(("5", "6")) else f"sz{code}"
+    try:
+        raw = ak.fund_etf_dividend_sina(symbol=sina)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("fund_etf_dividend_sina %s failed: %s", sina, exc)
+        return pd.DataFrame(columns=["date", "dps", "cum_div"])
+
+    if raw is None or raw.empty:
+        return pd.DataFrame(columns=["date", "dps", "cum_div"])
+
+    df = raw.copy()
+    # 列名可能是中文：日期 / 累计分红
+    cols = list(df.columns)
+    if len(cols) < 2:
+        return pd.DataFrame(columns=["date", "dps", "cum_div"])
+    df = df.rename(columns={cols[0]: "date", cols[1]: "cum_div"})
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["cum_div"] = pd.to_numeric(df["cum_div"], errors="coerce")
+    df = df.dropna(subset=["date", "cum_div"]).sort_values("date").reset_index(drop=True)
+    if df.empty:
+        return pd.DataFrame(columns=["date", "dps", "cum_div"])
+    df["dps"] = df["cum_div"].diff()
+    df.loc[df.index[0], "dps"] = float(df["cum_div"].iloc[0])
+    df = df[df["dps"] > 1e-8][["date", "dps", "cum_div"]].reset_index(drop=True)
+    try:
+        FACTORS_DATA.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(path, index=False)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("dividend cache write failed: %s", exc)
+    return df
+
+
+def dividends_as_series(dividends: pd.DataFrame) -> pd.Series:
+    """date -> dps。"""
+    if dividends is None or dividends.empty:
+        return pd.Series(dtype=float)
+    d = dividends.copy()
+    d["date"] = pd.to_datetime(d["date"], errors="coerce")
+    d["dps"] = pd.to_numeric(d["dps"], errors="coerce")
+    d = d.dropna(subset=["date", "dps"])
+    d = d[d["dps"] > 0]
+    if d.empty:
+        return pd.Series(dtype=float)
+    return d.set_index("date")["dps"].astype(float).sort_index()
 
 
 def load_or_fetch_etf(
@@ -57,17 +148,28 @@ def load_or_fetch_etf(
     start: str = "20160101",
     end: Optional[str] = None,
     force: bool = False,
+    adjust: str = "",
 ) -> pd.DataFrame:
     end = end or datetime.now().strftime("%Y%m%d")
-    path = _cache_path(symbol)
-    if path.exists() and not force:
+    adj = _normalize_etf_adjust(adjust)
+    path = _cache_path(symbol, adjust=adj)
+
+    def _read_ok(p: Path, *, min_rows: int = 200) -> pd.DataFrame:
+        if not p.exists():
+            return pd.DataFrame()
         try:
-            cached = pd.read_parquet(path)
+            cached = pd.read_parquet(p)
             cached["date"] = pd.to_datetime(cached["date"], errors="coerce")
-            if len(cached) >= 200:
-                return cached.dropna(subset=["date", "close"]).sort_values("date").reset_index(drop=True)
+            out = cached.dropna(subset=["date", "close"]).sort_values("date").reset_index(drop=True)
+            return out if len(out) >= min_rows else pd.DataFrame()
         except Exception as exc:  # noqa: BLE001
-            logger.warning("cache read %s failed: %s", path, exc)
+            logger.warning("cache read %s failed: %s", p, exc)
+            return pd.DataFrame()
+
+    if not force:
+        hit = _read_ok(path)
+        if not hit.empty:
+            return hit
 
     # 清理代理，避免 eastmoney/akshare 走坏掉的系统代理
     import os
@@ -77,14 +179,43 @@ def load_or_fetch_etf(
             os.environ.pop(k, None)
     os.environ["NO_PROXY"] = "*"
 
-    hist = fetch_etf_hist(symbol, start=start.replace("-", ""), end=end.replace("-", ""))
+    hist = fetch_etf_hist(
+        symbol,
+        start=start.replace("-", ""),
+        end=end.replace("-", ""),
+        adjust=adj,
+    )
     if hist is None or hist.empty:
-        hist = _fetch_etf_via_baostock(symbol, start=start, end=end)
-    if hist is None or hist.empty:
-        return pd.DataFrame()
-    hist = hist.copy()
-    hist["date"] = pd.to_datetime(hist["date"], errors="coerce")
-    hist = hist.dropna(subset=["date", "close"]).sort_values("date").reset_index(drop=True)
+        hist = _fetch_etf_via_baostock(symbol, start=start, end=end, adjust=adj)
+    if hist is None:
+        hist = pd.DataFrame()
+    else:
+        hist = hist.copy()
+        hist["date"] = pd.to_datetime(hist["date"], errors="coerce")
+        hist = hist.dropna(subset=["date", "close"]).sort_values("date").reset_index(drop=True)
+
+    # 拒绝用过短样本覆盖已有长缓存（外网抖动时 baostock 常只吐近半年）
+    old = _read_ok(path, min_rows=1)
+    if not hist.empty and not old.empty and len(hist) + 50 < len(old):
+        logger.warning(
+            "skip short fetch %s adjust=%s n=%s < cache n=%s",
+            symbol,
+            adj or "none",
+            len(hist),
+            len(old),
+        )
+        return old
+
+    # 前复权拉不到长序列时，回退本地不复权长缓存（宽基对照可接受；红利标的应尽量有 qfq）
+    if (hist.empty or len(hist) < 200) and adj == "qfq":
+        raw = _read_ok(_cache_path(symbol, adjust=""), min_rows=200)
+        if not raw.empty:
+            logger.warning("qfq unavailable for %s, fallback to raw cache n=%s", symbol, len(raw))
+            return raw
+
+    if hist.empty:
+        return old if not old.empty else pd.DataFrame()
+
     try:
         FACTORS_DATA.mkdir(parents=True, exist_ok=True)
         hist.to_parquet(path, index=False)
@@ -93,7 +224,9 @@ def load_or_fetch_etf(
     return hist
 
 
-def _fetch_etf_via_baostock(symbol: str, *, start: str, end: str) -> pd.DataFrame:
+def _fetch_etf_via_baostock(
+    symbol: str, *, start: str, end: str, adjust: str = ""
+) -> pd.DataFrame:
     try:
         import baostock as bs
     except Exception:
@@ -102,6 +235,9 @@ def _fetch_etf_via_baostock(symbol: str, *, start: str, end: str) -> pd.DataFram
     bs_code = f"sh.{code}" if code.startswith("5") else f"sz.{code}"
     start_s = pd.Timestamp(str(start).replace("-", "")).strftime("%Y-%m-%d")
     end_s = pd.Timestamp(str(end).replace("-", "")).strftime("%Y-%m-%d")
+    adj = _normalize_etf_adjust(adjust)
+    # baostock: 1后复权 2前复权 3不复权
+    adjustflag = {"qfq": "2", "hfq": "1"}.get(adj, "3")
     lg = bs.login()
     if lg.error_code != "0":
         logger.warning("baostock login failed: %s", lg.error_msg)
@@ -113,7 +249,7 @@ def _fetch_etf_via_baostock(symbol: str, *, start: str, end: str) -> pd.DataFram
             start_date=start_s,
             end_date=end_s,
             frequency="d",
-            adjustflag="3",
+            adjustflag=adjustflag,
         )
         rows = []
         while rs.error_code == "0" and rs.next():
@@ -187,6 +323,7 @@ def resolve_etf_panel(params: Optional[Dict[str, Any]] = None, *, force: bool = 
         str(x) for x in (p.get("fallback_etfs") or []) if str(x) != str(p.get("etf_code"))
     ]
     start = str(p.get("price_start") or "20160101")
+    adjust = _normalize_etf_adjust(p.get("price_adjust") or "")
 
     def _read_local(path: Path, label: str) -> Optional[Tuple[str, pd.DataFrame]]:
         if not path.exists():
@@ -207,16 +344,16 @@ def resolve_etf_panel(params: Optional[Dict[str, Any]] = None, *, force: bool = 
             logger.warning("proxy read %s failed: %s", path, exc)
         return None
 
-    # 1) 已有 ETF 本地缓存
+    # 1) 已有 ETF 本地缓存（按复权口径分文件）
     for code in candidates:
-        cached = _read_local(_cache_path(code), code)
+        cached = _read_local(_cache_path(code, adjust=adjust), code)
         if cached is not None:
             return cached
 
     # 2) 尝试在线拉取（可能因代理/黑名单失败）
     if not bool(int((__import__("os").environ.get("DIVIDEND_ETF_OFFLINE") or "0"))):
         for code in candidates:
-            df = load_or_fetch_etf(code, start=start, force=force)
+            df = load_or_fetch_etf(code, start=start, force=force, adjust=adjust)
             if df is not None and len(df) >= 260:
                 return code, df
 

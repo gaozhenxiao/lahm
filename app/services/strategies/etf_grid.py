@@ -4,6 +4,7 @@
 规则（回测最优默认）：
 - 中枢 center = max(历史中枢, MA90)，只升不降（扫描端用当日 MA90 近似）
 - 步长 0.8%；10 档；至少保留 2 档底仓
+- 不复权价交易；持仓现金分红计入并可再投入网格
 - 标的以红利 ETF 为主
 """
 from __future__ import annotations
@@ -49,7 +50,7 @@ def _ma_center(code: str) -> Optional[float]:
     try:
         from app.services.factors.dividend_etf_swing import load_or_fetch_etf
 
-        df = load_or_fetch_etf(code, start="20180101", force=False)
+        df = load_or_fetch_etf(code, start="20180101", force=False, adjust="")
         if df is None or df.empty or "close" not in df.columns:
             return None
         s = df.sort_values("date")["close"].astype(float)

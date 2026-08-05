@@ -52,12 +52,29 @@ def _safe_import_ak():
         return None
 
 
-def _etf_hist_via_eastmoney(symbol: str, start: str, end: str) -> pd.DataFrame:
+def _normalize_etf_adjust(adjust: Optional[str]) -> str:
+    """统一复权口径：''/none=不复权，qfq=前复权，hfq=后复权。"""
+    a = str(adjust or "").strip().lower()
+    if a in ("", "none", "raw", "0", "no", "false"):
+        return ""
+    if a in ("qfq", "forward", "前复权", "1"):
+        return "qfq"
+    if a in ("hfq", "backward", "后复权", "2"):
+        return "hfq"
+    return ""
+
+
+def _etf_hist_via_eastmoney(
+    symbol: str, start: str, end: str, *, adjust: str = ""
+) -> pd.DataFrame:
     """Direct eastmoney kline fetch; bypass system proxy (trust_env=False)."""
     try:
         import requests
     except Exception:  # noqa: BLE001
         return pd.DataFrame()
+    adj = _normalize_etf_adjust(adjust)
+    # 东财 fqt: 0不复权 1前复权 2后复权
+    fqt = {"": 0, "qfq": 1, "hfq": 2}.get(adj, 0)
     market = "1" if str(symbol).startswith(("5", "6")) else "0"
     url = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
     params = {
@@ -65,7 +82,7 @@ def _etf_hist_via_eastmoney(symbol: str, start: str, end: str) -> pd.DataFrame:
         "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
         "ut": "7eea3edcaed734bea9cbfc24409ed989",
         "klt": 101,
-        "fqt": 0,
+        "fqt": fqt,
         "beg": start,
         "end": end,
         "secid": f"{market}.{symbol}",
@@ -128,18 +145,31 @@ def _filter_hist_range(df: pd.DataFrame, start: str, end: str) -> pd.DataFrame:
     return out.dropna(subset=["date", "close"]).sort_values("date").reset_index(drop=True)
 
 
-def fetch_etf_hist(symbol: str = "510300", start: str = "20200101", end: Optional[str] = None) -> pd.DataFrame:
+def fetch_etf_hist(
+    symbol: str = "510300",
+    start: str = "20200101",
+    end: Optional[str] = None,
+    *,
+    adjust: str = "",
+) -> pd.DataFrame:
     end = end or datetime.now().strftime("%Y%m%d")
     start = str(start).replace("-", "")
     end = str(end).replace("-", "")
+    adj = _normalize_etf_adjust(adjust)
     # Prefer direct HTTP (avoids corporate proxy that breaks akshare)
-    out = _etf_hist_via_eastmoney(symbol, start, end)
+    out = _etf_hist_via_eastmoney(symbol, start, end, adjust=adj)
     if not out.empty:
         return out
     ak = _safe_import_ak()
     if ak is not None:
         try:
-            df = ak.fund_etf_hist_em(symbol=symbol, period="daily", start_date=start, end_date=end, adjust="")
+            df = ak.fund_etf_hist_em(
+                symbol=symbol,
+                period="daily",
+                start_date=start,
+                end_date=end,
+                adjust=adj,
+            )
         except Exception as exc:  # noqa: BLE001
             logger.warning("fund_etf_hist_em failed: %s", exc)
             df = None
@@ -163,8 +193,14 @@ def fetch_etf_hist(symbol: str = "510300", start: str = "20200101", end: Optiona
             out = out.dropna(subset=["date", "close"]).sort_values("date").reset_index(drop=True)
             if not out.empty:
                 return out
-    # Local cache fallback (e.g. corporate proxy flaps)
-    cache = Path(__file__).resolve().parents[3] / "data" / "factors" / f"{symbol}_daily.parquet"
+    # Local cache fallback；复权口径分文件，避免与不复权串用
+    if adj == "qfq":
+        cache_name = f"{symbol}_daily_qfq.parquet"
+    elif adj == "hfq":
+        cache_name = f"{symbol}_daily_hfq.parquet"
+    else:
+        cache_name = f"{symbol}_daily.parquet"
+    cache = Path(__file__).resolve().parents[3] / "data" / "factors" / cache_name
     if cache.exists():
         try:
             cached = pd.read_parquet(cache)

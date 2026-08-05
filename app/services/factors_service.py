@@ -756,9 +756,9 @@ BUILTIN_FACTORS: List[Dict[str, Any]] = [
         "description": (
             "红利ETF向上倾斜网格（与策略同源）：中枢=max(旧,MA90)只升不降；"
             "跌超0.8%加档、涨超0.8%减档，至少保留2档底仓。"
-            "默认515080；ETF免印花税，佣金万一。"
+            "默认515080；不复权成交，持仓现金分红入账并可再投入；ETF免印花税，佣金万一。"
         ),
-        "tags": ["另类", "红利", "ETF", "网格", "倾斜", "515080"],
+        "tags": ["另类", "红利", "ETF", "网格", "倾斜", "分红再投入", "515080"],
         "builtin": True,
         "params": {
             k: v for k, v in DIVIDEND_SLOPE_GRID_DEFAULT_PARAMS.items() if k != "fallback_etfs"
