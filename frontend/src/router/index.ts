@@ -111,7 +111,7 @@ const routes: RouteRecordRaw[] = [
         path: 'etf_grid',
         name: 'MultiAssetEtfGrid',
         component: () => import('@/views/Strategies/index.vue'),
-        meta: { title: 'ETF网格', requiresAuth: true, parent: '多资产', strategyId: 'etf_grid' }
+        meta: { title: '红利倾斜网格', requiresAuth: true, parent: '多资产', strategyId: 'etf_grid' }
       },
       {
         path: 'lof_arb',

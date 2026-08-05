@@ -671,6 +671,63 @@ const equityHasPosition = computed(() =>
   preview.equitySeries.some((p) => p.position > 0 || p.n_pos > 0),
 )
 
+/** 净值图叠加买卖点（来自操作历史：开/加=买，清/减/卖=卖） */
+function buildTradeMarkPoints(
+  dates: string[],
+  equity: number[],
+  trades: Record<string, string>[],
+): { data: any[]; symbolSize: number; label: { show: boolean } } | undefined {
+  if (!trades?.length || !dates.length) return undefined
+  const idx = new Map(dates.map((d, i) => [d, i]))
+  const data: any[] = []
+  // 同日多笔只标一次方向，避免网格密点糊成一团
+  const seenBuy = new Set<string>()
+  const seenSell = new Set<string>()
+  for (const r of trades) {
+    const d = String(r.date || '').slice(0, 10)
+    const i = idx.get(d)
+    if (i == null || !Number.isFinite(equity[i])) continue
+    const action = String(r.action || '')
+    const side = String(r.side || '').toLowerCase()
+    const isBuy =
+      action.includes('开') || action.includes('加') || side === 'buy' || side === 'b'
+    const isSell =
+      action.includes('清') ||
+      action.includes('减') ||
+      action.includes('卖') ||
+      action.includes('平') ||
+      side === 'sell' ||
+      side === 's'
+    if (isBuy) {
+      if (seenBuy.has(d)) continue
+      seenBuy.add(d)
+      data.push({
+        name: '买',
+        coord: [d, equity[i]],
+        value: 'B',
+        itemStyle: { color: '#c0392b' },
+        symbol: 'triangle',
+        symbolSize: 10,
+        symbolRotate: 0,
+      })
+    } else if (isSell) {
+      if (seenSell.has(d)) continue
+      seenSell.add(d)
+      data.push({
+        name: '卖',
+        coord: [d, equity[i]],
+        value: 'S',
+        itemStyle: { color: '#27ae60' },
+        symbol: 'triangle',
+        symbolSize: 10,
+        symbolRotate: 180,
+      })
+    }
+  }
+  if (!data.length) return undefined
+  return { data, symbolSize: 10, label: { show: false } }
+}
+
 const equityChartOption = computed<EChartsOption>(() => {
   const pts = preview.equitySeries
   const dates = pts.map((p) => p.date)
@@ -723,6 +780,7 @@ const equityChartOption = computed<EChartsOption>(() => {
       sampling: 'lttb',
       lineStyle: { width: 2 },
       emphasis: { focus: 'series' },
+      markPoint: buildTradeMarkPoints(dates, equity, preview.equityTradeRows),
     },
     ...(hasBench
       ? [

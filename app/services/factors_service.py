@@ -18,6 +18,10 @@ from app.services.factors.dividend_etf_swing import (
     DEFAULT_PARAMS as DIVIDEND_ETF_DEFAULT_PARAMS,
     compute_dividend_etf_swing_signal,
 )
+from app.services.factors.dividend_etf_slope_grid import (
+    DEFAULT_PARAMS as DIVIDEND_SLOPE_GRID_DEFAULT_PARAMS,
+    compute_dividend_etf_slope_grid_signal,
+)
 from app.services.factors.factor_registry import FACTOR_IMPL, compute_factor_signal
 from app.services.factors.guide_builder import (
     pick_trade_example,
@@ -56,6 +60,14 @@ FACTOR_ARTIFACTS: Dict[str, Dict[str, Dict[str, Any]]] = {
     "dip_buy": _standard_artifacts("dip_buy", "dip_buy"),
     "earnings_forecast": _standard_artifacts("earnings_forecast", "earnings_forecast"),
     "dividend_etf_swing": _standard_artifacts("dividend_etf_swing", "红利ETF波段"),
+    "dividend_etf_slope_grid": {
+        **_standard_artifacts("dividend_etf_slope_grid", "红利ETF倾斜网格"),
+        "signals": {
+            "label": "价位买卖点",
+            "filename": "dividend_etf_slope_grid_signals.png",
+            "kind": "image",
+        },
+    },
     "national_team": {
         "equity_curve": {
             "label": "净值图 · long_hold",
@@ -736,6 +748,21 @@ BUILTIN_FACTORS: List[Dict[str, Any]] = [
         "tags": ["另类", "红利", "ETF", "波段", "515080"],
         "builtin": True,
         "params": {k: v for k, v in DIVIDEND_ETF_DEFAULT_PARAMS.items() if k != "fallback_etfs"},
+    },
+    {
+        "factor_id": "dividend_etf_slope_grid",
+        "name": "红利ETF倾斜网格",
+        "category": "alternative",
+        "description": (
+            "红利ETF向上倾斜网格（与策略同源）：中枢=max(旧,MA90)只升不降；"
+            "跌超0.8%加档、涨超0.8%减档，至少保留2档底仓。"
+            "默认515080；ETF免印花税，佣金万一。"
+        ),
+        "tags": ["另类", "红利", "ETF", "网格", "倾斜", "515080"],
+        "builtin": True,
+        "params": {
+            k: v for k, v in DIVIDEND_SLOPE_GRID_DEFAULT_PARAMS.items() if k != "fallback_etfs"
+        },
     },
 ]
 
@@ -1459,6 +1486,12 @@ class FactorsService:
         elif factor_id == "dividend_etf_swing":
             result = await asyncio.to_thread(
                 compute_dividend_etf_swing_signal,
+                factor.get("params") or {},
+                asof,
+            )
+        elif factor_id == "dividend_etf_slope_grid":
+            result = await asyncio.to_thread(
+                compute_dividend_etf_slope_grid_signal,
                 factor.get("params") or {},
                 asof,
             )

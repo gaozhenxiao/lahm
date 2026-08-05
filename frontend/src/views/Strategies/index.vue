@@ -78,20 +78,66 @@
           <el-table-column prop="rating" label="评级" width="72" />
         </el-table>
 
-        <!-- etf_grid -->
-        <el-table v-else-if="activeId === 'etf_grid'" :data="scan.items || []" stripe size="small">
-          <el-table-column prop="code" label="代码" width="90" />
-          <el-table-column prop="name" label="名称" width="140" />
-          <el-table-column prop="price" label="现价" width="80" align="right" />
-          <el-table-column prop="step_pct" label="步长%" width="72" align="right" />
-          <el-table-column label="买档" min-width="180">
-            <template #default="{ row }">{{ (row.buy_levels || []).join(' / ') }}</template>
-          </el-table-column>
-          <el-table-column label="卖档" min-width="180">
-            <template #default="{ row }">{{ (row.sell_levels || []).join(' / ') }}</template>
-          </el-table-column>
-          <el-table-column prop="hint" label="提示" min-width="160" show-overflow-tooltip />
-        </el-table>
+        <!-- etf_grid: 红利向上倾斜网格 -->
+        <template v-else-if="activeId === 'etf_grid'">
+          <el-alert
+            type="success"
+            :closable="false"
+            show-icon
+            class="mb-12"
+            :title="etfGridTitle"
+          />
+          <el-table :data="scan.items || []" stripe size="small">
+            <el-table-column prop="code" label="代码" width="84" />
+            <el-table-column prop="name" label="名称" width="120" />
+            <el-table-column prop="price" label="现价" width="72" align="right" />
+            <el-table-column prop="center" label="中枢" width="72" align="right" />
+            <el-table-column prop="zone" label="区域" width="88" />
+            <el-table-column prop="step_pct" label="步长%" width="72" align="right" />
+            <el-table-column label="买档" min-width="160">
+              <template #default="{ row }">{{ (row.buy_levels || []).slice(0, 4).join(' / ') }}</template>
+            </el-table-column>
+            <el-table-column label="卖档" min-width="160">
+              <template #default="{ row }">{{ (row.sell_levels || []).slice(0, 4).join(' / ') }}</template>
+            </el-table-column>
+            <el-table-column label="回测CAGR" width="88" align="right">
+              <template #default="{ row }">{{ fmtPct(row.bt_cagr) }}</template>
+            </el-table-column>
+            <el-table-column label="超额" width="72" align="right">
+              <template #default="{ row }">{{ fmtPct(row.bt_excess) }}</template>
+            </el-table-column>
+            <el-table-column label="Sharpe" width="72" align="right">
+              <template #default="{ row }">{{ row.bt_sharpe != null ? Number(row.bt_sharpe).toFixed(2) : '—' }}</template>
+            </el-table-column>
+            <el-table-column prop="hint" label="提示" min-width="180" show-overflow-tooltip />
+          </el-table>
+          <el-table
+            v-if="scan.backtest?.summary_table?.length"
+            :data="scan.backtest.summary_table"
+            stripe
+            size="small"
+            class="mt-12"
+            style="margin-top: 12px"
+          >
+            <el-table-column prop="code" label="代码" width="84" />
+            <el-table-column prop="name" label="名称" width="120" />
+            <el-table-column label="网格CAGR" width="96" align="right">
+              <template #default="{ row }">{{ fmtPct(row.grid_cagr) }}</template>
+            </el-table-column>
+            <el-table-column label="持有CAGR" width="96" align="right">
+              <template #default="{ row }">{{ fmtPct(row.bh_cagr) }}</template>
+            </el-table-column>
+            <el-table-column label="超额" width="80" align="right">
+              <template #default="{ row }">{{ fmtPct(row.excess_cagr) }}</template>
+            </el-table-column>
+            <el-table-column label="Sharpe" width="80" align="right">
+              <template #default="{ row }">{{ row.grid_sharpe != null ? Number(row.grid_sharpe).toFixed(2) : '—' }}</template>
+            </el-table-column>
+            <el-table-column label="最大回撤" width="88" align="right">
+              <template #default="{ row }">{{ fmtPct(row.grid_max_dd) }}</template>
+            </el-table-column>
+          </el-table>
+        </template>
 
         <!-- lof_arb -->
         <el-table v-else-if="activeId === 'lof_arb'" :data="scan.items || []" stripe size="small" max-height="520">
@@ -246,11 +292,22 @@ const qmtTitle = computed(() => {
   return 'QMT 未就绪（今天开好后填写 userdata 即可）'
 })
 
+const etfGridTitle = computed(() => {
+  const p = scan.value?.params
+  if (!p) return '向上倾斜网格 · 红利 ETF'
+  return `向上倾斜网格 · 步长 ${(Number(p.step_pct) * 100).toFixed(1)}% · ${p.n_grids}档 · 底仓≥${p.min_layers} · MA${p.ma_center}`
+})
+
 function fmtAmount(v: number | null | undefined) {
   if (v == null || Number.isNaN(v)) return '—'
   if (v >= 1e8) return `${(v / 1e8).toFixed(2)}亿`
   if (v >= 1e4) return `${(v / 1e4).toFixed(0)}万`
   return String(Math.round(v))
+}
+
+function fmtPct(v: number | null | undefined) {
+  if (v == null || Number.isNaN(Number(v))) return '—'
+  return `${(Number(v) * 100).toFixed(1)}%`
 }
 
 async function loadHome() {

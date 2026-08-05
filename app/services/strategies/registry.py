@@ -17,12 +17,12 @@ STRATEGIES: List[Dict[str, Any]] = [
     },
     {
         "id": "etf_grid",
-        "name": "ETF网格",
+        "name": "红利倾斜网格",
         "status": "active",
         "difficulty": "低",
         "capital": "5千+",
-        "best_regime": "震荡",
-        "description": "宽基/红利 ETF 网格挂单；震荡增收，趋势市降频。",
+        "best_regime": "慢牛/震荡上行",
+        "description": "红利ETF向上倾斜网格：中枢跟MA90只升不降，步长0.8%、10档、底仓≥2；回踩加仓、冲高减仓。",
         "exec": "qmt",
     },
     {
