@@ -232,7 +232,8 @@ def _fetch_etf_via_baostock(
     except Exception:
         return pd.DataFrame()
     code = str(symbol)
-    bs_code = f"sh.{code}" if code.startswith("5") else f"sz.{code}"
+    # 沪市：6/5；深市：0/1/3 等
+    bs_code = f"sh.{code}" if code.startswith(("5", "6")) else f"sz.{code}"
     start_s = pd.Timestamp(str(start).replace("-", "")).strftime("%Y-%m-%d")
     end_s = pd.Timestamp(str(end).replace("-", "")).strftime("%Y-%m-%d")
     adj = _normalize_etf_adjust(adjust)
