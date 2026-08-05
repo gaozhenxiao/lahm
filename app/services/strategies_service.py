@@ -41,7 +41,7 @@ class StrategiesService:
         return {
             "module": "strategies",
             "name": "策略中心",
-            "description": "多资产扫描：双低 / 红利倾斜网格 / 移动四大行网格 / LOF / 股指基差 / 债券ETF / 国债基差 / 备兑 / 配对；期现不做。",
+            "description": "多资产扫描：双低 / 红利倾斜网格 / 移动核电四大行网格 / LOF / 股指基差 / 债券ETF / 国债基差 / 备兑 / 配对；期现不做。",
             "strategies": reg.list_strategies(),
             "excluded": ["cash_futures_arb"],
         }

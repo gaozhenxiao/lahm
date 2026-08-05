@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""中国移动 + 四大行等权倾斜网格回测。
+"""中国移动 + 中国核电 + 四大行等权倾斜网格回测。
 
 用法:
   python scripts/backtest_cm_big4_slope_grid.py

@@ -27,12 +27,12 @@ STRATEGIES: List[Dict[str, Any]] = [
     },
     {
         "id": "cm_big4_grid",
-        "name": "移动四大行网格",
+        "name": "移动核电四大行网格",
         "status": "active",
         "difficulty": "低",
         "capital": "5万+",
         "best_regime": "慢牛/高股息震荡",
-        "description": "中国移动+工农中建等权五袖口倾斜网格：分红再投入、现金约1.4%计息、印花税千一。",
+        "description": "中国移动+中国核电+工农中建等权袖口倾斜网格：分红再投入、现金约1.4%计息、印花税千一。",
         "exec": "qmt",
     },
     {

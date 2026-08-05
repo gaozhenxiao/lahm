@@ -1,6 +1,6 @@
-"""中国移动 + 四大行等权倾斜网格因子。
+"""中国移动 + 中国核电 + 四大行等权倾斜网格因子。
 
-与策略「移动四大行网格」同源：五袖口独立 v3 倾斜网格后汇总。
+与策略「移动核电四大行网格」同源：等权袖口独立 v3 倾斜网格后汇总。
 """
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ def run_backtest(
         "dividend_reinvest": True,
         "universe": [c for c, _ in UNIVERSE],
         "per_name": payload.get("per_name"),
-        "note": "移动+工农中建等权倾斜网格 · 分红再投入 · 现金1.4%计息 · 印花税千一",
+        "note": "移动+核电+工农中建等权倾斜网格 · 分红再投入 · 现金1.4%计息 · 印花税千一",
     }
     return daily, summary, pd.DataFrame()
 
@@ -128,9 +128,11 @@ def compute_cm_big4_slope_grid_signal(
         }
     buy_n = zones.count("buy")
     sell_n = zones.count("sell")
-    if buy_n >= 3:
+    # 6 只里至少一半进入加/减仓区才给方向信号
+    thresh = max(3, (len(zones) + 1) // 2)
+    if buy_n >= thresh:
         signal = "buy"
-    elif sell_n >= 3:
+    elif sell_n >= thresh:
         signal = "sell"
     elif buy_n + sell_n == 0:
         signal = "hold"
@@ -146,6 +148,7 @@ def compute_cm_big4_slope_grid_signal(
             "names": components,
             "buy_n": buy_n,
             "sell_n": sell_n,
+            "thresh": thresh,
         },
-        "note": f"移动+四大行 加仓区{buy_n}/减仓区{sell_n}/共{len(zones)}",
+        "note": f"移动核电+四大行 加仓区{buy_n}/减仓区{sell_n}/共{len(zones)}",
     }

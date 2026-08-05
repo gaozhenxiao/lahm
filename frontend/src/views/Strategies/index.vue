@@ -300,7 +300,7 @@ const qmtTitle = computed(() => {
 
 const slopeGridTitle = computed(() => {
   const p = scan.value?.params
-  const label = activeId.value === 'cm_big4_grid' ? '移动+工农中建 等权' : '红利 ETF'
+  const label = activeId.value === 'cm_big4_grid' ? '移动核电+工农中建 等权' : '红利 ETF'
   if (!p) return `向上倾斜网格 · ${label}`
   return `向上倾斜网格 · ${label} · 步长 ${(Number(p.step_pct) * 100).toFixed(1)}% · ${p.n_grids}档 · 底仓≥${p.min_layers} · MA${p.ma_center}`
 })
