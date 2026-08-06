@@ -127,7 +127,7 @@ def run_one(fac_base: pd.DataFrame, mode: str, params: dict) -> tuple[dict, pd.D
     fac["strategy_ret"] = fac["position_exec"] * fac["bench_ret"]
     stats = summarize(fac.dropna(subset=["bench_ret"]))
     stats["mode"] = mode
-    stats["position_logic"] = str(p.get("position_logic") or "long_hold")
+    stats["position_logic"] = str(p.get("position_logic") or "continuous")
     if "era" in fac.columns:
         stats["eras"] = sorted({str(x) for x in fac["era"].dropna().unique().tolist()})
     if "episode_state" in fac.columns:
@@ -214,9 +214,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--logic",
-        default="long_hold",
-        choices=["long_hold", "continuous", "episode", "threshold", "both", "compare"],
-        help="continuous=份额连续仓位; long_hold=阶梯仓; compare=二者对比; both=long_hold+episode",
+        default="continuous",
+        choices=["continuous", "episode", "threshold"],
+        help="continuous=份额连续仓位（默认）; episode/threshold=旧逻辑对比",
     )
     parser.add_argument("--out", default=str(ROOT / "data" / "factors" / "national_team_backtest.json"))
     args = parser.parse_args()
@@ -228,19 +228,9 @@ def main() -> None:
         "skip_share_fetch": False,
         "share_fetch_days": 10,
         "position_mode": "long_flat",
-        "position_logic": "long_hold",
-        # pre-2024 优化：禁恐慌假开仓；2018 熊市窗口回撤止损；其余保持粘持
-        "probe_window": 6,
-        "confirm_share_z": 0.03,
-        "reduce_share_z": -0.28,
-        "soft_reduce_share_z": -0.14,
-        "reduce_confirm_days": 50,
-        "min_hold_confirmed": 160,
+        "position_logic": "continuous",
+        # continuous：禁恐慌假开仓；2018 熊市窗口回撤止损
         "cooldown_bars": 5,
-        "probe_size": 0.5,
-        "hold_size": 1.0,
-        "reduce_size": 0.5,
-        "abort_share_z": -0.35,
         "panic_spark_strength": 0.35,
         "panic_entry_share_z": 0.05,
         "allow_panic_entry": False,
@@ -292,19 +282,14 @@ def main() -> None:
         fac["proxy"] = 0.0
         fac["gc_spark"] = 0.0
 
-    if args.logic == "compare":
-        logics = ["long_hold", "continuous"]
-    elif args.logic == "both":
-        logics = ["long_hold", "episode"]
-    else:
-        logics = [args.logic]
+    logics = [args.logic]
     modes = ["long_short", "long_flat"] if args.mode == "both" else [args.mode]
     results = {}
     primary_fac = None
     fac_by_logic = {}
     for logic in logics:
         for m in modes:
-            if logic in ("long_hold", "episode", "continuous") and m == "long_short":
+            if logic in ("episode", "continuous") and m == "long_short":
                 continue
             params = {
                 **base_params,
@@ -320,20 +305,14 @@ def main() -> None:
             fac_by_logic[logic] = fac_m
             print(f"\n=== {key} ===")
             print(json.dumps(stats, ensure_ascii=False, indent=2))
-            # 主产物优先 long_hold；仅单独跑 continuous 时以其为主
-            if logic == "long_hold" and m == "long_flat":
-                primary_fac = fac_m
-            elif logic == "continuous" and m == "long_flat" and primary_fac is None:
+            if logic == "continuous" and m == "long_flat":
                 primary_fac = fac_m
             elif primary_fac is None:
                 primary_fac = fac_m
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    if "long_hold:long_flat" in results and args.logic != "continuous":
-        primary_logic = "long_hold"
-        primary_fac = fac_by_logic.get("long_hold", primary_fac)
-    elif "continuous:long_flat" in results:
+    if "continuous:long_flat" in results:
         primary_logic = "continuous"
         primary_fac = fac_by_logic.get("continuous", primary_fac)
     else:
@@ -352,11 +331,10 @@ def main() -> None:
         },
         "notes": [
             "信号=汇金300ETF份额(510300权重更高/510310/510330)；交易=早期宽基、近年银行+科创",
-            "long_hold：精选新闻/强政策半仓试探→份额确认满仓；默认禁止恐慌开仓",
-            "continuous：同样要火花开战役，仓位随 share_z 线性映射到 [0,1]（含战役底仓）并 EMA 平滑",
-            "2018 年窗口启用战役回撤止损（-10%），避免救市后粘持穿过熊市；其余年份保持粘持",
-            "政策日历：维稳买入；汇金减持/清配资等可突破粘持强制减仓",
-            "汇金季报日历：按公告日确认/延长持仓，不单独开仓（防报告期前视与滞后假领先）",
+            "continuous：火花开战役，仓位随 share_z 线性映射到 [0,1]（含战役底仓）并 EMA 平滑",
+            "2018 年窗口启用战役回撤止损（-10%）",
+            "政策日历：维稳买入；汇金减持/清配资等可强制减仓",
+            "汇金季报日历：按公告日确认/延长持仓，不单独开仓",
             "新闻源：national_team_news_events.csv + 国诚 + 弱恐慌代理 + 政策事件",
             "未计交易成本；仓位 T+1 生效",
             "total_return=累计；annual_return=年化",
@@ -389,24 +367,8 @@ def main() -> None:
     print(f"[backtest] wrote {csv_path}")
 
     png = out.parent / "national_team_equity_curve.png"
-    title = (
-        "国家队因子 continuous 净值曲线（份额连续仓位）"
-        if primary_logic == "continuous"
-        else "国家队因子 long_hold 净值曲线（新闻先开仓/长期持有）"
-    )
-    plot_equity(primary_fac, png, title=title)
-
-    if "continuous" in fac_by_logic and primary_logic != "continuous":
-        c_csv = out.parent / "national_team_backtest_continuous.csv"
-        fac_by_logic["continuous"].to_csv(c_csv, index=False, encoding="utf-8-sig")
-        c_png = out.parent / "national_team_equity_curve_continuous.png"
-        plot_equity(
-            fac_by_logic["continuous"],
-            c_png,
-            title="国家队因子 continuous 净值曲线（份额连续仓位）",
-        )
-        print(f"[backtest] wrote {c_csv}")
-        print(f"[backtest] wrote {c_png}")
+    plot_equity(primary_fac, png, title="国家队因子 continuous 净值曲线（份额连续仓位）")
+    print(f"[backtest] wrote {png} (logic={primary_logic})")
 
 
 if __name__ == "__main__":

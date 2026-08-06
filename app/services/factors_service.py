@@ -52,14 +52,8 @@ FACTOR_ARTIFACTS: Dict[str, Dict[str, Dict[str, Any]]] = {
     "earnings_forecast": _standard_artifacts("earnings_forecast", "earnings_forecast"),
     "national_team": {
         "equity_curve": {
-            "label": "净值图 · long_hold",
+            "label": "净值图",
             "filename": "national_team_equity_curve.png",
-            "kind": "image",
-            "logic": "long_hold",
-        },
-        "equity_curve_continuous": {
-            "label": "净值图 · continuous",
-            "filename": "national_team_equity_curve_continuous.png",
             "kind": "image",
             "logic": "continuous",
         },
@@ -73,27 +67,15 @@ FACTOR_ARTIFACTS: Dict[str, Dict[str, Dict[str, Any]]] = {
             "filename": "national_team_backtest.json",
             "kind": "json",
         },
-        "trades_long_hold": {
-            "label": "操作历史 · long_hold",
-            "filename": "national_team_trade_history_long_hold.csv",
-            "kind": "csv",
-            "logic": "long_hold",
-        },
-        "trades_continuous": {
-            "label": "操作历史 · continuous",
-            "filename": "national_team_trade_history_continuous.csv",
+        "trades": {
+            "label": "操作历史",
+            "filename": "national_team_trade_history.csv",
             "kind": "csv",
             "logic": "continuous",
         },
-        "daily_long_hold": {
-            "label": "日度回测 · long_hold",
+        "daily": {
+            "label": "日度回测",
             "filename": "national_team_backtest.csv",
-            "kind": "csv",
-            "logic": "long_hold",
-        },
-        "daily_continuous": {
-            "label": "日度回测 · continuous",
-            "filename": "national_team_backtest_continuous.csv",
             "kind": "csv",
             "logic": "continuous",
         },
@@ -189,7 +171,7 @@ def _build_backtest_summary(factor_id: str) -> Optional[Dict[str, Any]]:
 
     out: Dict[str, Any] = {
         "available": False,
-        "primary_logic": "long_hold",
+        "primary_logic": "continuous",
         "logics": {},
         "artifacts": artifacts,
         "updated_at": None,
@@ -204,11 +186,14 @@ def _build_backtest_summary(factor_id: str) -> Optional[Dict[str, Any]]:
                 if not isinstance(row, dict):
                     continue
                 logic = str(row.get("position_logic") or key.split(":")[0])
+                if logic == "long_hold":
+                    continue
                 logics[logic] = _metric_slice(row)
             summary_path = data_dir / "national_team_backtest.json"
             out.update(
                 {
                     "available": bool(logics),
+                    "primary_logic": "continuous",
                     "logics": logics,
                     "updated_at": (
                         datetime.fromtimestamp(summary_path.stat().st_mtime).isoformat(timespec="seconds")

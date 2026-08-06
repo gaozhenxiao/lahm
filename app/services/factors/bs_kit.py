@@ -185,10 +185,11 @@ def fetch_profit_quarters(
     cache = cache_dir / "profit" / f"{code.replace('.', '_')}.parquet"
     cache.parent.mkdir(parents=True, exist_ok=True)
     if cache.exists() and not force:
+        # 空缓存表示曾经拉过无数据，勿反复全历史重拉
         df = pd.read_parquet(cache)
         if not df.empty:
             df["pubDate"] = pd.to_datetime(df["pubDate"], errors="coerce")
-            return df
+        return df
 
     own = bs is None
     if own:
@@ -238,10 +239,11 @@ def fetch_growth_quarters(
     cache = cache_dir / "growth" / f"{code.replace('.', '_')}.parquet"
     cache.parent.mkdir(parents=True, exist_ok=True)
     if cache.exists() and not force:
+        # 空缓存表示曾经拉过无数据，勿反复全历史重拉
         df = pd.read_parquet(cache)
         if not df.empty:
             df["pubDate"] = pd.to_datetime(df["pubDate"], errors="coerce")
-            return df
+        return df
     own = bs is None
     if own:
         clear_proxy()

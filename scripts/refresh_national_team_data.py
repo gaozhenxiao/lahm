@@ -286,14 +286,9 @@ def write_trade_history() -> None:
             )
         return pd.DataFrame(rows)
 
-    lh = extract(OUT / "national_team_backtest.csv", "long_hold")
-    ct = extract(OUT / "national_team_backtest_continuous.csv", "continuous")
-    lh.to_csv(OUT / "national_team_trade_history_long_hold.csv", index=False, encoding="utf-8-sig")
-    ct.to_csv(OUT / "national_team_trade_history_continuous.csv", index=False, encoding="utf-8-sig")
-    pd.concat([lh, ct], ignore_index=True).to_csv(
-        OUT / "national_team_trade_history.csv", index=False, encoding="utf-8-sig"
-    )
-    print(f"[ok] trade history long_hold={len(lh)} continuous={len(ct)}")
+    ct = extract(OUT / "national_team_backtest.csv", "continuous")
+    ct.to_csv(OUT / "national_team_trade_history.csv", index=False, encoding="utf-8-sig")
+    print(f"[ok] trade history continuous={len(ct)}")
 
 
 def main() -> None:
@@ -301,7 +296,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--end", default=datetime.now().strftime("%Y-%m-%d"))
     parser.add_argument("--start", default="2012-01-01")
-    parser.add_argument("--backtest", action="store_true", help="刷新后重跑 compare 回测并写操作历史")
+    parser.add_argument("--backtest", action="store_true", help="刷新后重跑 continuous 回测并写操作历史")
     parser.add_argument("--share-lookback", type=int, default=45)
     args = parser.parse_args()
     end = args.end
@@ -330,7 +325,7 @@ def main() -> None:
             sys.executable,
             str(ROOT / "scripts" / "backtest_national_team_factor.py"),
             "--logic",
-            "compare",
+            "continuous",
             "--mode",
             "long_flat",
             "--start",

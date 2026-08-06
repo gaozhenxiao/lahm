@@ -291,20 +291,16 @@ function availableArtifacts(row: FactorItem): FactorArtifact[] {
 function shortLabel(a: FactorArtifact): string {
   if (a.kind === 'image') {
     if (a.id.includes('share')) return '份额图'
-    if (a.logic === 'continuous') return '净值·连续'
-    if (a.logic === 'long_hold') return '净值·粘持'
     return '净值图'
   }
   if (a.kind === 'json') return '摘要'
-  if (a.id.includes('trades') || a.id === 'trades') {
-    return a.logic === 'continuous' ? '交易·连续' : a.logic === 'long_hold' ? '交易·粘持' : '交易'
-  }
-  if (a.id.includes('daily')) return a.logic === 'continuous' ? '日度·连续' : '日度·粘持'
+  if (a.id.includes('trades') || a.id === 'trades') return '交易'
+  if (a.id.includes('daily') || a.id === 'daily') return '日度'
   return a.label
 }
 
 function formatRange(bt: FactorBacktest): string {
-  const primary = bt.primary_logic || 'long_hold'
+  const primary = bt.primary_logic || 'continuous'
   const m = bt.logics?.[primary] || Object.values(bt.logics || {})[0]
   if (!m?.start || !m?.end) return '-'
   return `${m.start} ~ ${m.end}`

@@ -806,7 +806,7 @@ def build_news_spark_series(
 ) -> pd.Series:
     """新闻先导火花：精选事件/国诚/政策买入=1.0；急跌恐慌代理=较弱强度（默认0.5）。
 
-    强度编码便于 long_hold 区分「真新闻」与「市场恐慌近似」。
+    强度编码便于仓位逻辑区分「真新闻」与「市场恐慌近似」。
     """
     idx = close.index
     curated = pd.Series(0.0, index=idx, dtype=float)
@@ -845,269 +845,6 @@ def build_news_spark_series(
     spark = pd.concat([curated.fillna(0.0), panic.fillna(0.0)], axis=1).max(axis=1)
     return spark.fillna(0.0)
 
-
-
-def _positions_long_hold(
-    news_spark: pd.Series,
-    share_z: pd.Series,
-    close: pd.Series,
-    *,
-    probe_window: int = 12,
-    confirm_share_z: float = 0.10,
-    reduce_share_z: float = -0.12,
-    soft_reduce_share_z: float = -0.05,
-    reduce_confirm_days: int = 20,
-    min_hold_confirmed: int = 60,
-    cooldown: int = 8,
-    probe_size: float = 0.5,
-    hold_size: float = 1.0,
-    reduce_size: float = 0.5,
-    abort_share_z: float = -0.35,
-    curated_spark_min: float = 0.99,
-    panic_entry_share_z: float = -0.05,
-    huijin_confirm: Optional[pd.Series] = None,
-    huijin_extend_bars: int = 80,
-    policy_risk: Optional[pd.Series] = None,
-    policy_support: Optional[pd.Series] = None,
-    policy_hard_exit: float = 1.2,
-    policy_soft_exit: float = 1.0,
-    policy_risk_cooldown: int = 15,
-    episode_dd_exit: float = -0.18,
-    episode_dd_exit_series: Optional[pd.Series] = None,
-    extend_min_support: float = 1.2,
-    allow_panic_entry: bool = False,
-    stress_lookback: int = 60,
-    max_entry_dd: float = -0.08,
-    max_confirm_dd: float = -0.04,
-) -> Tuple[list[float], list[str]]:
-    """国家队式长期持仓状态机。
-
-    OFF → PROBE → HOLD → REDUCE/清仓
-    - 战役峰值回撤止损（可按日序列分时代：早期严、近年宽）
-    - 深回撤中弱政策不再延长持仓
-    - 默认不做恐慌开仓
-    """
-    del stress_lookback, max_entry_dd, max_confirm_dd
-    n = len(close)
-    if n == 0:
-        return [], []
-
-    news = news_spark.fillna(0.0).tolist()
-    closes = close.tolist()
-    share = share_z.reindex(close.index).tolist()
-    share_s = pd.Series(share_z.reindex(close.index).astype(float))
-    roll_reduce = share_s.rolling(reduce_confirm_days, min_periods=max(5, reduce_confirm_days // 2)).mean()
-    if huijin_confirm is None:
-        hj_list = [0.0] * n
-    else:
-        hj_list = huijin_confirm.reindex(close.index).fillna(0.0).astype(float).tolist()
-    if policy_risk is None:
-        risk_list = [0.0] * n
-    else:
-        risk_list = policy_risk.reindex(close.index).fillna(0.0).astype(float).tolist()
-    if policy_support is None:
-        support_list = [0.0] * n
-    else:
-        support_list = policy_support.reindex(close.index).fillna(0.0).astype(float).tolist()
-    if episode_dd_exit_series is None:
-        dd_exit_list = [float(episode_dd_exit)] * n
-    else:
-        dd_exit_list = (
-            episode_dd_exit_series.reindex(close.index).fillna(float(episode_dd_exit)).astype(float).tolist()
-        )
-
-    state = "OFF"
-    probe_bars = 0
-    hold_bars = 0
-    cool_left = 0
-    risk_block_left = 0
-    ep_peak = math.nan
-    pos: list[float] = []
-    states: list[str] = []
-
-    def _px(i: int) -> float:
-        v = closes[i]
-        return float(v) if pd.notna(v) else float("nan")
-
-    def _update_peak(i: int) -> None:
-        nonlocal ep_peak
-        px = _px(i)
-        if pd.notna(px):
-            ep_peak = px if not pd.notna(ep_peak) else max(ep_peak, px)
-
-    def _dd_from_peak(i: int) -> float:
-        px = _px(i)
-        if not pd.notna(px) or not pd.notna(ep_peak) or ep_peak <= 0:
-            return 0.0
-        return px / ep_peak - 1.0
-
-    for i in range(n):
-        sp_v = float(news[i] or 0.0)
-        curated = sp_v >= curated_spark_min
-        weak_spark = (not curated) and sp_v > 0
-        sz = share[i]
-        sz_v = float(sz) if pd.notna(sz) else 0.0
-        red = roll_reduce.iloc[i]
-        red_v = float(red) if pd.notna(red) else 0.0
-        hj_v = float(hj_list[i] or 0.0)
-        risk_v = float(risk_list[i] or 0.0)
-        support_v = float(support_list[i] or 0.0)
-        dd_th = float(dd_exit_list[i])
-        dd = _dd_from_peak(i)
-        in_dd = dd <= dd_th
-        strong_support = hj_v > 0 or support_v >= float(extend_min_support) or (
-            curated and support_v >= 1.0
-        )
-        # 未深回撤：普通支持可延长；深回撤：仅强支持可延长
-        extend_signal = strong_support or ((not in_dd) and (hj_v > 0 or support_v > 0 or curated))
-
-        if risk_v >= policy_soft_exit:
-            risk_block_left = max(risk_block_left, int(policy_risk_cooldown))
-
-        if state == "COOLDOWN":
-            cool_left -= 1
-            if risk_block_left > 0:
-                risk_block_left -= 1
-            pos.append(0.0)
-            states.append("COOLDOWN")
-            if cool_left <= 0:
-                state = "OFF"
-                ep_peak = math.nan
-            continue
-
-        if state in ("PROBE", "HOLD", "REDUCE") and risk_v >= policy_soft_exit:
-            if risk_v >= policy_hard_exit:
-                state = "COOLDOWN"
-                cool_left = max(cooldown, int(policy_risk_cooldown))
-                ep_peak = math.nan
-                pos.append(0.0)
-                states.append("COOLDOWN")
-            else:
-                state = "REDUCE"
-                pos.append(reduce_size)
-                states.append("REDUCE")
-            continue
-
-        # 战役回撤止损：可突破 min_hold；同日强支持豁免
-        if state in ("HOLD", "REDUCE", "PROBE") and in_dd and not strong_support:
-            if state == "PROBE" or dd <= dd_th - 0.05:
-                state = "COOLDOWN"
-                cool_left = max(cooldown, 8)
-                ep_peak = math.nan
-                pos.append(0.0)
-                states.append("COOLDOWN")
-            else:
-                state = "REDUCE"
-                pos.append(reduce_size)
-                states.append("REDUCE")
-            continue
-
-        if state == "OFF":
-            if curated and risk_v < policy_soft_exit:
-                risk_block_left = 0
-                state = "PROBE"
-                probe_bars = 1
-                ep_peak = _px(i)
-                pos.append(probe_size)
-                states.append("PROBE")
-                continue
-            if risk_block_left > 0:
-                risk_block_left -= 1
-                pos.append(0.0)
-                states.append("OFF")
-                continue
-            if risk_v >= policy_soft_exit:
-                pos.append(0.0)
-                states.append("OFF")
-                continue
-            allow = bool(allow_panic_entry) and weak_spark and sz_v >= panic_entry_share_z
-            if allow:
-                state = "PROBE"
-                probe_bars = 1
-                ep_peak = _px(i)
-                pos.append(probe_size)
-                states.append("PROBE")
-            else:
-                pos.append(0.0)
-                states.append("OFF")
-            continue
-
-        if state == "PROBE":
-            probe_bars += 1
-            _update_peak(i)
-            if sz_v >= confirm_share_z or hj_v > 0 or support_v >= 1.0:
-                state = "HOLD"
-                hold_bars = 1
-                pos.append(hold_size)
-                states.append("HOLD")
-                continue
-            if sz_v <= abort_share_z or probe_bars >= probe_window:
-                state = "COOLDOWN"
-                cool_left = cooldown
-                ep_peak = math.nan
-                pos.append(0.0)
-                states.append("COOLDOWN")
-            else:
-                pos.append(probe_size)
-                states.append("PROBE")
-            continue
-
-        if state == "REDUCE":
-            hold_bars += 1
-            _update_peak(i)
-            if extend_signal or ((not in_dd) and red_v > soft_reduce_share_z):
-                state = "HOLD"
-                if extend_signal:
-                    hold_bars = max(1, min_hold_confirmed - int(huijin_extend_bars))
-                pos.append(hold_size)
-                states.append("HOLD")
-            elif hj_v < 0 or red_v <= reduce_share_z or in_dd:
-                state = "COOLDOWN"
-                cool_left = cooldown
-                ep_peak = math.nan
-                pos.append(0.0)
-                states.append("COOLDOWN")
-            else:
-                pos.append(reduce_size)
-                states.append("REDUCE")
-            continue
-
-        # HOLD
-        hold_bars += 1
-        _update_peak(i)
-        if extend_signal:
-            hold_bars = max(1, min(hold_bars, min_hold_confirmed - int(huijin_extend_bars)))
-            pos.append(hold_size)
-            states.append("HOLD")
-            continue
-
-        if hold_bars < min_hold_confirmed:
-            pos.append(hold_size)
-            states.append("HOLD")
-            continue
-
-        if hj_v < 0:
-            state = "REDUCE"
-            pos.append(reduce_size)
-            states.append("REDUCE")
-            continue
-
-        if red_v <= reduce_share_z:
-            state = "COOLDOWN"
-            cool_left = cooldown
-            ep_peak = math.nan
-            pos.append(0.0)
-            states.append("COOLDOWN")
-        elif red_v <= soft_reduce_share_z:
-            state = "REDUCE"
-            pos.append(reduce_size)
-            states.append("REDUCE")
-        else:
-            state = "HOLD"
-            pos.append(hold_size)
-            states.append("HOLD")
-
-    return pos, states
 
 
 def _positions_episode(
@@ -1412,7 +1149,9 @@ def apply_position_logic(
 ) -> Tuple[pd.Series, pd.Series]:
     """按 params 生成仓位与状态。返回 (position, state)。"""
     params = params or {}
-    logic = str(params.get("position_logic") or "long_hold")
+    logic = str(params.get("position_logic") or "continuous")
+    if logic == "long_hold":
+        logic = "continuous"
     mode = str(params.get("position_mode") or "long_flat")
     enter = float(params.get("enter_threshold") or (0.45 if logic == "episode" else 0.35))
     exit_th = float(
@@ -1440,7 +1179,7 @@ def apply_position_logic(
         )
         return pd.Series(pos, index=factor.index), pd.Series(state, index=factor.index)
 
-    # shared inputs for long_hold / continuous
+    # shared inputs for continuous
     news = spark.reindex(factor.index).fillna(0.0) if spark is not None else pd.Series(0.0, index=factor.index)
     sz = share_z.reindex(factor.index) if share_z is not None else factor
     use_hj = bool(params.get("use_huijin_calendar", True))
@@ -1525,43 +1264,9 @@ def apply_position_logic(
         )
         return pd.Series(pos, index=factor.index), pd.Series(state, index=factor.index)
 
-    # default: long_hold — 新闻先开仓，份额确认后长期持有
-    pos, state = _positions_long_hold(
-        news,
-        sz,
-        close,
-        probe_window=int(params.get("probe_window") or 6),
-        confirm_share_z=float(params.get("confirm_share_z") or 0.03),
-        reduce_share_z=float(params.get("reduce_share_z") or -0.28),
-        soft_reduce_share_z=float(params.get("soft_reduce_share_z") or -0.14),
-        reduce_confirm_days=int(params.get("reduce_confirm_days") or 50),
-        min_hold_confirmed=int(params.get("min_hold_confirmed") or 160),
-        cooldown=int(params.get("cooldown_bars") or 5),
-        probe_size=float(params.get("probe_size") if params.get("probe_size") is not None else 0.5),
-        hold_size=float(params.get("hold_size") if params.get("hold_size") is not None else 1.0),
-        reduce_size=float(params.get("reduce_size") if params.get("reduce_size") is not None else 0.5),
-        abort_share_z=float(params.get("abort_share_z") if params.get("abort_share_z") is not None else -0.35),
-        curated_spark_min=float(params.get("curated_spark_min") or 0.99),
-        panic_entry_share_z=float(
-            params.get("panic_entry_share_z") if params.get("panic_entry_share_z") is not None else 0.05
-        ),
-        huijin_confirm=hj,
-        huijin_extend_bars=int(params.get("huijin_extend_bars") or 80),
-        policy_risk=risk,
-        policy_support=support,
-        policy_hard_exit=float(params.get("policy_hard_exit") or 1.2),
-        policy_soft_exit=float(params.get("policy_soft_exit") or 1.0),
-        policy_risk_cooldown=int(params.get("policy_risk_cooldown") or 10),
-        episode_dd_exit=base_dd,
-        episode_dd_exit_series=dd_series,
-        extend_min_support=float(params.get("extend_min_support") or 1.5),
-        allow_panic_entry=bool(params.get("allow_panic_entry", False)),
-        stress_lookback=int(params.get("stress_lookback") or 60),
-        max_entry_dd=float(params.get("max_entry_dd") or -0.08),
-        max_confirm_dd=float(params.get("max_confirm_dd") or -0.04),
+    raise ValueError(
+        f"unsupported position_logic={logic!r}; use continuous/episode/threshold"
     )
-    return pd.Series(pos, index=factor.index), pd.Series(state, index=factor.index)
-
 
 
 def _factors_data_dir() -> Path:
