@@ -105,6 +105,15 @@ async def compute_factor(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{factor_id}/portfolio")
+async def get_factor_portfolio(factor_id: str, current_user: dict = Depends(get_current_user)):
+    """回测持仓/近期回合 + 交易摘要，供因子详情页。"""
+    item = await factors_service.get_portfolio(factor_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="factor not found")
+    return ok(item)
+
+
 @router.get("/{factor_id}/signals")
 async def list_signals(
     factor_id: str,

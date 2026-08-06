@@ -562,6 +562,163 @@ class FactorsService:
             }
         return {"factor_id": factor_id, **summary}
 
+    async def get_portfolio(self, factor_id: str) -> Optional[Dict[str, Any]]:
+        """当前/回测末日持仓 + 近期回合腿 + 最近交易。"""
+        await self.ensure_builtins()
+        factor = await self.get_factor(factor_id)
+        if not factor:
+            return None
+        backtest = _build_backtest_summary(factor_id) or {"available": False, "logics": {}, "artifacts": []}
+        data_dir = _factors_data_dir()
+        holdings: List[Dict[str, Any]] = []
+        recent_legs: List[Dict[str, Any]] = []
+        trades: List[Dict[str, Any]] = []
+        asof: Optional[str] = None
+        exposure: Optional[float] = None
+        note = ""
+
+        legs_path = data_dir / factor_id / "trade_legs.parquet"
+        if legs_path.exists():
+            try:
+                import pandas as pd
+
+                legs = pd.read_parquet(legs_path)
+                if not legs.empty and {"entry_date", "exit_date", "code"}.issubset(legs.columns):
+                    legs = legs.copy()
+                    legs["entry_date"] = pd.to_datetime(legs["entry_date"], errors="coerce")
+                    legs["exit_date"] = pd.to_datetime(legs["exit_date"], errors="coerce")
+                    asof_ts = legs["exit_date"].max()
+                    # 优先用回测摘要 end
+                    primary = (backtest.get("primary_logic") or "")
+                    logic_row = (backtest.get("logics") or {}).get(primary) or {}
+                    if not logic_row and backtest.get("logics"):
+                        logic_row = next(iter(backtest["logics"].values()), {}) or {}
+                    if logic_row.get("end"):
+                        asof_ts = pd.Timestamp(logic_row["end"])
+                    asof = str(asof_ts.date()) if pd.notna(asof_ts) else None
+                    if asof:
+                        open_m = (legs["entry_date"] <= asof_ts) & (legs["exit_date"] > asof_ts)
+                        for _, r in legs.loc[open_m].iterrows():
+                            holdings.append(
+                                {
+                                    "code": r["code"],
+                                    "entry_date": str(pd.Timestamp(r["entry_date"]).date()),
+                                    "entry_price": round(float(r["entry_price"]), 4)
+                                    if pd.notna(r.get("entry_price"))
+                                    else None,
+                                    "exit_date": str(pd.Timestamp(r["exit_date"]).date())
+                                    if pd.notna(r.get("exit_date"))
+                                    else None,
+                                    "note": r.get("note") or "",
+                                    "status": "open",
+                                }
+                            )
+                    closed = legs.sort_values("exit_date", ascending=False).head(40)
+                    for _, r in closed.iterrows():
+                        ep = float(r["entry_price"]) if pd.notna(r.get("entry_price")) else None
+                        xp = float(r["exit_price"]) if pd.notna(r.get("exit_price")) else None
+                        ret = None
+                        if ep and xp and ep != 0:
+                            ret = round(xp / ep - 1.0, 4)
+                        recent_legs.append(
+                            {
+                                "code": r["code"],
+                                "entry_date": str(pd.Timestamp(r["entry_date"]).date())
+                                if pd.notna(r.get("entry_date"))
+                                else None,
+                                "exit_date": str(pd.Timestamp(r["exit_date"]).date())
+                                if pd.notna(r.get("exit_date"))
+                                else None,
+                                "entry_price": round(ep, 4) if ep is not None else None,
+                                "exit_price": round(xp, 4) if xp is not None else None,
+                                "return": ret,
+                                "reason": r.get("reason") or "",
+                                "note": r.get("note") or "",
+                                "status": "closed",
+                            }
+                        )
+            except Exception:  # noqa: BLE001
+                logger.exception("read trade_legs failed %s", factor_id)
+
+        # 连续仓位类：从日度回测取末日仓位
+        daily_name = None
+        registry = FACTOR_ARTIFACTS.get(factor_id) or {}
+        for meta in registry.values():
+            if meta.get("kind") == "csv" and str(meta.get("filename", "")).endswith("_backtest.csv"):
+                if "continuous" in str(meta.get("filename")) and factor_id == "national_team":
+                    continue
+                daily_name = meta["filename"]
+                if meta.get("logic") in (None, backtest.get("primary_logic"), "continuous"):
+                    break
+        if factor_id == "national_team":
+            daily_name = "national_team_backtest.csv"
+        daily_path = data_dir / str(daily_name) if daily_name else None
+        if daily_path and daily_path.exists():
+            try:
+                import pandas as pd
+
+                daily = pd.read_csv(daily_path)
+                if not daily.empty and "position" in daily.columns:
+                    last = daily.iloc[-1]
+                    asof = asof or str(last.get("date") or "")[:10]
+                    exposure = float(last["position"]) if pd.notna(last["position"]) else None
+                    if exposure and exposure > 0.02 and not holdings:
+                        holdings.append(
+                            {
+                                "code": last.get("era") or last.get("best_universe") or factor_id,
+                                "entry_date": asof,
+                                "entry_price": float(last["close"])
+                                if "close" in daily.columns and pd.notna(last.get("close"))
+                                else None,
+                                "exit_date": None,
+                                "note": f"末日仓位 {exposure:.2%} · state={last.get('episode_state') or last.get('state') or ''}",
+                                "status": "open",
+                                "weight": round(exposure, 4),
+                            }
+                        )
+                    note = f"回测末日敞口 {exposure:.2%}" if exposure is not None else note
+            except Exception:  # noqa: BLE001
+                logger.exception("read daily backtest failed %s", factor_id)
+
+        trades_name = None
+        for aid, meta in registry.items():
+            if "trade" in aid or (meta.get("label") or "").find("操作") >= 0:
+                trades_name = meta["filename"]
+                break
+        if not trades_name:
+            cand = data_dir / f"{factor_id}_trade_history.csv"
+            if cand.exists():
+                trades_name = cand.name
+        if trades_name:
+            tpath = data_dir / str(trades_name)
+            if tpath.exists():
+                try:
+                    import pandas as pd
+
+                    tdf = pd.read_csv(tpath)
+                    if not tdf.empty:
+                        tdf = tdf.sort_values("date", ascending=False).head(80)
+                        trades = json.loads(tdf.to_json(orient="records", force_ascii=False))
+                except Exception:  # noqa: BLE001
+                    logger.exception("read trades failed %s", factor_id)
+
+        return {
+            "factor_id": factor_id,
+            "name": factor.get("name"),
+            "asof": asof,
+            "exposure": exposure,
+            "note": note,
+            "backtest": backtest,
+            "holdings": holdings,
+            "recent_legs": recent_legs,
+            "trades": trades,
+            "latest_signal": factor.get("latest_signal"),
+            "latest_value": factor.get("latest_value"),
+            "latest_asof": factor.get("latest_asof"),
+            "description": factor.get("description"),
+            "tags": factor.get("tags") or [],
+        }
+
     async def get_guide(self, factor_id: str) -> Optional[Dict[str, Any]]:
         await self.ensure_builtins()
         factor = await self.get_factor(factor_id)

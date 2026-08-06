@@ -32,7 +32,13 @@ def prepare_price_panel(df: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFram
     out["low_252"] = out["low"].rolling(252).min()
     out["high_252"] = out["high"].rolling(252).max()
     out["dd_252"] = out["close"] / out["high_252"] - 1.0
+    out["low_504"] = out["low"].rolling(504).min()
+    out["high_504"] = out["high"].rolling(504).max()
+    out["dd_504"] = out["close"] / out["high_504"] - 1.0
+    out["range_252"] = out["high_252"] / out["low_252"] - 1.0
+    out["range_120"] = out["high"].rolling(120).max() / out["low"].rolling(120).min() - 1.0
     out["vol_60"] = out["close"].pct_change().rolling(60).std()
+    out["vol_60_pct"] = kit.rolling_percentile(out["vol_60"], 252)
     return out
 
 

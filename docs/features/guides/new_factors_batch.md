@@ -32,6 +32,8 @@ python scripts/chain_factor_backtests.py
 | ret20_extreme_bounce | 二十日急跌反弹 | 待全量 |
 | amount_shrink_breakout | 缩量后放量突破 | 待全量 |
 | bottom_earn_vol_break | 底部业绩放量突破 | 长期底部+业绩转好+放量 |
+| crash_long_base_break | 大跌长横盘突破 | 两年大跌+长箱体+估值+放量 |
+| crash_base_earn_break | 长横盘业绩确认突破 | 长横盘+业绩转好+放量 |
 
 另有稳定因子：`national_team` / `dip_buy` / `earnings_forecast`。
 

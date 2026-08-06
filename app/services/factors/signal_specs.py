@@ -581,3 +581,160 @@ def signal_bottom_earn_vol_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd
     out = df.loc[keep, ["date", "close"]].copy()
     out["note"] = "长期底部+业绩扭亏+放量突破"
     return out
+
+
+def _crash_long_base_mask(df: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
+    """大跌后长横盘：两年级回撤 + 箱体压缩 + 离低点已磨一段时间。"""
+    crash_need = -abs(float(params.get("crash_dd") or 0.40))
+    range_max = float(params.get("base_range_max") or 0.48)
+    lift_min = float(params.get("lift_from_low_min") or 0.03)
+    lift_max = float(params.get("lift_from_low_max") or 0.55)
+    base_age = int(params.get("base_age_min") or 120)
+
+    if "dd_504" in df.columns:
+        dd504 = df["dd_504"]
+    else:
+        hi504 = df["high"].rolling(504, min_periods=200).max()
+        dd504 = df["close"] / hi504 - 1.0
+    if "low_504" in df.columns:
+        low504 = df["low_504"]
+    else:
+        low504 = df["low"].rolling(504, min_periods=200).min()
+    if "range_252" in df.columns:
+        rng252 = df["range_252"]
+    else:
+        rng252 = df["high"].rolling(252).max() / df["low"].rolling(252).min() - 1.0
+
+    # 两年窗口内曾深度大跌，或当前仍相对两年高点深度回撤
+    had_crash = dd504.rolling(int(params.get("crash_lookback") or 400), min_periods=60).min() <= crash_need
+    still_off_peak = dd504 <= -abs(float(params.get("off_peak_dd") or 0.25))
+    crash_ok = had_crash & still_off_peak
+
+    # 横盘：一年高低振幅受控；波动分位偏低更佳（缺失则放行）
+    box_ok = rng252.notna() & (rng252 <= range_max)
+    if "vol_60_pct" in df.columns:
+        vol_ok = df["vol_60_pct"].isna() | (df["vol_60_pct"] <= float(params.get("vol_pct_max") or 0.45))
+    else:
+        vol_ok = True
+
+    lift = df["close"] / low504 - 1.0
+    off_low = lift.isna() | ((lift >= lift_min) & (lift <= lift_max))
+
+    # 触底后已磨足够久：base_age 日前的窗口里出现过触底
+    near_trough = (df["low"] <= low504 * (1.0 + float(params.get("trough_near") or 0.05))).astype(float)
+    old_touch = near_trough.shift(base_age).rolling(int(params.get("old_touch_win") or 252), min_periods=1).max()
+    aged = old_touch.fillna(0) > 0
+
+    return crash_ok & box_ok & vol_ok & off_low & aged
+
+
+def _breakout_vol_ok(df: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
+    if "amount" not in df.columns:
+        return pd.Series(False, index=df.index)
+    amt_ma20 = df["amount"].rolling(20).mean()
+    amt_ma60 = df["amount"].rolling(60).mean()
+    quiet = amt_ma20.shift(1) <= amt_ma60.shift(1) * float(params.get("quiet_ratio") or 0.95)
+    surge = df["amount"] >= amt_ma20 * float(params.get("vol_mult") or 1.6)
+    vol_day = quiet & surge
+    lag = int(params.get("vol_lag") or 5)
+    vol_ok = vol_day.rolling(lag, min_periods=1).max().astype(bool)
+    box_n = int(params.get("break_lookback") or 60)
+    box_hi = df["high"].rolling(box_n).max().shift(1)
+    brk = df["close"] >= box_hi
+    not_chased = df["ret_20"].isna() | (df["ret_20"] <= float(params.get("ret20_max") or 0.22))
+    return vol_ok & brk & df["ma20"].notna() & (df["close"] > df["ma20"]) & not_chased
+
+
+def _val_gate(df: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
+    val_ok = pd.Series(True, index=df.index)
+    look = int(params.get("val_lookback") or 60)
+    if "pb_pct" in df.columns:
+        pb_recent = df["pb_pct"].rolling(look, min_periods=1).min()
+        val_ok = val_ok & (df["pb_pct"].isna() | (pb_recent <= float(params.get("pb_pct_max") or 0.55)))
+    if "pe_pct" in df.columns:
+        pe_recent = df["pe_pct"].rolling(look, min_periods=1).min()
+        val_ok = val_ok & (df["pe_pct"].isna() | (pe_recent <= float(params.get("pe_pct_max") or 0.60)))
+    return val_ok
+
+
+def _earn_turn_ok(df: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
+    funda_hist = int(params.get("funda_hist") or 400)
+    earn_event = pd.Series(False, index=df.index)
+    turnaround = pd.Series(False, index=df.index)
+    if "roeAvg" in df.columns and df["roeAvg"].notna().any():
+        roe = pd.to_numeric(df["roeAvg"], errors="coerce")
+        past_min = roe.rolling(funda_hist, min_periods=40).min().shift(1)
+        had_weak = past_min < float(params.get("roe_weak_max") or 0.03)
+        now_ok = roe >= float(params.get("roe_min") or 0.0)
+        turnaround = turnaround | (had_weak & now_ok)
+        improve = float(params.get("roe_improve") or 0.003)
+        earn_event = earn_event | ((roe.shift(1) < 0) & (roe >= 0)) | (roe.diff() > improve) | (
+            roe.diff() > improve * 100
+        )
+    gcol = next((c for c in ("YOYNI", "YOYEPSBasic", "NIYOY") if c in df.columns and df[c].notna().any()), None)
+    if gcol is not None:
+        g = pd.to_numeric(df[gcol], errors="coerce")
+        past_min = g.rolling(funda_hist, min_periods=40).min().shift(1)
+        g_min = float(params.get("growth_min") or 0.05)
+        now_pos = (g >= g_min) | (g >= g_min * 100)
+        turnaround = turnaround | ((past_min < 0) & now_pos)
+        lift = float(params.get("growth_lift") or 0.15)
+        earn_event = earn_event | ((g.shift(1) < 0) & (g >= 0)) | (g.diff() > lift) | (g.diff() > lift * 100)
+    if not bool(turnaround.any()) and not bool(earn_event.any()):
+        return pd.Series(False, index=df.index)
+    recent = earn_event.rolling(int(params.get("earn_window") or 180), min_periods=1).max().astype(bool)
+    return turnaround & recent
+
+
+def _dedupe_entries(df: pd.DataFrame, mask: pd.Series, cooldown: int) -> pd.DataFrame:
+    keep = []
+    last_pos = -10**9
+    pos_map = {idx: pos for pos, idx in enumerate(df.index)}
+    for idx in df.index[mask.fillna(False)]:
+        pos = pos_map[idx]
+        if pos - last_pos >= cooldown:
+            keep.append(idx)
+            last_pos = pos
+    if not keep:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    return df.loc[keep, ["date", "close"]].copy()
+
+
+def signal_crash_long_base_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """大跌后长横盘 + 估值闸门 + 缩量后再放量突破箱体。
+
+    刻画：两年级深度回撤 → 一年箱体压缩横盘 → 估值仍不高 → 放量突破近端箱顶。
+    """
+    df = px.copy()
+    if "amount" not in df.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    base = _crash_long_base_mask(df, params)
+    brk = _breakout_vol_ok(df, params)
+    val = _val_gate(df, params)
+    m = base & brk & val
+    out = _dedupe_entries(df, m, int(params.get("cooldown_days") or 25))
+    if out.empty:
+        return out
+    out["note"] = "大跌长横盘+估值闸门+放量突破"
+    return out
+
+
+def signal_crash_base_earn_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """大跌后长横盘 + 业绩转好确认 + 放量突破（突破有效性更强调基本面）。"""
+    df = px.copy()
+    if "amount" not in df.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    base = _crash_long_base_mask(df, params)
+    brk = _breakout_vol_ok(df, params)
+    earn = _earn_turn_ok(df, params)
+    # 业绩版估值可略松
+    soft = dict(params)
+    soft.setdefault("pb_pct_max", 0.65)
+    soft.setdefault("pe_pct_max", 0.70)
+    val = _val_gate(df, soft)
+    m = base & brk & earn & val
+    out = _dedupe_entries(df, m, int(params.get("cooldown_days") or 25))
+    if out.empty:
+        return out
+    out["note"] = "大跌长横盘+业绩转好+放量突破"
+    return out
