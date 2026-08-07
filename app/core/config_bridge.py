@@ -422,6 +422,29 @@ def _bridge_system_settings() -> int:
             'auto_save_usage': 'AUTO_SAVE_USAGE',
         }
 
+        # 因子数据同步配置
+        factor_sync_settings = {
+            'factor_kline_auto_sync_enabled': 'FACTOR_KLINE_AUTO_SYNC_ENABLED',
+            'factor_kline_auto_sync_cron': 'FACTOR_KLINE_AUTO_SYNC_CRON',
+            'factor_kline_sync_universe': 'FACTOR_KLINE_SYNC_UNIVERSE',
+            'factor_kline_sync_timeout_sec': 'FACTOR_KLINE_SYNC_TIMEOUT_SEC',
+            'factor_kline_data_source': 'FACTOR_KLINE_DATA_SOURCE',
+            'factor_financial_auto_sync_enabled': 'FACTOR_FINANCIAL_AUTO_SYNC_ENABLED',
+            'factor_financial_auto_sync_cron': 'FACTOR_FINANCIAL_AUTO_SYNC_CRON',
+            'factor_financial_sync_universe': 'FACTOR_FINANCIAL_SYNC_UNIVERSE',
+            'factor_financial_sync_timeout_sec': 'FACTOR_FINANCIAL_SYNC_TIMEOUT_SEC',
+            'factor_financial_data_source': 'FACTOR_FINANCIAL_DATA_SOURCE',
+            'factor_financial_recent_years': 'FACTOR_FINANCIAL_RECENT_YEARS',
+            'factor_signals_auto_refresh_enabled': 'FACTOR_SIGNALS_AUTO_REFRESH_ENABLED',
+            'factor_signals_auto_refresh_cron': 'FACTOR_SIGNALS_AUTO_REFRESH_CRON',
+            'factor_signals_after_backtest': 'FACTOR_SIGNALS_AFTER_BACKTEST',
+            'factor_backtest_auto_enabled': 'FACTOR_BACKTEST_AUTO_ENABLED',
+            'factor_backtest_auto_cron': 'FACTOR_BACKTEST_AUTO_CRON',
+            'factor_backtest_auto_sync_kline': 'FACTOR_BACKTEST_AUTO_SYNC_KLINE',
+            'factor_backtest_timeout_sec': 'FACTOR_BACKTEST_TIMEOUT_SEC',
+            'factor_backtest_workers': 'FACTOR_BACKTEST_WORKERS',
+        }
+
         for setting_key, env_key in ta_settings.items():
             # 检查 .env 文件中是否已经设置了该环境变量
             env_value = os.getenv(env_key)
@@ -447,6 +470,17 @@ def _bridge_system_settings() -> int:
                 bridged_count += 1
             else:
                 logger.debug(f"  ⚠️  配置键 {setting_key} 不存在于系统设置中")
+
+        # 桥接因子数据同步配置（.env 优先）
+        for setting_key, env_key in factor_sync_settings.items():
+            env_value = os.getenv(env_key)
+            if env_value is not None:
+                bridged_count += 1
+            elif setting_key in system_settings:
+                value = system_settings[setting_key]
+                os.environ[env_key] = str(value).lower() if isinstance(value, bool) else str(value)
+                logger.info(f"  ✓ 桥接 {env_key}: {value}")
+                bridged_count += 1
 
         # 时区配置
         if 'app_timezone' in system_settings:

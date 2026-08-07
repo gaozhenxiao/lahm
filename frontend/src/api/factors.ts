@@ -37,6 +37,15 @@ export interface FactorBacktest {
   note?: string
 }
 
+export interface FactorOpenHolding {
+  code: string
+  name?: string
+  buy_date?: string
+  latest_buy_date?: string
+  weight?: number
+  is_new?: boolean
+}
+
 export interface FactorItem {
   factor_id: string
   name: string
@@ -55,6 +64,9 @@ export interface FactorItem {
   backtest?: FactorBacktest | null
   has_guide?: boolean
   last_backtest_error?: string | null
+  /** 回测末日持仓（列表页） */
+  holdings_as_of?: string | null
+  open_holdings?: FactorOpenHolding[]
 }
 
 export interface FactorGuide {
@@ -127,6 +139,70 @@ export const factorsApi = {
   compute: async (id: string, asof?: string) => {
     const res = await ApiClient.post(`/api/factors/${id}/compute`, {}, { params: { asof } })
     return (res as any)?.data || res
+  },
+  /** 统一更新：K线增量 + 财报增量 + 信号重算（默认后台） */
+  update: async (opts?: {
+    include_kline?: boolean
+    include_financial?: boolean
+    include_signals?: boolean
+    background?: boolean
+  }) => {
+    const params: Record<string, boolean> = {
+      include_kline: opts?.include_kline ?? true,
+      include_financial: opts?.include_financial ?? true,
+      include_signals: opts?.include_signals ?? true,
+      background: opts?.background ?? true,
+    }
+    const res = await ApiClient.post('/api/factors/update', {}, { params })
+    return (res as any)?.data || res
+  },
+    updateSettings: async () => {
+    const res = await ApiClient.get<{
+      kline: {
+        enabled: boolean
+        cron: string
+        universe: string
+        data_source?: string
+        times_hint: string
+      }
+      financial: {
+        enabled: boolean
+        cron: string
+        universe: string
+        data_source?: string
+        times_hint: string
+      }
+      backtest?: {
+        enabled: boolean
+        cron: string
+        times_hint: string
+      }
+      signals: { enabled: boolean; cron: string; after_backtest?: boolean }
+      timezone: string
+    }>('/api/factors/update/settings')
+    return ((res as any)?.data || res) as {
+      kline: {
+        enabled: boolean
+        cron: string
+        universe: string
+        data_source?: string
+        times_hint: string
+      }
+      financial: {
+        enabled: boolean
+        cron: string
+        universe: string
+        data_source?: string
+        times_hint: string
+      }
+      backtest?: {
+        enabled: boolean
+        cron: string
+        times_hint: string
+      }
+      signals: { enabled: boolean; cron: string; after_backtest?: boolean }
+      timezone: string
+    }
   },
   signals: async (id: string) => {
     const res = await ApiClient.get(`/api/factors/${id}/signals`)

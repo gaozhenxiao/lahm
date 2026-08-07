@@ -78,7 +78,10 @@ async function load() {
 }
 
 async function create() {
-  if (!form.code) return ElMessage.warning('请填写代码')
+  if (!form.code) {
+    ElMessage.warning('请填写代码')
+    return
+  }
   await investmentsApi.create({ ...form, market: 'CN', status: 'planned', side: 'long' })
   showCreate.value = false
   ElMessage.success('已创建')

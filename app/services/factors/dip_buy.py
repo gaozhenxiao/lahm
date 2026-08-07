@@ -104,6 +104,7 @@ def _safe_import_ak():
 
 
 def _merge_by_date(path: Path, new: pd.DataFrame, value_cols: List[str]) -> pd.DataFrame:
+    """增量合并；新数据非空覆盖旧值，但 NaN 不冲掉已有列（避免只刷到 PE 时清空 PB）。"""
     if new is None or new.empty:
         if path.exists():
             return pd.read_parquet(path)
@@ -114,14 +115,25 @@ def _merge_by_date(path: Path, new: pd.DataFrame, value_cols: List[str]) -> pd.D
         if c in new.columns:
             new[c] = pd.to_numeric(new[c], errors="coerce")
     keep = ["date"] + [c for c in value_cols if c in new.columns]
-    new = new[keep].dropna(subset=["date"])
+    new = new[keep].dropna(subset=["date"]).drop_duplicates("date", keep="last")
     if path.exists():
         old = pd.read_parquet(path)
         old["date"] = pd.to_datetime(old["date"], errors="coerce")
-        merged = pd.concat([old, new], ignore_index=True)
+        old = old.dropna(subset=["date"]).drop_duplicates("date", keep="last")
+        base = old.set_index("date")
+        add = new.set_index("date")
+        for c in add.columns:
+            if c not in base.columns:
+                base[c] = add[c]
+            else:
+                # 优先新值；新值为 NaN 时保留旧值
+                base[c] = add[c].combine_first(base[c])
+        new_idx = add.index.difference(base.index)
+        if len(new_idx):
+            base = pd.concat([base, add.loc[new_idx]], axis=0)
+        merged = base.sort_index().reset_index()
     else:
-        merged = new
-    merged = merged.dropna(subset=["date"]).drop_duplicates("date", keep="last").sort_values("date")
+        merged = new.sort_values("date").reset_index(drop=True)
     path.parent.mkdir(parents=True, exist_ok=True)
     merged.to_parquet(path, index=False)
     return merged.reset_index(drop=True)

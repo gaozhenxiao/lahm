@@ -533,7 +533,27 @@ class ConfigService:
                 "ta_us_min_api_interval_seconds": 1.0,
                 "ta_google_news_sleep_min_seconds": 2.0,
                 "ta_google_news_sleep_max_seconds": 6.0,
-                "app_timezone": "Asia/Shanghai"
+                "app_timezone": "Asia/Shanghai",
+                # 因子数据自动更新（K线 / 财报 / 信号）
+                "factor_kline_auto_sync_enabled": True,
+                "factor_kline_auto_sync_cron": "0 12 * * 1-5",
+                "factor_kline_sync_universe": "hs300_csi500_csi1000",
+                "factor_kline_sync_timeout_sec": 7200,
+                "factor_kline_data_source": "tencent",
+                "factor_financial_auto_sync_enabled": True,
+                "factor_financial_auto_sync_cron": "0 8,21 * * *",
+                "factor_financial_sync_universe": "hs300_csi500_csi1000",
+                "factor_financial_sync_timeout_sec": 10800,
+                "factor_financial_data_source": "fin_db_then_baostock",
+                "factor_financial_recent_years": 2,
+                "factor_backtest_auto_enabled": True,
+                "factor_backtest_auto_cron": "0 8,16 * * *",
+                "factor_backtest_auto_sync_kline": True,
+                "factor_backtest_timeout_sec": 14400,
+                "factor_backtest_workers": 1,
+                "factor_signals_after_backtest": True,
+                "factor_signals_auto_refresh_enabled": False,
+                "factor_signals_auto_refresh_cron": "0 12,19 * * *",
             }
         )
         

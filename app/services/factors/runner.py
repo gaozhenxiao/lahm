@@ -501,6 +501,7 @@ def run_factor_pipeline(
     need_growth: bool = False,
     need_balance: bool = False,
     need_fin_db: bool = False,
+    need_bank_peer: bool = False,
     limit: int = 0,
     start: str = "2018-01-01",
     price_map: Optional[Dict[str, pd.DataFrame]] = None,
@@ -542,6 +543,14 @@ def run_factor_pipeline(
         if need_balance and (sample is None or "contract_liab" not in getattr(sample, "columns", [])):
             price_map = enrich_with_balance(price_map, params, cache_dir)
 
+    if need_bank_peer or bool(params.get("need_bank_peer")):
+        from app.services.factors.bank_peer import annotate_bank_peer_panel
+
+        sample = next(iter(price_map.values()), pd.DataFrame())
+        if sample is None or "cs_ret_60" not in getattr(sample, "columns", []):
+            print(f"[{factor_id}] annotate bank peer CS n={len(price_map)}", flush=True)
+            price_map = annotate_bank_peer_panel(price_map)
+
     legs = collect_legs(price_map, signal_fn, params)
     print(f"[{factor_id}] legs={len(legs)}", flush=True)
     legs_path = factor_dir / "trade_legs.parquet"
@@ -581,6 +590,7 @@ def prepare_shared_panel(
     need_growth: bool = False,
     need_balance: bool = False,
     need_fin_db: bool = False,
+    need_bank_peer: bool = False,
     limit: int = 0,
     codes: Optional[Sequence[str]] = None,
 ) -> Dict[str, pd.DataFrame]:
@@ -603,7 +613,7 @@ def prepare_shared_panel(
         code_list = code_list[:limit]
     print(
         f"[panel] codes={len(code_list)} profit={need_profit} growth={need_growth} "
-        f"balance={need_balance} fin_db={need_fin_db}",
+        f"balance={need_balance} fin_db={need_fin_db} bank_peer={need_bank_peer}",
         flush=True,
     )
     price_map = load_or_fetch_universe_prices(code_list, params, cache_dir)
@@ -617,6 +627,10 @@ def prepare_shared_panel(
         sample = next(iter(price_map.values()), pd.DataFrame())
         if sample is None or "contract_liab" not in getattr(sample, "columns", []):
             price_map = enrich_with_balance(price_map, params, cache_dir)
+    if need_bank_peer or bool(params.get("need_bank_peer")):
+        from app.services.factors.bank_peer import annotate_bank_peer_panel
+
+        price_map = annotate_bank_peer_panel(price_map)
     return price_map
 
 
@@ -629,10 +643,14 @@ def latest_candidates(
     need_growth: bool = False,
     need_balance: bool = False,
     need_fin_db: bool = False,
+    need_bank_peer: bool = False,
     asof: Optional[str] = None,
     lookback_codes: int = 80,
 ) -> Dict[str, Any]:
-    """用缓存粗算今日信号（限速：只扫部分有缓存的股票）。"""
+    """用缓存粗算今日信号（限速：只扫部分有缓存的股票）。
+
+    银行截面因子（need_bank_peer）必须全宇宙标注后再算信号。
+    """
     from app.services.factors import ashare_fin_db as fin_db
 
     cache_dir = kit.shared_cache_dir()
@@ -647,6 +665,46 @@ def latest_candidates(
             "value": 0.0,
             "note": "无缓存，请先 refresh/backtest",
         }
+
+    if need_bank_peer or bool(params.get("need_bank_peer")):
+        panel = prepare_shared_panel(
+            params,
+            need_profit=need_profit,
+            need_growth=need_growth,
+            need_balance=need_balance,
+            need_fin_db=need_fin_db,
+            need_bank_peer=True,
+            limit=0,
+        )
+        for code, px in panel.items():
+            try:
+                entries = signal_fn(px, params)
+            except Exception:  # noqa: BLE001
+                continue
+            if entries is None or entries.empty:
+                continue
+            entries = entries.copy()
+            entries["date"] = pd.to_datetime(entries["date"])
+            hit = entries[entries["date"] == asof_dt]
+            if hit.empty:
+                hit = entries[entries["date"] >= asof_dt - pd.Timedelta(days=3)]
+            for _, r in hit.iterrows():
+                candidates.append(
+                    {
+                        "code": code,
+                        "entry": str(pd.Timestamp(r["date"]).date()),
+                        "note": r.get("note") or "",
+                    }
+                )
+        return {
+            "factor_id": factor_id,
+            "asof": asof_dt.to_pydatetime(),
+            "signal": "buy" if candidates else "neutral",
+            "value": float(len(candidates)),
+            "candidates": candidates,
+            "note": f"bank_peer panel n={len(panel)}",
+        }
+
     files = sorted(daily_dir.glob("*.parquet"))[:lookback_codes]
     for fp in files:
         code = fp.stem.replace("_", ".", 1) if fp.stem.count("_") == 1 else fp.stem.replace("_", ".")

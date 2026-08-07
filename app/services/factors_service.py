@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.core.database import get_mongo_db
 from app.models.factors import FactorCreate, FactorUpdate
-from app.utils.timezone import now_tz
+from app.utils.timezone import ensure_timezone, now_tz
 from app.services.factors.national_team import compute_national_team_signal
 from app.services.factors.dip_buy import compute_dip_buy_signal
 from app.services.factors.earnings_forecast import compute_earnings_forecast_signal
@@ -1368,25 +1368,27 @@ class FactorsService:
         if retired_to_drop:
             await db[FACTORS].delete_many({"factor_id": {"$in": list(retired_to_drop)}})
             await db[FACTOR_SIGNALS].delete_many({"factor_id": {"$in": list(retired_to_drop)}})
+        impl_ids = {str(x) for x in FACTOR_IMPL.keys()}
         for f in BUILTIN_FACTORS:
             # 内置因子元数据每次同步；已有文档保留原 created_at，避免序号漂移。
-            # 新增因子：挂到 max(created_at)+1h，禁止用定义序合成时间插到中间挤占。
+            # 禁止自动 upsert 建档：新因子只能由 fill/手工 INSERT 挂上，
+            # 否则刷新列表会冒出一堆无产物的「暂无回测」。
             fid = f.get("factor_id")
-            existing = await db[FACTORS].find_one({"factor_id": fid}, {"created_at": 1}) if fid else None
+            if not fid:
+                continue
+            existing = await db[FACTORS].find_one({"factor_id": fid}, {"created_at": 1})
+            if existing is None:
+                continue
             payload = {
-                **f,
+                **{k: v for k, v in f.items() if k != "created_at"},
                 "status": "active",
                 "builtin": True,
                 "updated_at": now,
+                "created_at": existing.get("created_at"),
             }
-            if existing and existing.get("created_at") is not None:
-                payload["created_at"] = existing["created_at"]
-            else:
-                payload["created_at"] = await self._next_factor_created_at(db, now)
             await db[FACTORS].update_one(
-                {"factor_id": f["factor_id"]},
+                {"factor_id": fid},
                 {"$set": payload},
-                upsert=True,
             )
 
     @staticmethod
@@ -1397,13 +1399,17 @@ class FactorsService:
             sort=[("created_at", -1)],
             projection={"created_at": 1},
         )
+        now_aware = ensure_timezone(now) or now
         if not latest or latest.get("created_at") is None:
-            return now
+            return now_aware
         try:
-            nxt = latest["created_at"] + timedelta(hours=1)
+            latest_dt = ensure_timezone(latest["created_at"])
+            if latest_dt is None:
+                return now_aware
+            nxt = latest_dt + timedelta(hours=1)
         except Exception:
-            return now
-        return now if now > nxt else nxt
+            return now_aware
+        return now_aware if now_aware > nxt else nxt
 
 
     @staticmethod
@@ -1431,6 +1437,22 @@ class FactorsService:
             row = _serialize_factor(d)
             row["gen_seq"] = i
             out.append(row)
+        # 挂载末日持仓（5 日内买入标 is_new），供列表「持仓」列
+        try:
+            from app.services.factor_book_service import build_open_holdings_by_factor
+
+            fids = [str(r.get("factor_id") or "") for r in out if r.get("factor_id")]
+            holdings_map = await asyncio.to_thread(build_open_holdings_by_factor, fids)
+            for row in out:
+                fid = str(row.get("factor_id") or "")
+                brief = holdings_map.get(fid) or {"as_of": "", "holdings": []}
+                row["holdings_as_of"] = brief.get("as_of") or ""
+                row["open_holdings"] = brief.get("holdings") or []
+        except Exception:  # noqa: BLE001
+            logger.exception("attach open_holdings to factor list failed")
+            for row in out:
+                row.setdefault("holdings_as_of", "")
+                row.setdefault("open_holdings", [])
         return out
 
     async def get_factor(self, factor_id: str) -> Optional[Dict[str, Any]]:

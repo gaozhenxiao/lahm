@@ -598,10 +598,11 @@ def signal_roe_improve_pb_cheap(px: pd.DataFrame, params: Dict[str, Any]) -> pd.
     """自研：ROE环比改善 + PB低估 + 站上MA20。"""
     if "roeAvg" not in px.columns or "pb_pct" not in px.columns:
         return pd.DataFrame(columns=["date", "close", "note"])
-    improve = px["roeAvg"].diff() > abs(float(params.get("roe_improve") or 0.005))
+    roe = pd.to_numeric(px["roeAvg"], errors="coerce")
+    improve = roe.diff() > abs(float(params.get("roe_improve") or 0.005))
     cheap = px["pb_pct"].notna() & (px["pb_pct"] <= float(params.get("pb_pct_max") or 0.35))
     cross = (px["close"] > px["ma20"]) & (px["close"].shift(1) <= px["ma20"].shift(1))
-    m = improve & cheap & cross
+    m = improve.fillna(False) & cheap & cross
     out = px.loc[m, ["date", "close"]].copy()
     out["note"] = "ROE改善+低PB"
     return out
@@ -4573,4 +4574,709 @@ def signal_cfo_yoy_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.D
     m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
     out = px.loc[m.astype(bool), ["date", "close"]].copy()
     out["note"] = "经营现金流YoY再加速"
+    return out
+
+
+# ----- 银行业特色：净息差代理 / 中收 / 信用减值 / 贷款拨备 -----
+
+
+def _bank_soft_value_gate(px: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
+    """可选软估值闸（非主逻辑）：缺列或未设阈值时恒真。"""
+    ok = pd.Series(True, index=px.index)
+    if params.get("pb_pct_max") is not None and "pb_pct" in px.columns:
+        thr = float(params["pb_pct_max"])
+        ok = ok & (px["pb_pct"].isna() | (px["pb_pct"] <= thr))
+    if params.get("pe_pct_max") is not None and "pe_pct" in px.columns:
+        thr = float(params["pe_pct_max"])
+        ok = ok & (px["pe_pct"].isna() | (px["pe_pct"] <= thr))
+    if params.get("pb_max") is not None and "pbMRQ" in px.columns:
+        thr = float(params["pb_max"])
+        ok = ok & px["pbMRQ"].notna() & (px["pbMRQ"] > 0) & (px["pbMRQ"] <= thr)
+    return ok
+
+
+def _bank_roe_soft(px: pd.DataFrame, params: Dict[str, Any]) -> pd.Series:
+    if params.get("roe_min") is None or "roeAvg" not in px.columns:
+        return pd.Series(True, index=px.index)
+    return _roe_ok(px["roeAvg"], float(params.get("roe_min") or 0.08)) | px["roeAvg"].isna()
+
+
+def signal_bank_nim_improve_reclaim(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """息差代理改善：fin_nim_proxy 环比上行 + 技术确认。"""
+    if "fin_nim_proxy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    nim = pd.to_numeric(px["fin_nim_proxy"], errors="coerce")
+    dlt = (
+        pd.to_numeric(px["fin_nim_proxy_delta"], errors="coerce")
+        if "fin_nim_proxy_delta" in px.columns
+        else nim - nim.shift(1)
+    )
+    improve = float(params.get("nim_improve") or 1e-4)
+    evt = _funda_event(px["fin_nim_proxy"])
+    gate = evt & dlt.notna() & (dlt >= improve) & nim.notna() & (nim > 0)
+    lag = int(params.get("funda_lag") or 20)
+    hot = _funda_hot_window(gate.fillna(False), lag) if lag > 0 else gate
+    m = hot & _bank_soft_value_gate(px, params) & _bank_roe_soft(px, params) & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行息差代理改善"
+    return out
+
+
+def signal_bank_net_int_yoy_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """净息收入同比改善/再加速。"""
+    if "fin_net_int_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    yoy = pd.to_numeric(px["fin_net_int_yoy"], errors="coerce")
+    ymin = float(params.get("net_int_yoy_min") or params.get("yoy_min") or 0.0)
+    evt, delta = _yoy_event_delta(px["fin_net_int_yoy"], yoy)
+    accel = params.get("net_int_accel")
+    gate = evt & yoy.notna() & (yoy >= ymin)
+    if accel is not None:
+        gate = gate & delta.notna() & (delta >= float(accel))
+    else:
+        # 默认要求同比环比抬升
+        gate = gate & delta.notna() & (delta >= float(params.get("yoy_improve") or 0.01))
+    hot = _yoy_gate_hot(px, gate.fillna(False), params)
+    m = hot & _bank_soft_value_gate(px, params) & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "净息收入YoY改善"
+    return out
+
+
+def signal_bank_fee_mix_improve(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """中收占比抬升：收入结构多元化。"""
+    if "fin_fee_share" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    share = pd.to_numeric(px["fin_fee_share"], errors="coerce")
+    dlt = (
+        pd.to_numeric(px["fin_fee_share_delta"], errors="coerce")
+        if "fin_fee_share_delta" in px.columns
+        else share - share.shift(1)
+    )
+    improve = float(params.get("fee_share_improve") or 0.005)
+    level = float(params.get("fee_share_min") or 0.05)
+    evt = _funda_event(px["fin_fee_share"])
+    gate = evt & dlt.notna() & (dlt >= improve) & share.notna() & (share >= level)
+    lag = int(params.get("funda_lag") or 20)
+    hot = _funda_hot_window(gate.fillna(False), lag) if lag > 0 else gate
+    m = hot & _bank_soft_value_gate(px, params) & _bank_roe_soft(px, params) & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行中收占比抬升"
+    return out
+
+
+def signal_bank_fee_yoy_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """中收同比高增突破/回踩。"""
+    if "fin_fee_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    yoy = pd.to_numeric(px["fin_fee_yoy"], errors="coerce")
+    ymin = float(params.get("fee_yoy_min") or 0.08)
+    evt, delta = _yoy_event_delta(px["fin_fee_yoy"], yoy)
+    gate = evt & yoy.notna() & (yoy >= ymin)
+    if params.get("fee_yoy_accel") is not None:
+        gate = gate & delta.notna() & (delta >= float(params["fee_yoy_accel"]))
+    hot = _yoy_gate_hot(px, gate.fillna(False), params)
+    m = hot & _bank_soft_value_gate(px, params) & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行中收YoY高增"
+    return out
+
+
+def signal_bank_impair_ease_reclaim(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """信用减值压力缓解：impair/营业利润 下行。"""
+    if "fin_impair_to_op" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    ratio = pd.to_numeric(px["fin_impair_to_op"], errors="coerce")
+    dlt = (
+        pd.to_numeric(px["fin_impair_to_op_delta"], errors="coerce")
+        if "fin_impair_to_op_delta" in px.columns
+        else ratio - ratio.shift(1)
+    )
+    ease = -abs(float(params.get("impair_ease") or 0.02))
+    cap = float(params.get("impair_max") or 0.80)
+    evt = _funda_event(px["fin_impair_to_op"])
+    gate = evt & dlt.notna() & (dlt <= ease) & ratio.notna() & (ratio <= cap) & (ratio > 0)
+    lag = int(params.get("funda_lag") or 20)
+    hot = _funda_hot_window(gate.fillna(False), lag) if lag > 0 else gate
+    m = hot & _bank_soft_value_gate(px, params) & _bank_roe_soft(px, params) & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行减值压力缓解"
+    return out
+
+
+def signal_bank_loan_growth_quality(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """贷款扩张 + 减值不恶化（质量扩表）。"""
+    if "fin_loan_growth" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    lg = pd.to_numeric(px["fin_loan_growth"], errors="coerce")
+    gmin = float(params.get("loan_growth_min") or 0.05)
+    evt = _funda_event(px["fin_loan_growth"])
+    gate = evt & lg.notna() & (lg >= gmin)
+    if "fin_impair_to_op_delta" in px.columns:
+        idlt = pd.to_numeric(px["fin_impair_to_op_delta"], errors="coerce")
+        # 允许轻微上行，但不能明显恶化
+        gate = gate & (idlt.isna() | (idlt <= float(params.get("impair_worsen_max") or 0.03)))
+    lag = int(params.get("funda_lag") or 20)
+    hot = _funda_hot_window(gate.fillna(False), lag) if lag > 0 else gate
+    m = hot & _bank_soft_value_gate(px, params) & _bank_roe_soft(px, params) & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行质量扩表"
+    return out
+
+
+def signal_bank_prov_thicken(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """拨备厚度抬升：prov/loans 上行（主动夯实）。"""
+    if "fin_prov_loan" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    pl = pd.to_numeric(px["fin_prov_loan"], errors="coerce")
+    dlt = (
+        pd.to_numeric(px["fin_prov_loan_delta"], errors="coerce")
+        if "fin_prov_loan_delta" in px.columns
+        else pl - pl.shift(1)
+    )
+    improve = float(params.get("prov_improve") or 0.001)
+    level = float(params.get("prov_loan_min") or 0.015)
+    evt = _funda_event(px["fin_prov_loan"])
+    gate = evt & dlt.notna() & (dlt >= improve) & pl.notna() & (pl >= level)
+    lag = int(params.get("funda_lag") or 20)
+    hot = _funda_hot_window(gate.fillna(False), lag) if lag > 0 else gate
+    m = hot & _bank_soft_value_gate(px, params) & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行拨备夯实"
+    return out
+
+
+def signal_bank_int_spread_improve(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """利息收支差改善：(利息收入-利息支出)/利息收入 上行。"""
+    if "fin_int_spread" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    sp = pd.to_numeric(px["fin_int_spread"], errors="coerce")
+    dlt = (
+        pd.to_numeric(px["fin_int_spread_delta"], errors="coerce")
+        if "fin_int_spread_delta" in px.columns
+        else sp - sp.shift(1)
+    )
+    improve = float(params.get("spread_improve") or 0.005)
+    level = float(params.get("spread_min") or 0.35)
+    evt = _funda_event(px["fin_int_spread"])
+    gate = evt & dlt.notna() & (dlt >= improve) & sp.notna() & (sp >= level)
+    lag = int(params.get("funda_lag") or 20)
+    hot = _funda_hot_window(gate.fillna(False), lag) if lag > 0 else gate
+    m = hot & _bank_soft_value_gate(px, params) & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行利息收支差改善"
+    return out
+
+
+def signal_bank_dual_int_fee(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """净息+中收双增：息差业务与非息同步改善。"""
+    if "fin_net_int_yoy" not in px.columns or "fin_fee_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    ni = pd.to_numeric(px["fin_net_int_yoy"], errors="coerce")
+    fee = pd.to_numeric(px["fin_fee_yoy"], errors="coerce")
+    ni_min = float(params.get("net_int_yoy_min") or 0.0)
+    fee_min = float(params.get("fee_yoy_min") or 0.05)
+    evt = _funda_event(px["fin_net_int_yoy"]) | _funda_event(px["fin_fee_yoy"])
+    gate = evt & ni.notna() & fee.notna() & (ni >= ni_min) & (fee >= fee_min)
+    lag = int(params.get("funda_lag") or 20)
+    hot = _funda_hot_window(gate.fillna(False), lag) if lag > 0 else gate
+    m = hot & _bank_soft_value_gate(px, params) & _bank_roe_soft(px, params) & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行净息+中收双增"
+    return out
+
+
+def signal_bank_impair_turn_prov(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """减值见顶回落 + 拨备厚度尚可：资产质量拐点。"""
+    need = ("fin_impair_to_op", "fin_prov_loan")
+    if any(c not in px.columns for c in need):
+        return pd.DataFrame(columns=["date", "close", "note"])
+    ratio = pd.to_numeric(px["fin_impair_to_op"], errors="coerce")
+    dlt = (
+        pd.to_numeric(px["fin_impair_to_op_delta"], errors="coerce")
+        if "fin_impair_to_op_delta" in px.columns
+        else ratio - ratio.shift(1)
+    )
+    pl = pd.to_numeric(px["fin_prov_loan"], errors="coerce")
+    ease = -abs(float(params.get("impair_ease") or 0.015))
+    # 前期减值偏高（有压力）再缓解，避免一直低减值噪声
+    prior_high = ratio.shift(1) >= float(params.get("impair_prior_min") or 0.25)
+    prov_ok = pl.notna() & (pl >= float(params.get("prov_loan_min") or 0.015))
+    evt = _funda_event(px["fin_impair_to_op"])
+    gate = evt & prior_high.fillna(False) & dlt.notna() & (dlt <= ease) & prov_ok
+    lag = int(params.get("funda_lag") or 24)
+    hot = _funda_hot_window(gate.fillna(False), lag) if lag > 0 else gate
+    m = hot & _bank_soft_value_gate(px, params) & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行资产质量拐点"
+    return out
+
+
+# ----- 银行业截面分化：相对同行强弱 / 质量 / 错杀反转 -----
+
+
+def _cs_ok(px: pd.DataFrame, col: str, lo: float | None = None, hi: float | None = None) -> pd.Series:
+    if col not in px.columns:
+        return pd.Series(False, index=px.index)
+    s = pd.to_numeric(px[col], errors="coerce")
+    m = s.notna()
+    if lo is not None:
+        m = m & (s >= float(lo))
+    if hi is not None:
+        m = m & (s <= float(hi))
+    return m
+
+
+def signal_bank_cs_mom_quality(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """同行强势 + 质量不差：60日收益排名靠前，减值排名不过差。"""
+    mom_min = float(params.get("cs_mom_min") or 0.70)
+    aq_max = float(params.get("cs_impair_max") or 0.60)
+    q_min = float(params.get("cs_quality_min") or 0.40)
+    gate = _cs_ok(px, "cs_ret_60", lo=mom_min)
+    if "cs_fin_impair_to_op" in px.columns:
+        gate = gate & _cs_ok(px, "cs_fin_impair_to_op", hi=aq_max)
+    if "cs_quality" in px.columns:
+        gate = gate & _cs_ok(px, "cs_quality", lo=q_min)
+    # 相对超额为正，避免全行业普涨噪声
+    if "x_ret_60" in px.columns:
+        x = pd.to_numeric(px["x_ret_60"], errors="coerce")
+        gate = gate & x.notna() & (x >= float(params.get("x_ret60_min") or 0.0))
+    m = gate & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行同行强势质量"
+    return out
+
+
+def signal_bank_cs_cheap_quality(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """同行相对便宜 + 相对高 ROE（银行内 GARP）。"""
+    pb_max = float(params.get("cs_pb_max") or 0.35)
+    roe_min = float(params.get("cs_roe_min") or 0.60)
+    gate = _cs_ok(px, "cs_pb_pct", hi=pb_max) & _cs_ok(px, "cs_roeAvg", lo=roe_min)
+    if "cs_quality" in px.columns:
+        gate = gate & _cs_ok(px, "cs_quality", lo=float(params.get("cs_quality_min") or 0.45))
+    m = gate & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行相对低估高质量"
+    return out
+
+
+def signal_bank_cs_fee_leader(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """中收结构领先：fee_share 同行排名高。"""
+    fee_min = float(params.get("cs_fee_min") or 0.70)
+    gate = _cs_ok(px, "cs_fin_fee_share", lo=fee_min)
+    if "cs_fin_fee_yoy" in px.columns:
+        gate = gate & (
+            px["cs_fin_fee_yoy"].isna()
+            | (pd.to_numeric(px["cs_fin_fee_yoy"], errors="coerce") >= float(params.get("cs_fee_yoy_min") or 0.40))
+        )
+    # 可选：要求绝对 fee_share 也在改善
+    if "fin_fee_share_delta" in px.columns and params.get("require_fee_improve", True):
+        dlt = pd.to_numeric(px["fin_fee_share_delta"], errors="coerce")
+        evt = _funda_event(px["fin_fee_share"]) if "fin_fee_share" in px.columns else dlt.notna()
+        lag = int(params.get("funda_lag") or 20)
+        improve = evt & dlt.notna() & (dlt >= float(params.get("fee_share_improve") or 0.0))
+        hot = _funda_hot_window(improve.fillna(False), lag) if lag > 0 else improve
+        gate = gate & hot
+    m = gate & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行中收同行领先"
+    return out
+
+
+def signal_bank_cs_aq_leader(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """资产质量相对最优：减值压力同行低分位 + 拨备厚度不差。"""
+    aq_max = float(params.get("cs_impair_max") or 0.30)
+    prov_min = float(params.get("cs_prov_min") or 0.45)
+    gate = _cs_ok(px, "cs_fin_impair_to_op", hi=aq_max)
+    if "cs_fin_prov_loan" in px.columns:
+        gate = gate & _cs_ok(px, "cs_fin_prov_loan", lo=prov_min)
+    if "cs_roeAvg" in px.columns:
+        gate = gate & _cs_ok(px, "cs_roeAvg", lo=float(params.get("cs_roe_min") or 0.40))
+    m = gate & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行资产质量同行领先"
+    return out
+
+
+def signal_bank_cs_loan_leader(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """扩表领先且质量可控：贷款增速同行高、减值不过差。"""
+    lg_min = float(params.get("cs_loan_min") or 0.70)
+    aq_max = float(params.get("cs_impair_max") or 0.65)
+    gate = _cs_ok(px, "cs_fin_loan_growth", lo=lg_min)
+    if "cs_fin_impair_to_op" in px.columns:
+        gate = gate & _cs_ok(px, "cs_fin_impair_to_op", hi=aq_max)
+    m = gate & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行质量扩表同行领先"
+    return out
+
+
+def signal_bank_cs_nim_leader(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """息差代理同行领先。"""
+    nim_min = float(params.get("cs_nim_min") or 0.65)
+    gate = _cs_ok(px, "cs_fin_nim_proxy", lo=nim_min)
+    if "fin_nim_proxy_delta" in px.columns and params.get("require_nim_improve", False):
+        dlt = pd.to_numeric(px["fin_nim_proxy_delta"], errors="coerce")
+        evt = _funda_event(px["fin_nim_proxy"]) if "fin_nim_proxy" in px.columns else dlt.notna()
+        lag = int(params.get("funda_lag") or 20)
+        hot = _funda_hot_window(
+            (evt & dlt.notna() & (dlt >= float(params.get("nim_improve") or 0.0))).fillna(False),
+            lag,
+        )
+        gate = gate & hot
+    m = gate & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行息差同行领先"
+    return out
+
+
+def signal_bank_cs_catchup(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """错杀反转：前期相对弱势、质量尚可，短期动量回升。"""
+    lag = int(params.get("weak_lag") or 20)
+    weak_max = float(params.get("cs_weak_max") or 0.35)
+    now_min = float(params.get("cs_now_min") or 0.50)
+    q_min = float(params.get("cs_quality_min") or 0.50)
+    if "cs_ret_60" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    cs60 = pd.to_numeric(px["cs_ret_60"], errors="coerce")
+    was_weak = cs60.shift(lag) <= weak_max
+    now_ok = False
+    if "cs_ret_20" in px.columns:
+        now_ok = pd.to_numeric(px["cs_ret_20"], errors="coerce") >= now_min
+    else:
+        now_ok = cs60 >= now_min
+    q_ok = True
+    if "cs_quality" in px.columns:
+        q_ok = _cs_ok(px, "cs_quality", lo=q_min)
+    elif "cs_roeAvg" in px.columns:
+        q_ok = _cs_ok(px, "cs_roeAvg", lo=q_min)
+    gate = was_weak.fillna(False) & now_ok.fillna(False) & q_ok
+    m = gate & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行高质量错杀反转"
+    return out
+
+
+def signal_bank_cs_tier_mom(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """分层内相对强势：大行/股份/城商各自内部选强。"""
+    if "cs_tier_ret_60" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    tmin = float(params.get("cs_tier_mom_min") or 0.75)
+    gate = _cs_ok(px, "cs_tier_ret_60", lo=tmin)
+    if "cs_tier_roe" in px.columns:
+        gate = gate & (
+            px["cs_tier_roe"].isna()
+            | (pd.to_numeric(px["cs_tier_roe"], errors="coerce") >= float(params.get("cs_tier_roe_min") or 0.40))
+        )
+    # 可选只做某一层
+    tier = params.get("tier_only")
+    if tier and "tier" in px.columns:
+        gate = gate & (px["tier"].astype(str) == str(tier))
+    m = gate & _entry_tech(px, params)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行分层内相对强势"
+    return out
+
+
+def signal_bank_cs_quality_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """综合质量分领先 + 突破（挑银行里的「好银行」趋势）。"""
+    q_min = float(params.get("cs_quality_min") or 0.70)
+    if "cs_quality" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    gate = _cs_ok(px, "cs_quality", lo=q_min)
+    if "cs_ret_20" in px.columns:
+        gate = gate & _cs_ok(px, "cs_ret_20", lo=float(params.get("cs_mom20_min") or 0.45))
+    # 默认突破入场
+    p = dict(params)
+    p.setdefault("entry", "break")
+    m = gate & _entry_tech(px, p)
+    out = px.loc[m.fillna(False), ["date", "close"]].copy()
+    out["note"] = "银行综合质量突破"
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 二阶挖掘 Round2：减速/领先滞后/营运资本二阶导/现金质量交叉（未入库专用）
+# ---------------------------------------------------------------------------
+
+
+def signal_ni_yoy_soft_decel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """净利 YoY 软着陆：水平仍 ≥ gmin，但 ΔYoY ∈ [decel_lo, 0)（增速放缓未转负）。"""
+    col = str(params.get("yoy_col") or "YOYNI")
+    yoy = _yoy_series(px, col)
+    if yoy is None:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    gmin = float(params.get("growth_min") or 0.08)
+    decel_lo = float(params.get("decel_lo") or -0.15)
+    decel_hi = float(params.get("decel_hi") or -0.01)
+    evt, delta = _yoy_event_delta(px[col], yoy)
+    soft = (
+        evt
+        & yoy.notna()
+        & (yoy >= gmin)
+        & delta.notna()
+        & (delta <= decel_hi)
+        & (delta >= decel_lo)
+    )
+    hot = _yoy_gate_hot(px, soft.fillna(False), params)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "净利YoY软着陆减速"
+    return out
+
+
+def signal_cl_yoy_decel_reclaim(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """合同负债 YoY 高位回落：上期 YoY 仍高，本期 ΔYoY 为负（领先指标见顶减速）后回踩。"""
+    if "contract_liab_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    yoy = pd.to_numeric(px["contract_liab_yoy"], errors="coerce").astype(float)
+    prev_min = float(params.get("prev_yoy_min") or 0.20)
+    decel_max = float(params.get("decel_max") or -0.05)
+    yoy_floor = float(params.get("yoy_min") or 0.0)
+    evt, delta = _yoy_event_delta(px["contract_liab_yoy"], yoy)
+    prev = yoy.shift(1)
+    gate = (
+        evt
+        & prev.notna()
+        & (prev >= prev_min)
+        & delta.notna()
+        & (delta <= decel_max)
+        & yoy.notna()
+        & (yoy >= yoy_floor)
+    )
+    if "contract_liab" in px.columns and params.get("require_cl_pos", True):
+        cl = pd.to_numeric(px["contract_liab"], errors="coerce")
+        gate = gate & cl.notna() & (cl > 0)
+    p = dict(params)
+    p.setdefault("entry", "pullback")
+    hot = _yoy_gate_hot(px, gate.fillna(False), p)
+    m = hot.fillna(False) & _entry_tech(px, p).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "合同负债YoY高位减速回踩"
+    return out
+
+
+def signal_cl_lead_ni_lag_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """合同负债加速领先、净利尚未加速：需求领先、利润滞后的时间差窗口。"""
+    if "contract_liab_yoy" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    ni_col = str(params.get("yoy_col") or "YOYNI")
+    ni = _yoy_series(px, ni_col)
+    if ni is None:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    cl = pd.to_numeric(px["contract_liab_yoy"], errors="coerce").astype(float)
+    cl_acc = float(params.get("cl_accel") or 0.08)
+    cl_ymin = float(params.get("yoy_min") or 0.10)
+    ni_acc_max = float(params.get("ni_accel_max") or 0.02)
+    ni_gmin = float(params.get("growth_min") or -0.05)
+    cl_evt, cl_delta = _yoy_event_delta(px["contract_liab_yoy"], cl)
+    ni_evt, ni_delta = _yoy_event_delta(px[ni_col], ni)
+    cl_ok = cl_evt & cl_delta.notna() & (cl_delta >= cl_acc) & cl.notna() & (cl >= cl_ymin)
+    ni_lag = ni.notna() & (ni >= ni_gmin) & (
+        ni_delta.isna() | (ni_delta <= ni_acc_max)
+    )
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(cl_ok.fillna(False), lag) & ni_lag.fillna(False)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "合同负债领先净利滞后"
+    return out
+
+
+def signal_inv_improve_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """存货强度改善的二阶：本季去库存幅度大于上季（周转加速改善）。"""
+    if "fin_inv_to_rev" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    invr = pd.to_numeric(px["fin_inv_to_rev"], errors="coerce").astype(float)
+    step = float(params.get("inv_accel") or params.get("inv_improve") or 0.015)
+    evt = _funda_event(px["fin_inv_to_rev"])
+    improve = invr.shift(1) - invr  # 正=强度下降=改善
+    prev_imp = invr.shift(2) - invr.shift(1)
+    gate = evt & improve.notna() & (improve >= step) & prev_imp.notna() & (improve > prev_imp)
+    if params.get("inv_max") is not None:
+        gate = gate & invr.notna() & (invr <= float(params.get("inv_max") or 0.8))
+    if params.get("growth_min") is not None and "fin_rev_yoy" in px.columns:
+        rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce")
+        gate = gate & rev.notna() & (rev >= float(params.get("growth_min") or 0.0))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gate.fillna(False), lag)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "存货强度改善二阶"
+    return out
+
+
+def signal_ar_improve_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """应收强度改善的二阶：本季回款改善幅度大于上季。"""
+    if "fin_ar_to_rev" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    arr = pd.to_numeric(px["fin_ar_to_rev"], errors="coerce").astype(float)
+    step = float(params.get("ar_accel") or params.get("ar_improve") or 0.012)
+    evt = _funda_event(px["fin_ar_to_rev"])
+    improve = arr.shift(1) - arr
+    prev_imp = arr.shift(2) - arr.shift(1)
+    gate = evt & improve.notna() & (improve >= step) & prev_imp.notna() & (improve > prev_imp)
+    if params.get("ar_max") is not None:
+        gate = gate & arr.notna() & (arr <= float(params.get("ar_max") or 0.6))
+    if params.get("growth_min") is not None and "fin_rev_yoy" in px.columns:
+        rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce")
+        gate = gate & rev.notna() & (rev >= float(params.get("growth_min") or 0.0))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gate.fillna(False), lag)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "应收强度改善二阶"
+    return out
+
+
+def signal_cfo_np_quality_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """现金流质量二阶：cfo/净利 环比再改善，且净利 YoY 不太差。"""
+    if "cfo_to_np" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    cfoq = pd.to_numeric(px["cfo_to_np"], errors="coerce").astype(float)
+    cfo_min = float(params.get("cfo_min") or 0.6)
+    cfo_imp = float(params.get("cfo_improve") or 0.08)
+    evt = _funda_event(px["cfo_to_np"])
+    delta = cfoq - cfoq.shift(1)
+    gate = (
+        evt
+        & cfoq.notna()
+        & (cfoq >= cfo_min)
+        & (cfoq.abs() <= 8.0)
+        & delta.notna()
+        & (delta >= cfo_imp)
+    )
+    ni_col = str(params.get("yoy_col") or "YOYNI")
+    if ni_col in px.columns and params.get("growth_min") is not None:
+        ni = _yoy_series(px, ni_col)
+        if ni is not None:
+            gate = gate & ni.notna() & (ni >= float(params.get("growth_min") or 0.0))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gate.fillna(False), lag)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "现金流质量二阶改善"
+    return out
+
+
+def signal_cash_collect_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """销售收现比改善二阶：本季改善幅度大于上季。"""
+    if "fin_cash_collect" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    cc = pd.to_numeric(px["fin_cash_collect"], errors="coerce").astype(float)
+    step = float(params.get("collect_accel") or params.get("collect_improve") or 0.02)
+    evt = _funda_event(px["fin_cash_collect"])
+    improve = cc - cc.shift(1)
+    prev_imp = cc.shift(1) - cc.shift(2)
+    gate = (
+        evt
+        & improve.notna()
+        & (improve >= step)
+        & prev_imp.notna()
+        & (improve > prev_imp)
+        & cc.notna()
+        & (cc > 0.2)
+        & (cc < 2.5)
+    )
+    if params.get("collect_min") is not None:
+        gate = gate & (cc >= float(params.get("collect_min") or 0.85))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gate.fillna(False), lag)
+    if params.get("growth_min") is not None and "fin_rev_yoy" in px.columns:
+        rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce")
+        hot = hot & rev.notna() & (rev >= float(params.get("growth_min") or 0.0))
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "销售收现比改善二阶"
+    return out
+
+
+def signal_ar_cl_dual_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """应收收紧 × 合同负债加速：需求真 + 回款好的交叉验证。"""
+    need = ("fin_ar_to_rev", "contract_liab_yoy")
+    if any(c not in px.columns for c in need):
+        return pd.DataFrame(columns=["date", "close", "note"])
+    arr = pd.to_numeric(px["fin_ar_to_rev"], errors="coerce").astype(float)
+    cl = pd.to_numeric(px["contract_liab_yoy"], errors="coerce").astype(float)
+    ar_imp = float(params.get("ar_improve") or 0.012)
+    cl_acc = float(params.get("cl_accel") or 0.08)
+    cl_ymin = float(params.get("yoy_min") or 0.08)
+    ar_evt = _funda_event(px["fin_ar_to_rev"])
+    ar_ok = ar_evt & arr.notna() & ((arr.shift(1) - arr) >= ar_imp)
+    cl_evt, cl_delta = _yoy_event_delta(px["contract_liab_yoy"], cl)
+    cl_ok = cl_evt & cl_delta.notna() & (cl_delta >= cl_acc) & cl.notna() & (cl >= cl_ymin)
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(ar_ok.fillna(False), lag) & _funda_hot_window(cl_ok.fillna(False), lag)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "应收收紧×合同负债加速"
+    return out
+
+
+def signal_gp_margin_accel_break(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """毛利率扩张二阶：本季毛利提升幅度大于上季（定价/成本改善加速）。"""
+    if "gpMargin" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    gp = _to_dec(px["gpMargin"])
+    step = float(params.get("gp_accel") or params.get("gp_improve") or 0.004)
+    evt = _funda_event(px["gpMargin"])
+    d1 = gp - gp.shift(1)
+    d0 = gp.shift(1) - gp.shift(2)
+    gate = evt & d1.notna() & (d1 >= step) & d0.notna() & (d1 > d0)
+    if params.get("margin_min") is not None:
+        gate = gate & gp.notna() & (gp >= float(params.get("margin_min") or 0.0))
+    if params.get("growth_min") is not None and "fin_rev_yoy" in px.columns:
+        rev = pd.to_numeric(px["fin_rev_yoy"], errors="coerce")
+        gate = gate & rev.notna() & (rev >= float(params.get("growth_min") or 0.0))
+    lag = int(params.get("funda_lag") or 28)
+    hot = _funda_hot_window(gate.fillna(False), lag)
+    if params.get("np_min") is not None and "npMargin" in px.columns:
+        hot = hot & _margin_ok(px["npMargin"], float(params.get("np_min") or 0.0)).fillna(False)
+    m = hot.fillna(False) & _entry_tech(px, params).fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = "毛利率扩张二阶"
+    return out
+
+
+def signal_new_low_first_buy(px: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+    """N 日新低后的反弹买入（研究：新低后 20 日胜率偏高；加 MA20 确认抑止熊市扎堆）。
+
+    默认：近 lookback 日内出现过 N 日新低，今日收盘上穿 MA20。
+    若 confirm=False，则退化为「新低波段首日」直接买（研究原始口径）。
+    """
+    if "close" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    w = int(params.get("low_window") or 120)
+    close = pd.to_numeric(px["close"], errors="coerce").astype(float)
+    prior_lo = close.shift(1).rolling(w, min_periods=w).min()
+    is_nl = close.notna() & prior_lo.notna() & (close < prior_lo)
+    first = is_nl & ~is_nl.shift(1).fillna(False)
+
+    confirm = params.get("confirm")
+    if confirm is None:
+        confirm = True
+    if not confirm:
+        m = first.fillna(False)
+        out = px.loc[m.astype(bool), ["date", "close"]].copy()
+        out["note"] = f"{w}日新低首日"
+        return out
+
+    lookback = int(params.get("lookback") or 10)
+    was_low = first.rolling(lookback, min_periods=1).max().astype(bool)
+    if "ma20" not in px.columns:
+        return pd.DataFrame(columns=["date", "close", "note"])
+    cross = (close > px["ma20"]) & (close.shift(1) <= px["ma20"].shift(1))
+    m = was_low.fillna(False) & cross.fillna(False)
+    out = px.loc[m.astype(bool), ["date", "close"]].copy()
+    out["note"] = f"{w}日新低后站上MA20"
     return out

@@ -57,6 +57,63 @@ async def match_stock(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/update")
+async def update_factor_data(
+    include_kline: bool = Query(True, description="增量下载前复权日线"),
+    include_financial: bool = Query(True, description="增量下载财报"),
+    include_signals: bool = Query(True, description="重算今日信号"),
+    background: bool = Query(True, description="后台执行（立即返回）"),
+    current_user: dict = Depends(get_current_user),
+):
+    """统一更新：K线增量 → 财报增量 → 信号重算。默认后台执行。"""
+    import asyncio
+
+    from app.services.factor_data_sync_service import run_factor_data_update
+
+    if background:
+        asyncio.create_task(
+            run_factor_data_update(
+                include_kline=include_kline,
+                include_financial=include_financial,
+                include_signals=include_signals,
+                reason="manual_ui",
+            )
+        )
+        return ok(
+            {
+                "accepted": True,
+                "background": True,
+                "include_kline": include_kline,
+                "include_financial": include_financial,
+                "include_signals": include_signals,
+                "message": "已开始后台更新（K线/财报/信号）",
+            }
+        )
+    try:
+        result = await run_factor_data_update(
+            include_kline=include_kline,
+            include_financial=include_financial,
+            include_signals=include_signals,
+            reason="manual_ui",
+        )
+        return ok(result)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("factor data update failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/update/settings")
+async def get_factor_update_settings(current_user: dict = Depends(get_current_user)):
+    """因子自动更新相关设置（只读展示；实际可在「系统设置」中修改）。"""
+    from app.services.factor_data_sync_service import (
+        factor_sync_settings_for_ui,
+        resolve_factor_sync_config,
+    )
+
+    cfg = await resolve_factor_sync_config()
+    return ok(factor_sync_settings_for_ui(cfg))
+
+
 @router.get("/{factor_id}")
 async def get_factor(factor_id: str, current_user: dict = Depends(get_current_user)):
     item = await factors_service.get_factor(factor_id)

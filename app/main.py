@@ -659,16 +659,22 @@ async def lifespan(app: FastAPI):
             except Exception as e:  # noqa: BLE001
                 logger.error("📈 因子机会重算异常 (%s): %s", reason, e)
 
+        from app.services.factor_data_sync_service import resolve_factor_sync_config
+
+        factor_sync_cfg = await resolve_factor_sync_config()
+        factor_tz = factor_sync_cfg.get("timezone") or settings.TIMEZONE
+        signals_after_backtest = bool(factor_sync_cfg.get("factor_signals_after_backtest", True))
+
         interval_h = int(getattr(settings, "FACTOR_SIGNALS_AUTO_REFRESH_INTERVAL_HOURS", 0) or 0)
         if interval_h > 0:
-            trigger = IntervalTrigger(hours=interval_h, timezone=settings.TIMEZONE)
+            trigger = IntervalTrigger(hours=interval_h, timezone=factor_tz)
             trigger_desc = f"每 {interval_h} 小时"
         else:
             trigger = CronTrigger.from_crontab(
-                settings.FACTOR_SIGNALS_AUTO_REFRESH_CRON,
-                timezone=settings.TIMEZONE,
+                str(factor_sync_cfg["factor_signals_auto_refresh_cron"]),
+                timezone=factor_tz,
             )
-            trigger_desc = settings.FACTOR_SIGNALS_AUTO_REFRESH_CRON
+            trigger_desc = factor_sync_cfg["factor_signals_auto_refresh_cron"]
         scheduler.add_job(
             run_factor_signals_auto_refresh,
             trigger,
@@ -676,11 +682,151 @@ async def lifespan(app: FastAPI):
             name="因子机会信号定时重算",
             kwargs={"reason": "auto"},
         )
-        if not settings.FACTOR_SIGNALS_AUTO_REFRESH_ENABLED:
+        signals_standalone = bool(factor_sync_cfg["factor_signals_auto_refresh_enabled"]) and not signals_after_backtest
+        if not signals_standalone:
             scheduler.pause_job("factor_signals_auto_refresh")
-            logger.info("⏸️ 因子机会定时重算已添加但暂停: %s", trigger_desc)
+            if signals_after_backtest:
+                logger.info("⏸️ 因子机会独立定时已暂停（改为回测完成后触发）")
+            else:
+                logger.info("⏸️ 因子机会定时重算已添加但暂停: %s", trigger_desc)
         else:
-            logger.info("📈 因子机会定时重算: %s (%s)", trigger_desc, settings.TIMEZONE)
+            logger.info("📈 因子机会定时重算: %s (%s)", trigger_desc, factor_tz)
+
+        # 因子 K 线增量（默认工作日 12:00；8/16 由回测流水线内拉取）
+        async def run_factor_kline_auto_sync(reason: str = "cron"):
+            from app.services.factor_data_sync_service import sync_factor_klines
+
+            try:
+                result = await sync_factor_klines(reason=reason)
+                if result.get("ok"):
+                    logger.info("📉 因子K线增量完成 (%s)", reason)
+                else:
+                    logger.warning(
+                        "📉 因子K线增量失败 (%s): %s",
+                        reason,
+                        result.get("error") or result.get("stderr_tail") or result.get("returncode"),
+                    )
+            except Exception as e:  # noqa: BLE001
+                logger.error("📉 因子K线增量异常 (%s): %s", reason, e)
+
+        scheduler.add_job(
+            run_factor_kline_auto_sync,
+            CronTrigger.from_crontab(
+                str(factor_sync_cfg["factor_kline_auto_sync_cron"]),
+                timezone=factor_tz,
+            ),
+            id="factor_kline_auto_sync",
+            name="因子K线增量下载",
+            kwargs={"reason": "cron"},
+            max_instances=1,
+            coalesce=True,
+        )
+        if not factor_sync_cfg["factor_kline_auto_sync_enabled"]:
+            scheduler.pause_job("factor_kline_auto_sync")
+            logger.info(
+                "⏸️ 因子K线增量已添加但暂停: %s",
+                factor_sync_cfg["factor_kline_auto_sync_cron"],
+            )
+        else:
+            logger.info(
+                "📉 因子K线增量: %s (%s / %s / %s)",
+                factor_sync_cfg["factor_kline_auto_sync_cron"],
+                factor_sync_cfg["factor_kline_sync_universe"],
+                factor_sync_cfg["factor_kline_data_source"],
+                factor_tz,
+            )
+
+        # 因子财报增量（默认每天 08:00 / 21:00；可在系统设置中改）
+        async def run_factor_financial_auto_sync(reason: str = "cron"):
+            from app.services.factor_data_sync_service import sync_factor_financials
+
+            try:
+                result = await sync_factor_financials(reason=reason)
+                if result.get("ok"):
+                    logger.info("📑 因子财报增量完成 (%s)", reason)
+                else:
+                    logger.warning(
+                        "📑 因子财报增量失败 (%s): %s",
+                        reason,
+                        result.get("error") or result.get("stderr_tail") or result.get("returncode"),
+                    )
+            except Exception as e:  # noqa: BLE001
+                logger.error("📑 因子财报增量异常 (%s): %s", reason, e)
+
+        scheduler.add_job(
+            run_factor_financial_auto_sync,
+            CronTrigger.from_crontab(
+                str(factor_sync_cfg["factor_financial_auto_sync_cron"]),
+                timezone=factor_tz,
+            ),
+            id="factor_financial_auto_sync",
+            name="因子财报增量下载",
+            kwargs={"reason": "cron"},
+            max_instances=1,
+            coalesce=True,
+        )
+        if not factor_sync_cfg["factor_financial_auto_sync_enabled"]:
+            scheduler.pause_job("factor_financial_auto_sync")
+            logger.info(
+                "⏸️ 因子财报增量已添加但暂停: %s",
+                factor_sync_cfg["factor_financial_auto_sync_cron"],
+            )
+        else:
+            logger.info(
+                "📑 因子财报增量: %s (%s / %s / %s)",
+                factor_sync_cfg["factor_financial_auto_sync_cron"],
+                factor_sync_cfg["factor_financial_sync_universe"],
+                factor_sync_cfg["factor_financial_data_source"],
+                factor_tz,
+            )
+
+        # 因子全量回测流水线（默认每天 08:00 / 16:00：K线→回测→机会信号）
+        async def run_factor_backtest_auto(reason: str = "cron"):
+            from app.services.factor_data_sync_service import run_factor_backtest_pipeline
+
+            try:
+                result = await run_factor_backtest_pipeline(reason=reason)
+                if result.get("ok"):
+                    logger.info(
+                        "📊 因子回测流水线完成 (%s): steps=%s",
+                        reason,
+                        list((result.get("steps") or {}).keys()),
+                    )
+                else:
+                    logger.warning(
+                        "📊 因子回测流水线失败 (%s): %s",
+                        reason,
+                        (result.get("steps") or {}).get("backtest"),
+                    )
+            except Exception as e:  # noqa: BLE001
+                logger.error("📊 因子回测流水线异常 (%s): %s", reason, e)
+
+        scheduler.add_job(
+            run_factor_backtest_auto,
+            CronTrigger.from_crontab(
+                str(factor_sync_cfg["factor_backtest_auto_cron"]),
+                timezone=factor_tz,
+            ),
+            id="factor_backtest_auto",
+            name="因子全量回测流水线",
+            kwargs={"reason": "cron"},
+            max_instances=1,
+            coalesce=True,
+        )
+        if not factor_sync_cfg["factor_backtest_auto_enabled"]:
+            scheduler.pause_job("factor_backtest_auto")
+            logger.info(
+                "⏸️ 因子回测流水线已添加但暂停: %s",
+                factor_sync_cfg["factor_backtest_auto_cron"],
+            )
+        else:
+            logger.info(
+                "📊 因子回测流水线: %s (kline_first=%s, signals_after=%s, %s)",
+                factor_sync_cfg["factor_backtest_auto_cron"],
+                factor_sync_cfg.get("factor_backtest_auto_sync_kline", True),
+                signals_after_backtest,
+                factor_tz,
+            )
 
         # 公告/预告/快报监控：窗口内每 N 分钟拉取，与本地对比后触发相关因子
         async def run_disclosure_poll_job(reason: str = "interval"):

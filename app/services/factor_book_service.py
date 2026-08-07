@@ -208,19 +208,21 @@ def _open_holdings_from_csv(path: Path, as_of_hint: str = "") -> Tuple[str, List
 
 
 def _merge_open_holdings_by_code(held: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """同一 code 的重叠持仓腿 → 一条：最早 buy_date、权重相加、n_legs 记腿数。"""
+    """同一 code 的重叠持仓腿 → 一条：最早 buy_date、最晚 latest_buy_date、权重相加、n_legs 记腿数。"""
     by_code: Dict[str, Dict[str, Any]] = {}
     for h in held:
         raw = str(h.get("code") or "").strip()
         if not raw:
             continue
         key = _norm_code(raw) or raw
+        bd = str(h.get("buy_date") or "")
         cur = by_code.get(key)
         if not cur:
             by_code[key] = {
                 "code": raw,
                 "name": str(h.get("name") or ""),
-                "buy_date": str(h.get("buy_date") or ""),
+                "buy_date": bd,
+                "latest_buy_date": bd,
                 "sell_date": str(h.get("sell_date") or ""),
                 "weight": float(h.get("weight") or 0),
                 "buy_price": float(h.get("buy_price") or 0),
@@ -232,7 +234,6 @@ def _merge_open_holdings_by_code(held: List[Dict[str, Any]]) -> List[Dict[str, A
         cur["weight"] = float(cur.get("weight") or 0) + float(h.get("weight") or 0)
         if h.get("name") and not cur.get("name"):
             cur["name"] = str(h["name"])
-        bd = str(h.get("buy_date") or "")
         if bd and (not cur.get("buy_date") or bd < cur["buy_date"]):
             cur["buy_date"] = bd
             # 买入价跟最早开仓腿
@@ -242,6 +243,8 @@ def _merge_open_holdings_by_code(held: List[Dict[str, Any]]) -> List[Dict[str, A
                 pass
             if h.get("note"):
                 cur["note"] = str(h["note"])
+        if bd and (not cur.get("latest_buy_date") or bd > cur["latest_buy_date"]):
+            cur["latest_buy_date"] = bd
         # 仍有未平仓腿则整体视为未平；否则取最晚卖出日
         sd = str(h.get("sell_date") or "")
         if not sd or not cur.get("sell_date"):
@@ -249,6 +252,118 @@ def _merge_open_holdings_by_code(held: List[Dict[str, Any]]) -> List[Dict[str, A
         elif sd > cur["sell_date"]:
             cur["sell_date"] = sd
     return list(by_code.values())
+
+
+def _is_new_open(buy_date: str, as_of: str, *, within_days: int = 5) -> bool:
+    """相对回测末日 as_of，买入日在 within_days 个自然日内（含当日）视为新开。"""
+    bd = (buy_date or "")[:10]
+    ao = (as_of or "")[:10]
+    if len(bd) < 10 or len(ao) < 10:
+        return False
+    try:
+        from datetime import date
+
+        d0 = date.fromisoformat(bd)
+        d1 = date.fromisoformat(ao)
+    except ValueError:
+        return False
+    delta = (d1 - d0).days
+    return 0 <= delta <= int(within_days)
+
+
+def _holdings_fingerprint() -> str:
+    data_dir = _factors_data_dir()
+    latest = 0.0
+    n = 0
+    try:
+        for p in data_dir.glob("*_trade_history.csv"):
+            n += 1
+            try:
+                latest = max(latest, p.stat().st_mtime)
+            except OSError:
+                pass
+    except OSError:
+        pass
+    return f"n{n}:m{int(latest)}"
+
+
+_HOLDINGS_LIST_CACHE: Dict[str, Any] = {"key": None, "payload": None}
+
+
+def _open_holdings_brief_one(factor_id: str, *, new_open_days: int = 5) -> Dict[str, Any]:
+    """单因子末日持仓摘要（列表页用）。"""
+    path = _trade_history_path(factor_id)
+    if not path:
+        return {"as_of": "", "holdings": []}
+    summary = _build_backtest_summary(factor_id)
+    as_of_hint = ""
+    if summary and isinstance(summary.get("logics"), dict):
+        primary = summary.get("primary_logic")
+        logics = summary.get("logics") or {}
+        row = logics.get(primary) if primary else None
+        if not isinstance(row, dict):
+            for v in logics.values():
+                if isinstance(v, dict) and v.get("end"):
+                    row = v
+                    break
+        if isinstance(row, dict) and row.get("end"):
+            as_of_hint = str(row.get("end"))[:10]
+    as_of, holdings = _open_holdings_from_csv(path, as_of_hint=as_of_hint)
+    brief: List[Dict[str, Any]] = []
+    for h in holdings:
+        latest_buy = str(h.get("latest_buy_date") or h.get("buy_date") or "")[:10]
+        brief.append(
+            {
+                "code": str(h.get("code") or ""),
+                "name": str(h.get("name") or ""),
+                "buy_date": str(h.get("buy_date") or "")[:10],
+                "latest_buy_date": latest_buy,
+                "weight": float(h.get("weight") or 0),
+                "is_new": _is_new_open(latest_buy, as_of, within_days=new_open_days),
+            }
+        )
+    brief.sort(key=lambda x: (-float(x.get("weight") or 0), str(x.get("code") or "")))
+    return {"as_of": as_of, "holdings": brief}
+
+
+def build_open_holdings_by_factor(
+    factor_ids: List[str],
+    *,
+    new_open_days: int = 5,
+    refresh: bool = False,
+) -> Dict[str, Dict[str, Any]]:
+    """factor_id → {as_of, holdings[]}；带目录级缓存，供因子列表挂载。"""
+    key = f"{_holdings_fingerprint()}:d{int(new_open_days)}"
+    with _CACHE_LOCK:
+        if (
+            not refresh
+            and _HOLDINGS_LIST_CACHE.get("key") == key
+            and isinstance(_HOLDINGS_LIST_CACHE.get("payload"), dict)
+        ):
+            cached: Dict[str, Dict[str, Any]] = _HOLDINGS_LIST_CACHE["payload"]
+            return {fid: cached.get(fid) or {"as_of": "", "holdings": []} for fid in factor_ids}
+
+    ids = [str(x) for x in factor_ids if x]
+    out: Dict[str, Dict[str, Any]] = {}
+    if ids:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futs = {pool.submit(_open_holdings_brief_one, fid, new_open_days=new_open_days): fid for fid in ids}
+            for fut in as_completed(futs):
+                fid = futs[fut]
+                try:
+                    out[fid] = fut.result()
+                except Exception:  # noqa: BLE001
+                    logger.exception("open holdings brief failed: %s", fid)
+                    out[fid] = {"as_of": "", "holdings": []}
+
+    with _CACHE_LOCK:
+        # 合并进全量缓存，便于下次按子集命中
+        prev = _HOLDINGS_LIST_CACHE.get("payload") if _HOLDINGS_LIST_CACHE.get("key") == key else None
+        merged = dict(prev) if isinstance(prev, dict) else {}
+        merged.update(out)
+        _HOLDINGS_LIST_CACHE["key"] = key
+        _HOLDINGS_LIST_CACHE["payload"] = merged
+    return {fid: out.get(fid) or {"as_of": "", "holdings": []} for fid in ids}
 
 
 def _upsert_factor_ref(bucket: List[Dict[str, Any]], ref: Dict[str, Any]) -> None:

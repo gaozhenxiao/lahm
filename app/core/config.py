@@ -252,18 +252,90 @@ class Settings(BaseSettings):
         description="national_team 点信号刷新 Cron（默认工作日 18:30）",
     )
 
-    # 因子机会列表：定时重算（遇分析任务则用默认 DeepSeek）
+    # 因子机会列表：定时重算（默认改为「回测完成后」触发，独立 Cron 关闭）
     FACTOR_SIGNALS_AUTO_REFRESH_ENABLED: bool = Field(
-        default=True,
-        description="是否定时重算因子今日机会信号",
+        default=False,
+        description="是否按独立 Cron 重算因子今日机会信号（回测后触发开启时通常关闭）",
     )
     FACTOR_SIGNALS_AUTO_REFRESH_CRON: str = Field(
         default="0 12,19 * * *",
-        description="因子机会信号刷新 Cron（默认每天 12:00 与 19:00）",
+        description="因子机会信号独立刷新 Cron（仅当未启用「回测后重算」时生效）",
     )
     FACTOR_SIGNALS_AUTO_REFRESH_INTERVAL_HOURS: int = Field(
         default=0,
         description="若 >0 则用固定小时间隔覆盖 Cron（0=仅用 Cron）",
+    )
+    FACTOR_SIGNALS_AFTER_BACKTEST: bool = Field(
+        default=True,
+        description="因子全量回测成功后自动重算机会信号",
+    )
+
+    # 因子数据：K 线 / 财报增量自动下载
+    FACTOR_KLINE_AUTO_SYNC_ENABLED: bool = Field(
+        default=True,
+        description="是否定时增量下载因子用前复权日线",
+    )
+    FACTOR_KLINE_AUTO_SYNC_CRON: str = Field(
+        default="0 12 * * 1-5",
+        description="因子 K 线增量 Cron（默认工作日 12:00；8/16 由回测流水线内拉取）",
+    )
+    FACTOR_KLINE_SYNC_UNIVERSE: str = Field(
+        default="hs300_csi500_csi1000",
+        description="因子 K 线增量宇宙",
+    )
+    FACTOR_KLINE_SYNC_TIMEOUT_SEC: int = Field(
+        default=7200,
+        description="因子 K 线增量任务超时秒数",
+    )
+    FACTOR_KLINE_DATA_SOURCE: str = Field(
+        default="tencent",
+        description="因子 K 线数据源：tencent",
+    )
+    FACTOR_FINANCIAL_AUTO_SYNC_ENABLED: bool = Field(
+        default=True,
+        description="是否定时增量下载因子用财报（利润/成长）",
+    )
+    FACTOR_FINANCIAL_AUTO_SYNC_CRON: str = Field(
+        default="0 8,21 * * *",
+        description="因子财报增量 Cron（默认每天 08:00 与 21:00）",
+    )
+    FACTOR_FINANCIAL_SYNC_UNIVERSE: str = Field(
+        default="hs300_csi500_csi1000",
+        description="因子财报增量宇宙",
+    )
+    FACTOR_FINANCIAL_SYNC_TIMEOUT_SEC: int = Field(
+        default=10800,
+        description="因子财报增量任务超时秒数",
+    )
+    FACTOR_FINANCIAL_DATA_SOURCE: str = Field(
+        default="fin_db_then_baostock",
+        description="因子财报数据源：fin_db_then_baostock / fin_db / baostock",
+    )
+    FACTOR_FINANCIAL_RECENT_YEARS: int = Field(
+        default=2,
+        description="财报增量拉取近 N 年季度",
+    )
+
+    # 因子全量回测（默认每天 08:00 / 16:00；成功后可接机会信号）
+    FACTOR_BACKTEST_AUTO_ENABLED: bool = Field(
+        default=True,
+        description="是否定时全量重跑因子回测",
+    )
+    FACTOR_BACKTEST_AUTO_CRON: str = Field(
+        default="0 8,16 * * *",
+        description="因子全量回测 Cron（默认每天 08:00 与 16:00）",
+    )
+    FACTOR_BACKTEST_AUTO_SYNC_KLINE: bool = Field(
+        default=True,
+        description="回测流水线开始前先增量拉取 K 线",
+    )
+    FACTOR_BACKTEST_TIMEOUT_SEC: int = Field(
+        default=14400,
+        description="因子全量回测超时秒数（默认 4 小时）",
+    )
+    FACTOR_BACKTEST_WORKERS: int = Field(
+        default=1,
+        description="因子全量回测并行 worker 数",
     )
 
     # 公告/业绩预告/快报监控（对齐同花顺栏目；采集走东财 AKShare）

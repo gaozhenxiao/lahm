@@ -166,6 +166,7 @@ def run_one_factor(
         need_growth=bool(meta.get("need_growth")),
         need_balance=bool(meta.get("need_balance")),
         need_fin_db=bool(meta.get("need_fin_db")),
+        need_bank_peer=bool(meta.get("need_bank_peer")),
         limit=0,
         start=start,
         price_map=_subset_panel(price_map, meta),

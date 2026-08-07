@@ -1762,7 +1762,14 @@ async def get_system_settings(
     """获取系统设置"""
     try:
         effective = await config_provider.get_effective_system_settings()
-        return ok(data=_sanitize_kv(effective), message="获取系统设置成功")
+        # 补齐因子同步默认项，便于配置页首次展示
+        try:
+            from app.services.factor_data_sync_service import FACTOR_SYNC_DEFAULTS
+
+            merged = {**FACTOR_SYNC_DEFAULTS, **(effective or {})}
+        except Exception:
+            merged = effective or {}
+        return ok(data=_sanitize_kv(merged), message="获取系统设置成功")
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1827,6 +1834,14 @@ async def update_system_settings(
                 config_provider.invalidate()
             except Exception:
                 pass
+            # 因子同步定时任务按新配置重排
+            try:
+                from app.services.factor_data_sync_service import apply_factor_sync_scheduler
+
+                applied = await apply_factor_sync_scheduler()
+                logger.info("因子同步调度已按系统设置更新: %s", applied)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("因子同步调度更新失败（不影响设置保存）: %s", e)
             return ok(data={"message": "系统设置更新成功"}, message="系统设置更新成功")
         else:
             raise HTTPException(

@@ -727,6 +727,112 @@
               <span class="setting-description">秒</span>
             </el-form-item>
 
+            <!-- 因子数据更新 -->
+            <el-divider content-position="left">因子数据更新</el-divider>
+            <el-alert
+              type="info"
+              show-icon
+              :closable="false"
+              title="多因子页「更新」与定时任务共用此处配置"
+              description="保存后会立即重排定时任务。Cron 格式：分 时 日 月 周，例如 0 12,16 * * 1-5 表示工作日 12:00 与 16:00。"
+              style="margin-bottom: 12px;"
+            />
+
+            <el-form-item label="启用K线增量">
+              <el-switch v-model="systemSettings.factor_kline_auto_sync_enabled" :disabled="!isEditable('factor_kline_auto_sync_enabled')" />
+            </el-form-item>
+            <el-form-item label="K线 Cron">
+              <el-input v-model="systemSettings.factor_kline_auto_sync_cron" :disabled="!isEditable('factor_kline_auto_sync_cron')" placeholder="0 12 * * 1-5" style="max-width: 320px" />
+              <div class="setting-description">默认工作日 12:00；每天 8/16 会随回测流水线再拉一次</div>
+            </el-form-item>
+            <el-form-item label="K线宇宙">
+              <el-select v-model="systemSettings.factor_kline_sync_universe" :disabled="!isEditable('factor_kline_sync_universe')" filterable allow-create style="max-width: 360px">
+                <el-option label="沪深300+中证500+中证1000" value="hs300_csi500_csi1000" />
+                <el-option label="沪深300" value="hs300" />
+                <el-option label="中证500" value="csi500" />
+                <el-option label="中证1000" value="csi1000" />
+                <el-option label="全A" value="all_a" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="K线数据源">
+              <el-select v-model="systemSettings.factor_kline_data_source" :disabled="!isEditable('factor_kline_data_source')" style="max-width: 280px">
+                <el-option label="腾讯前复权日线 (tencent)" value="tencent" />
+              </el-select>
+              <div class="setting-description">当前仅支持腾讯 fq kline 增量</div>
+            </el-form-item>
+            <el-form-item label="K线超时">
+              <el-input-number v-model="systemSettings.factor_kline_sync_timeout_sec" :min="60" :step="60" :disabled="!isEditable('factor_kline_sync_timeout_sec')" />
+              <span class="setting-description">秒</span>
+            </el-form-item>
+
+            <el-form-item label="启用财报增量">
+              <el-switch v-model="systemSettings.factor_financial_auto_sync_enabled" :disabled="!isEditable('factor_financial_auto_sync_enabled')" />
+            </el-form-item>
+            <el-form-item label="财报 Cron">
+              <el-input v-model="systemSettings.factor_financial_auto_sync_cron" :disabled="!isEditable('factor_financial_auto_sync_cron')" placeholder="0 8,21 * * *" style="max-width: 320px" />
+              <div class="setting-description">默认每天 08:00 / 21:00</div>
+            </el-form-item>
+            <el-form-item label="财报宇宙">
+              <el-select v-model="systemSettings.factor_financial_sync_universe" :disabled="!isEditable('factor_financial_sync_universe')" filterable allow-create style="max-width: 360px">
+                <el-option label="沪深300+中证500+中证1000" value="hs300_csi500_csi1000" />
+                <el-option label="沪深300" value="hs300" />
+                <el-option label="中证500" value="csi500" />
+                <el-option label="中证1000" value="csi1000" />
+                <el-option label="全A" value="all_a" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="财报数据源">
+              <el-select v-model="systemSettings.factor_financial_data_source" :disabled="!isEditable('factor_financial_data_source')" style="max-width: 360px">
+                <el-option label="本地财务库优先，缺省补 BaoStock" value="fin_db_then_baostock" />
+                <el-option label="仅本地财务库" value="fin_db" />
+                <el-option label="仅 BaoStock" value="baostock" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="财报近N年">
+              <el-input-number v-model="systemSettings.factor_financial_recent_years" :min="1" :max="10" :step="1" :disabled="!isEditable('factor_financial_recent_years')" />
+            </el-form-item>
+            <el-form-item label="财报超时">
+              <el-input-number v-model="systemSettings.factor_financial_sync_timeout_sec" :min="60" :step="60" :disabled="!isEditable('factor_financial_sync_timeout_sec')" />
+              <span class="setting-description">秒</span>
+            </el-form-item>
+
+            <el-form-item label="启用每日回测">
+              <el-switch v-model="systemSettings.factor_backtest_auto_enabled" :disabled="!isEditable('factor_backtest_auto_enabled')" />
+            </el-form-item>
+            <el-form-item label="回测 Cron">
+              <el-input v-model="systemSettings.factor_backtest_auto_cron" :disabled="!isEditable('factor_backtest_auto_cron')" placeholder="0 8,16 * * *" style="max-width: 320px" />
+              <div class="setting-description">默认每天 08:00 / 16:00；流水线：K线→增量回测→机会信号</div>
+            </el-form-item>
+            <el-form-item label="回测前拉K线">
+              <el-switch v-model="systemSettings.factor_backtest_auto_sync_kline" :disabled="!isEditable('factor_backtest_auto_sync_kline')" />
+            </el-form-item>
+            <el-form-item label="回测超时">
+              <el-input-number v-model="systemSettings.factor_backtest_timeout_sec" :min="600" :step="600" :disabled="!isEditable('factor_backtest_timeout_sec')" />
+              <span class="setting-description">秒（默认 14400=4小时）</span>
+            </el-form-item>
+            <el-form-item label="回测并发">
+              <el-input-number v-model="systemSettings.factor_backtest_workers" :min="1" :max="8" :step="1" :disabled="!isEditable('factor_backtest_workers')" />
+            </el-form-item>
+
+            <el-form-item label="回测后重算信号">
+              <el-switch v-model="systemSettings.factor_signals_after_backtest" :disabled="!isEditable('factor_signals_after_backtest')" />
+              <div class="setting-description">开启后，机会信号在回测成功后自动重算；独立信号 Cron 会被暂停</div>
+            </el-form-item>
+            <el-form-item label="启用独立信号定时">
+              <el-switch
+                v-model="systemSettings.factor_signals_auto_refresh_enabled"
+                :disabled="!isEditable('factor_signals_auto_refresh_enabled') || systemSettings.factor_signals_after_backtest"
+              />
+            </el-form-item>
+            <el-form-item label="信号 Cron">
+              <el-input
+                v-model="systemSettings.factor_signals_auto_refresh_cron"
+                :disabled="!isEditable('factor_signals_auto_refresh_cron') || systemSettings.factor_signals_after_backtest"
+                placeholder="0 12,19 * * *"
+                style="max-width: 320px"
+              />
+              <div class="setting-description">仅在未开启「回测后重算信号」时生效</div>
+            </el-form-item>
 
             <el-form-item label="任务流最大空闲">
               <el-input-number v-model="systemSettings.sse_task_max_idle_seconds" :min="10" :step="10" :disabled="!isEditable('sse_task_max_idle_seconds')" />
@@ -1581,6 +1687,26 @@ const loadSystemSettings = async () => {
       ta_google_news_sleep_min_seconds: 2.0,
       ta_google_news_sleep_max_seconds: 6.0,
       app_timezone: 'Asia/Shanghai',
+      // 因子数据更新
+      factor_kline_auto_sync_enabled: true,
+      factor_kline_auto_sync_cron: '0 12 * * 1-5',
+      factor_kline_sync_universe: 'hs300_csi500_csi1000',
+      factor_kline_sync_timeout_sec: 7200,
+      factor_kline_data_source: 'tencent',
+      factor_financial_auto_sync_enabled: true,
+      factor_financial_auto_sync_cron: '0 8,21 * * *',
+      factor_financial_sync_universe: 'hs300_csi500_csi1000',
+      factor_financial_sync_timeout_sec: 10800,
+      factor_financial_data_source: 'fin_db_then_baostock',
+      factor_financial_recent_years: 2,
+      factor_backtest_auto_enabled: true,
+      factor_backtest_auto_cron: '0 8,16 * * *',
+      factor_backtest_auto_sync_kline: true,
+      factor_backtest_timeout_sec: 14400,
+      factor_backtest_workers: 1,
+      factor_signals_after_backtest: true,
+      factor_signals_auto_refresh_enabled: false,
+      factor_signals_auto_refresh_cron: '0 12,19 * * *',
 
       ...settings
     }
@@ -2173,6 +2299,9 @@ const saveSystemSettings = async () => {
       { key: 'ta_us_min_api_interval_seconds', min: 0.000001 },
       { key: 'ta_google_news_sleep_min_seconds', min: 0.000001 },
       { key: 'ta_google_news_sleep_max_seconds', min: 0.000001 },
+      { key: 'factor_kline_sync_timeout_sec', min: 60 },
+      { key: 'factor_financial_sync_timeout_sec', min: 60 },
+      { key: 'factor_financial_recent_years', min: 1 },
     ]
     for (const { key, min } of positiveKeys) {
       const v = (systemSettings.value as any)[key]

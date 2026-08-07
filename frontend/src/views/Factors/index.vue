@@ -2,15 +2,29 @@
   <div class="factors-page">
     <div class="page-header">
       <h1 class="page-title">多因子 Factors</h1>
-      <div class="stock-match">
-        <el-input
-          v-model="stockMatch.code"
-          class="stock-match-input"
-          clearable
-          placeholder="股票代码，如 600887"
-          @keyup.enter="runStockMatch"
-        />
-        <el-button type="primary" :loading="stockMatch.loading" @click="runStockMatch">分析</el-button>
+      <div class="header-actions">
+        <span v-if="backtestRangeText" class="backtest-range-top" :title="backtestRangeTitle">
+          回测区间 {{ backtestRangeText }}
+        </span>
+        <el-tooltip
+          :content="updateHint"
+          placement="bottom"
+          :disabled="!updateHint"
+        >
+          <el-button type="primary" :loading="updating" @click="runUpdate">
+            更新
+          </el-button>
+        </el-tooltip>
+        <div class="stock-match">
+          <el-input
+            v-model="stockMatch.code"
+            class="stock-match-input"
+            clearable
+            placeholder="股票代码，如 600887"
+            @keyup.enter="runStockMatch"
+          />
+          <el-button type="primary" :loading="stockMatch.loading" @click="runStockMatch">分析</el-button>
+        </div>
       </div>
     </div>
 
@@ -91,8 +105,10 @@
         :data="items"
         v-loading="loading"
         stripe
+        class="factors-table"
         :row-class-name="factorRowClassName"
         :default-sort="{ prop: 'bt_sharpe', order: 'descending' }"
+        @row-click="onFactorRowClick"
       >
         <el-table-column
           prop="gen_seq"
@@ -105,12 +121,7 @@
             <span class="gen-seq">{{ row.gen_seq }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="名称" min-width="140" sortable />
-        <el-table-column prop="category" label="分类" width="110" sortable>
-          <template #default="{ row }">
-            {{ categoryLabel(row.category) }}
-          </template>
-        </el-table-column>
+        <el-table-column prop="name" label="名称" min-width="160" sortable />
         <el-table-column prop="bt_total_return" label="累计收益" width="110" sortable :sort-method="sortNum('bt_total_return')">
           <template #default="{ row }">
             <span :class="retClass(row.bt_total_return)">{{ pct(row.bt_total_return) }}</span>
@@ -131,276 +142,241 @@
             <span class="mdd">{{ pct(row.bt_mdd) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="回测区间" min-width="160">
+        <el-table-column label="持仓" min-width="280">
           <template #default="{ row }">
-            <span v-if="row.bt_start && row.bt_end" class="range">{{ row.bt_start }} ~ {{ row.bt_end }}</span>
-            <span v-else-if="row.bt_error || row.last_backtest_error" class="muted">{{ row.bt_error || row.last_backtest_error }}</span>
-            <span v-else class="muted">暂无回测</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="产物" min-width="200">
-          <template #default="{ row }">
-            <template v-if="availableArtifacts(row).length">
-              <el-button
-                v-for="a in availableArtifacts(row)"
-                :key="a.id"
-                link
-                type="primary"
-                @click="openArtifact(row, a)"
+            <div v-if="row.open_holdings?.length" class="holdings-cell">
+              <span
+                v-for="h in row.open_holdings"
+                :key="`${h.code}-${h.latest_buy_date || h.buy_date || ''}`"
+                class="holding-chip"
+                :class="{ 'holding-chip--new': h.is_new }"
+                :title="holdingTitle(h)"
               >
-                {{ shortLabel(a) }}
-              </el-button>
-            </template>
-            <span v-else class="muted">-</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openGuide(row)">说明</el-button>
-            <el-button link type="primary" :loading="computing === row.factor_id" @click="compute(row)">
-              计算信号
-            </el-button>
+                {{ holdingLabel(h) }}
+                <em v-if="h.is_new" class="holding-new">新开</em>
+              </span>
+            </div>
+            <span v-else class="muted">—</span>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     <el-card v-if="lastResult" shadow="never" style="margin-top: 12px">
-      <template #header>最近计算结果</template>
+      <template #header>最近更新结果</template>
       <pre class="result">{{ pretty(lastResult) }}</pre>
     </el-card>
 
-    <el-dialog
-      v-model="guide.visible"
-      :title="guide.title || '因子说明'"
-      width="860px"
-      top="6vh"
-      destroy-on-close
-      class="guide-dialog"
-    >
-      <div v-loading="guide.loading" class="guide-body">
-        <div v-if="guide.html" class="markdown-body" v-html="guide.html" />
-        <p v-else-if="!guide.loading" class="muted">暂无说明</p>
-      </div>
-      <template #footer>
-        <el-button type="primary" @click="guide.visible = false">关闭</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog
+    <el-drawer
       v-model="preview.visible"
-      :title="preview.title"
-      :width="preview.kind === 'trades' || preview.kind === 'equity' ? '1080px' : '860px'"
+      :title="preview.title || '因子详情'"
+      size="78%"
+      direction="rtl"
+      append-to-body
       destroy-on-close
-      @closed="revokePreview"
+      class="factor-drawer"
+      @closed="onDrawerClosed"
     >
-      <div v-loading="preview.loading" class="preview-body">
-        <template v-if="preview.kind === 'equity'">
-          <div class="equity-toolbar">
-            <el-button-group>
-              <el-button size="small" @click="zoomEquity(0.7)">放大</el-button>
-              <el-button size="small" @click="zoomEquity(1.4)">缩小</el-button>
-              <el-button size="small" @click="resetEquityZoom">重置</el-button>
-            </el-button-group>
-            <span class="equity-hint">点击某日看持仓 · ←/→ 切换日期 · 滚轮/捏合缩放 · 拖拽平移 · 框选放大</span>
-          </div>
-          <v-chart
-            v-if="preview.equitySeries.length"
-            ref="equityChartRef"
-            class="equity-chart"
-            :class="{ 'equity-chart--dual': equityHasPosition }"
-            :option="equityChartOption"
-            autoresize
-            tabindex="0"
-            @click="onEquityChartClick"
-            @zr:click="onEquityZrClick"
-            @datazoom="onEquityDataZoom"
-            @restore="onEquityRestore"
-          />
-          <img
-            v-else-if="preview.url"
-            :src="preview.url"
-            class="preview-img"
-            alt="净值图"
-          />
-          <p v-else-if="!preview.loading" class="muted">暂无日度净值数据</p>
-          <div v-if="preview.equitySeries.length && preview.selectedDate" class="equity-holdings">
-            <div class="trades-meta contrib-toolbar">
-              <span>
-                选中日 {{ preview.selectedDate }} ·
-                当日持仓 {{ preview.openHoldings.length }} 只（含当日买入） ·
-                合计仓位 {{ fmtPct(preview.holdingsTotalWeight) }}
-                <template v-if="preview.selectedDailyPos">
-                  · 日度敞口 {{ fmtPct(preview.selectedDailyPos.position) }}
-                  / {{ preview.selectedDailyPos.n_pos }} 只（引擎隔夜）
-                  · 净值 {{ Number(preview.selectedDailyPos.equity).toFixed(4) }}
-                </template>
-              </span>
-              <el-button
-                v-if="preview.equityTradeRows.length"
-                link
-                type="primary"
-                size="small"
-                @click="selectEquityDate(preview.equitySeries[preview.equitySeries.length - 1]?.date || '')"
-              >
-                跳到末日
-              </el-button>
+      <div v-loading="preview.loading" class="drawer-body">
+        <el-tabs v-model="drawerTab" class="drawer-tabs">
+          <el-tab-pane label="净值" name="equity">
+            <div class="equity-toolbar">
+              <el-button-group>
+                <el-button size="small" @click="zoomEquity(0.7)">放大</el-button>
+                <el-button size="small" @click="zoomEquity(1.4)">缩小</el-button>
+                <el-button size="small" @click="resetEquityZoom">重置</el-button>
+              </el-button-group>
+              <span class="equity-hint">点击某日看持仓 · ←/→ 切换日期 · 滚轮/捏合缩放 · 拖拽平移 · 框选放大</span>
             </div>
-            <el-table
-              :data="preview.openHoldings"
-              stripe
-              height="220"
-              size="small"
-              empty-text="该日无持仓（含当日买入）"
-            >
-              <el-table-column prop="code" label="代码" min-width="100" />
-              <el-table-column prop="name" label="名称" min-width="100" />
-              <el-table-column prop="buy_date" label="买入日" width="110" />
-              <el-table-column prop="sell_date" label="卖出日" width="110">
-                <template #default="{ row }">{{ row.sell_date || '持有中' }}</template>
-              </el-table-column>
-              <el-table-column prop="buy_price" label="买入价" width="90" align="right" />
-              <el-table-column prop="sell_price" label="卖出价" width="90" align="right">
-                <template #default="{ row }">{{ row.sell_price || '-' }}</template>
-              </el-table-column>
-              <el-table-column prop="weight" label="仓位" width="80" align="right">
-                <template #default="{ row }">{{ row.weight.toFixed(4) }}</template>
-              </el-table-column>
-              <el-table-column prop="weight_share" label="占组合" width="90" align="right" />
-              <el-table-column prop="hold_days" label="持有(天)" width="90" align="right" />
-              <el-table-column prop="stock_ret" label="标的收益" width="90" align="right">
-                <template #default="{ row }">
-                  <span :class="retClass(parsePct(row.stock_ret))">{{ row.stock_ret || '-' }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="note" label="备注" min-width="120" show-overflow-tooltip />
-            </el-table>
-            <p v-if="!preview.equityTradeRows.length" class="muted equity-holdings-note">
-              未找到对应操作历史，仅展示日度总仓位；持仓明细需 trade_history。
-            </p>
-          </div>
-          <p
-            v-else-if="preview.equitySeries.length && !preview.selectedDate && !preview.loading"
-            class="muted equity-holdings-note"
-          >
-            点击净值或仓位图上的某一日，或按 ←/→，可查看该日持仓结构（含当日买入）。
-          </p>
-        </template>
-        <img v-else-if="preview.kind === 'image' && preview.url" :src="preview.url" class="preview-img" alt="" />
-        <pre v-else-if="preview.kind === 'json' && preview.text" class="result">{{ preview.text }}</pre>
-        <template v-else-if="preview.kind === 'trades'">
-          <el-tabs v-model="preview.tradeTab" class="trades-tabs">
-            <el-tab-pane label="操作流水" name="flow">
-              <div class="trades-meta">
-                按日期从新到旧 · 共 {{ preview.tradeTotal }} 条
-                <span v-if="preview.tradeTotal > preview.trades.length">（展示最近 {{ preview.trades.length }} 条）</span>
-              </div>
-              <el-table :data="preview.trades" stripe height="460" size="small">
-                <el-table-column
-                  v-for="col in preview.tradeColumns"
-                  :key="col"
-                  :prop="col"
-                  :label="tradeColLabel(col)"
-                  :min-width="tradeColWidth(col)"
-                  show-overflow-tooltip
-                >
-                  <template #default="{ row }">
-                    <span :class="col === 'nav_pnl' || col === 'day_ret' ? retClass(parsePct(row[col])) : ''">
-                      {{ formatTradeCell(col, row[col]) }}
-                    </span>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </el-tab-pane>
-            <el-tab-pane label="净值贡献" name="contrib">
+            <v-chart
+              v-if="preview.equitySeries.length"
+              ref="equityChartRef"
+              class="equity-chart"
+              :class="{ 'equity-chart--dual': equityHasPosition }"
+              :option="equityChartOption"
+              autoresize
+              tabindex="0"
+              @click="onEquityChartClick"
+              @zr:click="onEquityZrClick"
+              @datazoom="onEquityDataZoom"
+              @restore="onEquityRestore"
+            />
+            <img
+              v-else-if="preview.url"
+              :src="preview.url"
+              class="preview-img"
+              alt="净值图"
+            />
+            <p v-else-if="!preview.loading" class="muted">暂无日度净值数据</p>
+            <div v-if="preview.equitySeries.length && preview.selectedDate" class="equity-holdings">
               <div class="trades-meta contrib-toolbar">
-                <el-radio-group v-model="preview.contribMode" size="small">
-                  <el-radio-button label="symbol">按标的</el-radio-button>
-                  <el-radio-button label="leg">按笔明细</el-radio-button>
-                </el-radio-group>
                 <span>
-                  已平仓 {{ preview.contribLegs.length }} 笔 ·
-                  累计净值贡献 {{ fmtPct(preview.contribTotalNav) }}
+                  选中日 {{ preview.selectedDate }} ·
+                  当日持仓 {{ preview.openHoldings.length }} 只（含当日买入） ·
+                  合计仓位 {{ fmtPct(preview.holdingsTotalWeight) }}
+                  <template v-if="preview.selectedDailyPos">
+                    · 日度敞口 {{ fmtPct(preview.selectedDailyPos.position) }}
+                    / {{ preview.selectedDailyPos.n_pos }} 只（引擎隔夜）
+                    · 净值 {{ Number(preview.selectedDailyPos.equity).toFixed(4) }}
+                  </template>
                 </span>
+                <el-button
+                  v-if="preview.equityTradeRows.length"
+                  link
+                  type="primary"
+                  size="small"
+                  @click="selectEquityDate(preview.equitySeries[preview.equitySeries.length - 1]?.date || '')"
+                >
+                  跳到末日
+                </el-button>
               </div>
               <el-table
-                v-if="preview.contribMode === 'symbol'"
-                :data="preview.contribSymbols"
+                :data="preview.openHoldings"
                 stripe
-                height="460"
+                height="220"
                 size="small"
-                :default-sort="{ prop: 'nav_pnl_num', order: 'descending' }"
-              >
-                <el-table-column prop="code" label="代码" min-width="100" />
-                <el-table-column prop="name" label="名称" min-width="100" />
-                <el-table-column prop="n_legs" label="笔数" width="70" align="right" />
-                <el-table-column prop="first_buy" label="首次买入" width="110" />
-                <el-table-column prop="last_sell" label="末次卖出" width="110" />
-                <el-table-column prop="avg_hold_days" label="平均持有(天)" width="110" align="right" />
-                <el-table-column prop="win_rate" label="胜率" width="80" align="right" />
-                <el-table-column prop="nav_pnl" label="累计净值贡献" min-width="120" align="right">
-                  <template #default="{ row }">
-                    <span :class="retClass(row.nav_pnl_num)">{{ row.nav_pnl }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="share" label="贡献占比" width="90" align="right">
-                  <template #default="{ row }">
-                    <span :class="retClass(row.nav_pnl_num)">{{ row.share }}</span>
-                  </template>
-                </el-table-column>
-              </el-table>
-              <el-table
-                v-else
-                :data="preview.contribLegs"
-                stripe
-                height="460"
-                size="small"
+                empty-text="该日无持仓（含当日买入）"
               >
                 <el-table-column prop="code" label="代码" min-width="100" />
                 <el-table-column prop="name" label="名称" min-width="100" />
                 <el-table-column prop="buy_date" label="买入日" width="110" />
-                <el-table-column prop="sell_date" label="卖出日" width="110" />
-                <el-table-column prop="hold_days" label="持有(天)" width="90" align="right" />
+                <el-table-column prop="sell_date" label="卖出日" width="110">
+                  <template #default="{ row }">{{ row.sell_date || '持有中' }}</template>
+                </el-table-column>
                 <el-table-column prop="buy_price" label="买入价" width="90" align="right" />
-                <el-table-column prop="sell_price" label="卖出价" width="90" align="right" />
-                <el-table-column prop="buy_position" label="仓位" width="80" align="right" />
+                <el-table-column prop="sell_price" label="卖出价" width="90" align="right">
+                  <template #default="{ row }">{{ row.sell_price || '-' }}</template>
+                </el-table-column>
+                <el-table-column prop="weight" label="仓位" width="80" align="right">
+                  <template #default="{ row }">{{ row.weight.toFixed(4) }}</template>
+                </el-table-column>
+                <el-table-column prop="weight_share" label="占组合" width="90" align="right" />
+                <el-table-column prop="hold_days" label="持有(天)" width="90" align="right" />
                 <el-table-column prop="stock_ret" label="标的收益" width="90" align="right">
                   <template #default="{ row }">
                     <span :class="retClass(parsePct(row.stock_ret))">{{ row.stock_ret || '-' }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="nav_pnl" label="净值贡献" width="100" align="right">
-                  <template #default="{ row }">
-                    <span :class="retClass(row.nav_pnl_num)">{{ row.nav_pnl }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="share" label="贡献占比" width="90" align="right">
-                  <template #default="{ row }">
-                    <span :class="retClass(row.nav_pnl_num)">{{ row.share }}</span>
-                  </template>
-                </el-table-column>
+                <el-table-column prop="note" label="备注" min-width="120" show-overflow-tooltip />
               </el-table>
-            </el-tab-pane>
-            <el-tab-pane label="持仓分布" name="holdings">
-              <div class="trades-meta contrib-toolbar">
-                <span>
-                  回测末日 {{ preview.holdingsAsOf || '-' }} ·
-                  当日持仓 {{ preview.openHoldings.length }} 只（含当日买入） ·
-                  合计仓位 {{ fmtPct(preview.holdingsTotalWeight) }}
-                  <template v-if="preview.posSeries.length">
-                    · 对照日度末行 {{ fmtPct(preview.posSeries[0]?.position || 0) }}
-                    / {{ preview.posSeries[0]?.n_pos ?? 0 }} 只（引擎隔夜）
-                  </template>
-                </span>
-              </div>
-              <div class="holdings-block">
-                <div class="holdings-subtitle">
-                  末日持仓分布（买入即显示：buy ≤ 末日 ≤ sell；日度 n_pos 仍为引擎隔夜口径）
+              <p v-if="!preview.equityTradeRows.length" class="muted equity-holdings-note">
+                未找到对应操作历史，仅展示日度总仓位；持仓明细需 trade_history。
+              </p>
+            </div>
+            <p
+              v-else-if="preview.equitySeries.length && !preview.selectedDate && !preview.loading"
+              class="muted equity-holdings-note"
+            >
+              点击净值或仓位图上的某一日，或按 ←/→，可查看该日持仓结构（含当日买入）。
+            </p>
+          </el-tab-pane>
+
+          <el-tab-pane label="交易" name="trades">
+            <el-tabs v-model="preview.tradeTab" class="trades-tabs">
+              <el-tab-pane label="操作流水" name="flow">
+                <div class="trades-meta">
+                  按日期从新到旧 · 共 {{ preview.tradeTotal }} 条
+                  <span v-if="preview.tradeTotal > preview.trades.length">（展示最近 {{ preview.trades.length }} 条）</span>
+                </div>
+                <el-table v-if="preview.trades.length" :data="preview.trades" stripe height="520" size="small">
+                  <el-table-column
+                    v-for="col in preview.tradeColumns"
+                    :key="col"
+                    :prop="col"
+                    :label="tradeColLabel(col)"
+                    :min-width="tradeColWidth(col)"
+                    show-overflow-tooltip
+                  >
+                    <template #default="{ row }">
+                      <span :class="col === 'nav_pnl' || col === 'day_ret' ? retClass(parsePct(row[col])) : ''">
+                        {{ formatTradeCell(col, row[col]) }}
+                      </span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <p v-else-if="!preview.loading" class="muted">暂无交易记录</p>
+              </el-tab-pane>
+              <el-tab-pane label="净值贡献" name="contrib">
+                <div class="trades-meta contrib-toolbar">
+                  <el-radio-group v-model="preview.contribMode" size="small">
+                    <el-radio-button label="symbol">按标的</el-radio-button>
+                    <el-radio-button label="leg">按笔明细</el-radio-button>
+                  </el-radio-group>
+                  <span>
+                    已平仓 {{ preview.contribLegs.length }} 笔 ·
+                    累计净值贡献 {{ fmtPct(preview.contribTotalNav) }}
+                  </span>
+                </div>
+                <el-table
+                  v-if="preview.contribMode === 'symbol'"
+                  :data="preview.contribSymbols"
+                  stripe
+                  height="520"
+                  size="small"
+                  :default-sort="{ prop: 'nav_pnl_num', order: 'descending' }"
+                >
+                  <el-table-column prop="code" label="代码" min-width="100" />
+                  <el-table-column prop="name" label="名称" min-width="100" />
+                  <el-table-column prop="n_legs" label="笔数" width="70" align="right" />
+                  <el-table-column prop="first_buy" label="首次买入" width="110" />
+                  <el-table-column prop="last_sell" label="末次卖出" width="110" />
+                  <el-table-column prop="avg_hold_days" label="平均持有(天)" width="110" align="right" />
+                  <el-table-column prop="win_rate" label="胜率" width="80" align="right" />
+                  <el-table-column prop="nav_pnl" label="累计净值贡献" min-width="120" align="right">
+                    <template #default="{ row }">
+                      <span :class="retClass(row.nav_pnl_num)">{{ row.nav_pnl }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="share" label="贡献占比" width="90" align="right">
+                    <template #default="{ row }">
+                      <span :class="retClass(row.nav_pnl_num)">{{ row.share }}</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-table
+                  v-else
+                  :data="preview.contribLegs"
+                  stripe
+                  height="520"
+                  size="small"
+                >
+                  <el-table-column prop="code" label="代码" min-width="100" />
+                  <el-table-column prop="name" label="名称" min-width="100" />
+                  <el-table-column prop="buy_date" label="买入日" width="110" />
+                  <el-table-column prop="sell_date" label="卖出日" width="110" />
+                  <el-table-column prop="hold_days" label="持有(天)" width="90" align="right" />
+                  <el-table-column prop="buy_price" label="买入价" width="90" align="right" />
+                  <el-table-column prop="sell_price" label="卖出价" width="90" align="right" />
+                  <el-table-column prop="buy_position" label="仓位" width="80" align="right" />
+                  <el-table-column prop="stock_ret" label="标的收益" width="90" align="right">
+                    <template #default="{ row }">
+                      <span :class="retClass(parsePct(row.stock_ret))">{{ row.stock_ret || '-' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="nav_pnl" label="净值贡献" width="100" align="right">
+                    <template #default="{ row }">
+                      <span :class="retClass(row.nav_pnl_num)">{{ row.nav_pnl }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="share" label="贡献占比" width="90" align="right">
+                    <template #default="{ row }">
+                      <span :class="retClass(row.nav_pnl_num)">{{ row.share }}</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-tab-pane>
+              <el-tab-pane label="持仓分布" name="holdings">
+                <div class="trades-meta contrib-toolbar">
+                  <span>
+                    回测末日 {{ preview.holdingsAsOf || '-' }} ·
+                    当日持仓 {{ preview.openHoldings.length }} 只（含当日买入） ·
+                    合计仓位 {{ fmtPct(preview.holdingsTotalWeight) }}
+                  </span>
                 </div>
                 <el-table
                   :data="preview.openHoldings"
                   stripe
-                  height="200"
+                  height="320"
                   size="small"
                   empty-text="末日无持仓（含当日买入）"
                 >
@@ -426,21 +402,18 @@
                   </el-table-column>
                   <el-table-column prop="note" label="备注" min-width="120" show-overflow-tooltip />
                 </el-table>
-              </div>
-              <div class="holdings-block">
-                <div class="holdings-subtitle">总仓位表（日度，新→旧）</div>
                 <el-table
-                  :data="preview.posSeries"
+                  v-if="preview.posSeries.length"
+                  :data="preview.posSeries.slice(0, 60)"
                   stripe
-                  height="220"
+                  height="200"
                   size="small"
+                  style="margin-top: 12px"
                   empty-text="暂无日度回测仓位数据"
                 >
                   <el-table-column prop="date" label="日期" width="120" />
                   <el-table-column prop="position" label="总仓位" width="100" align="right">
-                    <template #default="{ row }">
-                      <span>{{ fmtPct(row.position) }}</span>
-                    </template>
+                    <template #default="{ row }">{{ fmtPct(row.position) }}</template>
                   </el-table-column>
                   <el-table-column prop="n_pos" label="持仓数" width="80" align="right" />
                   <el-table-column prop="equity" label="净值" width="100" align="right">
@@ -457,18 +430,31 @@
                     </template>
                   </el-table-column>
                 </el-table>
-              </div>
-            </el-tab-pane>
-          </el-tabs>
-        </template>
-        <pre v-else-if="preview.kind === 'csv' && preview.text" class="result">{{ preview.text }}</pre>
-        <p v-else-if="!preview.loading" class="muted">无法预览该文件</p>
+              </el-tab-pane>
+            </el-tabs>
+          </el-tab-pane>
+
+          <el-tab-pane label="说明" name="guide">
+            <div v-loading="guide.loading" class="guide-body">
+              <div v-if="guide.html" class="markdown-body" v-html="guide.html" />
+              <p v-else-if="!guide.loading" class="muted">暂无说明</p>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
       </div>
       <template #footer>
-        <el-button @click="preview.visible = false">关闭</el-button>
-        <el-button type="primary" :disabled="!preview.factorId" @click="downloadCurrent">下载</el-button>
+        <div class="drawer-footer">
+          <el-button @click="preview.visible = false">关闭</el-button>
+          <el-button
+            type="primary"
+            :disabled="!preview.factorId || drawerTab === 'guide'"
+            @click="downloadCurrent"
+          >
+            下载
+          </el-button>
+        </div>
       </template>
-    </el-dialog>
+    </el-drawer>
   </div>
 </template>
 
@@ -494,6 +480,7 @@ import {
   type FactorArtifact,
   type FactorBacktestLogic,
   type FactorItem,
+  type FactorOpenHolding,
   type FactorStockMatchItem,
   type FactorStockMatchResult,
 } from '@/api/factors'
@@ -521,12 +508,22 @@ type FactorRow = FactorItem & {
   bt_end: string | null
   bt_logic: string | null
   bt_error: string | null
+  open_holdings: FactorOpenHolding[]
+  holdings_as_of: string
 }
 
 const loading = ref(false)
 const items = ref<FactorRow[]>([])
-const computing = ref('')
+const updating = ref(false)
 const lastResult = ref<any>(null)
+const updateHint = ref('自动：工作日 12:00/16:00 增量K线；每天 08:00/21:00 增量财报')
+const updateSettings = ref<{
+  kline?: { enabled: boolean; cron: string; times_hint: string; data_source?: string }
+  financial?: { enabled: boolean; cron: string; times_hint: string; data_source?: string }
+  backtest?: { enabled: boolean; cron: string; times_hint: string }
+  signals?: { enabled: boolean; cron: string; after_backtest?: boolean }
+  timezone?: string
+} | null>(null)
 const highlightFactorId = ref('')
 const matchHitIds = ref<Set<string>>(new Set())
 const stockMatch = reactive({
@@ -561,14 +558,51 @@ const stockMatchPriceText = computed(() => {
   return `收盘 ${priceStr}`
 })
 
+/** 顶部回测区间：取有回测因子的最早起点 ~ 最晚终点 */
+const backtestRangeText = computed(() => {
+  let start = ''
+  let end = ''
+  for (const row of items.value) {
+    if (row.bt_start && (!start || row.bt_start < start)) start = row.bt_start
+    if (row.bt_end && (!end || row.bt_end > end)) end = row.bt_end
+  }
+  if (start && end) return `${start} ~ ${end}`
+  if (end) return `~ ${end}`
+  return ''
+})
+const backtestRangeTitle = computed(() => {
+  const ends = new Set(items.value.map((r) => r.bt_end).filter(Boolean))
+  if (ends.size <= 1) return '各因子回测区间汇总'
+  return `各因子终点不完全一致（${ends.size} 种），此处取最早起点～最晚终点`
+})
+
 function matchExplanation(m: FactorStockMatchItem): string {
   return (m.explanation || m.detail || '').trim()
 }
 
+function holdingLabel(h: FactorOpenHolding): string {
+  const name = (h.name || '').trim()
+  if (name) return name
+  const code = (h.code || '').trim()
+  if (!code) return '-'
+  // sh.600519 / 600519.SH → 600519
+  const m = code.match(/(\d{6})/)
+  return m ? m[1] : code
+}
+
+function holdingTitle(h: FactorOpenHolding): string {
+  const parts = [
+    h.code || '',
+    h.name || '',
+    h.latest_buy_date || h.buy_date ? `买入 ${h.latest_buy_date || h.buy_date}` : '',
+    h.is_new ? '5日内新开' : '',
+  ].filter(Boolean)
+  return parts.join(' · ')
+}
+
+const drawerTab = ref<'equity' | 'trades' | 'guide'>('equity')
 const guide = reactive({
-  visible: false,
   loading: false,
-  title: '',
   html: '',
 })
 
@@ -648,6 +682,8 @@ const preview = reactive({
   text: '' as string,
   factorId: '' as string,
   artifactId: '' as string,
+  equityArtifactId: '' as string,
+  tradeArtifactId: '' as string,
   filename: '' as string,
   trades: [] as Record<string, string>[],
   tradeColumns: [] as string[],
@@ -951,25 +987,11 @@ const TRADE_LABELS: Record<string, string> = {
   era: '时代',
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  fundamental: '基本面',
-  technical: '技术面',
-  alternative: '另类',
-  sentiment: '情绪',
-  macro: '宏观',
-  event: '事件',
-}
-
 const pretty = (o: any) => JSON.stringify(o, null, 2)
 const num = (v?: number | null) => (v == null || Number.isNaN(Number(v)) ? '-' : Number(v).toFixed(2))
 const pct = (v?: number | null) => {
   if (v == null || Number.isNaN(Number(v))) return '-'
   return `${(Number(v) * 100).toFixed(1)}%`
-}
-
-function categoryLabel(c?: string) {
-  if (!c) return '-'
-  return CATEGORY_LABELS[c] || c
 }
 
 function retClass(v?: number | null) {
@@ -1015,6 +1037,8 @@ function enrichRow(row: FactorItem, gen_seq: number): FactorRow {
     bt_end: m?.end ?? null,
     bt_logic: m?.position_logic || row.backtest?.primary_logic || null,
     bt_error: (m as any)?.error || row.last_backtest_error || null,
+    open_holdings: Array.isArray(row.open_holdings) ? row.open_holdings : [],
+    holdings_as_of: row.holdings_as_of || '',
   }
 }
 
@@ -1708,7 +1732,7 @@ function nudgeEquitySelection(delta: -1 | 1) {
 }
 
 function onEquityPreviewKeydown(e: KeyboardEvent) {
-  if (!preview.visible || preview.kind !== 'equity' || !preview.equitySeries.length) return
+  if (!preview.visible || drawerTab.value !== 'equity' || !preview.equitySeries.length) return
   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
   if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
   if (isEditableKeyTarget(e.target)) return
@@ -2056,19 +2080,8 @@ function availableArtifacts(row: FactorItem): FactorArtifact[] {
   })
 }
 
-function shortLabel(a: FactorArtifact): string {
-  if (a.kind === 'image') {
-    if (a.id.includes('share')) return '份额图'
-    if (a.logic === 'continuous') return '净值·连续'
-    if (a.logic === 'long_hold') return '净值·粘持'
-    return '净值图'
-  }
-  if (a.kind === 'json') return '摘要'
-  if (a.id.includes('trades') || a.id === 'trades') {
-    return a.logic === 'continuous' ? '交易·连续' : a.logic === 'long_hold' ? '交易·粘持' : '交易'
-  }
-  if (a.id.includes('daily')) return a.logic === 'continuous' ? '日度·连续' : '日度·粘持'
-  return a.label
+function onFactorRowClick(row: FactorRow) {
+  void openFactorDrawer(row)
 }
 
 function factorRowClassName({ row }: { row: FactorRow }) {
@@ -2201,15 +2214,69 @@ async function applyFactorDeepLink() {
     }
 
     if (open === 'trades') {
-      const trade = pickTradeArtifact(row)
-      if (!trade) {
-        ElMessage.warning(`${row.name || factorId} 暂无交易产物`)
-        return
-      }
-      await openArtifact(row, trade)
+      await openFactorDrawer(row, 'trades')
+    } else if (open === 'guide') {
+      await openFactorDrawer(row, 'guide')
+    } else if (open === 'equity' || open === 'detail') {
+      await openFactorDrawer(row, 'equity')
     }
   } finally {
     deepLinkBusy = false
+  }
+}
+
+async function loadUpdateSettings() {
+  try {
+    const s = await factorsApi.updateSettings()
+    updateSettings.value = s
+    const parts: string[] = []
+    if (s?.kline) {
+      const src = s.kline.data_source ? `/${s.kline.data_source}` : ''
+      parts.push(
+        `K线${s.kline.enabled ? '' : '(已暂停)'} ${s.kline.cron || s.kline.times_hint}${src}`,
+      )
+    }
+    if (s?.financial) {
+      const src = s.financial.data_source ? `/${s.financial.data_source}` : ''
+      parts.push(
+        `财报${s.financial.enabled ? '' : '(已暂停)'} ${s.financial.cron || s.financial.times_hint}${src}`,
+      )
+    }
+    if (s?.backtest) {
+      parts.push(
+        `回测${s.backtest.enabled ? '' : '(已暂停)'} ${s.backtest.cron || s.backtest.times_hint}`,
+      )
+    }
+    if (s?.signals?.after_backtest) {
+      parts.push('机会信号=回测后')
+    } else if (s?.signals) {
+      parts.push(
+        `机会信号${s.signals.enabled ? '' : '(已暂停)'} ${s.signals.cron || ''}`,
+      )
+    }
+    if (parts.length) {
+      updateHint.value = `自动：${parts.join('；')}（可在 设置→系统设置 修改）。点击可手动更新`
+    }
+  } catch {
+    // keep default hint
+  }
+}
+
+async function runUpdate() {
+  updating.value = true
+  try {
+    const res = await factorsApi.update({
+      include_kline: true,
+      include_financial: true,
+      include_signals: true,
+      background: true,
+    })
+    lastResult.value = res
+    ElMessage.success(res?.message || '已开始后台更新（K线 / 财报 / 信号）')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '更新失败')
+  } finally {
+    updating.value = false
   }
 }
 
@@ -2242,19 +2309,6 @@ async function load() {
   }
 }
 
-async function compute(row: FactorItem) {
-  computing.value = row.factor_id
-  try {
-    lastResult.value = await factorsApi.compute(row.factor_id)
-    ElMessage.success(`${row.name}: ${lastResult.value?.signal}`)
-    await load()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '计算失败')
-  } finally {
-    computing.value = ''
-  }
-}
-
 function renderMarkdown(content: string) {
   try {
     return String(marked.parse(content || ''))
@@ -2264,20 +2318,170 @@ function renderMarkdown(content: string) {
   }
 }
 
-async function openGuide(row: FactorItem) {
-  guide.visible = true
+function pickEquityArtifact(row: FactorItem): FactorArtifact | null {
+  const arts = availableArtifacts(row).filter(isEquityCurveArtifact)
+  if (!arts.length) return null
+  const primary = row.backtest?.primary_logic
+  return (primary && arts.find((a) => a.logic === primary)) || arts[0]
+}
+
+async function loadGuideContent(factorId: string) {
   guide.loading = true
-  guide.title = `${row.name} · 说明`
   guide.html = ''
   try {
-    const data = await factorsApi.guide(row.factor_id)
-    guide.title = data.title || guide.title
+    const data = await factorsApi.guide(factorId)
     guide.html = renderMarkdown(data.content || '')
-  } catch (e: any) {
-    ElMessage.error(e?.message || '加载说明失败')
-    guide.visible = false
+  } catch {
+    guide.html = ''
   } finally {
     guide.loading = false
+  }
+}
+
+async function loadEquityIntoPreview(row: FactorItem, a: FactorArtifact) {
+  preview.equityArtifactId = a.id
+  preview.kind = 'equity'
+  try {
+    const blob = await factorsApi.artifactBlob(row.factor_id, a.id)
+    preview.url = URL.createObjectURL(blob)
+  } catch {
+    preview.url = ''
+  }
+  preview.equitySeries = []
+  preview.equityTradeRows = []
+  const dailyId = resolveDailyArtifactIdForEquity(row, a)
+  if (dailyId) {
+    try {
+      const dailyBlob = await factorsApi.artifactBlob(row.factor_id, dailyId)
+      const dailyText = await dailyBlob.text()
+      preview.equitySeries = parseEquitySeries(dailyText)
+    } catch {
+      preview.equitySeries = []
+    }
+  }
+  const tradeId = resolveTradeArtifactIdForEquity(row, a)
+  if (tradeId) {
+    try {
+      const tradeBlob = await factorsApi.artifactBlob(row.factor_id, tradeId)
+      const tradeText = await tradeBlob.text()
+      const { rows } = parseCsv(tradeText)
+      preview.equityTradeRows = enrichTrades(rows)
+    } catch {
+      preview.equityTradeRows = []
+    }
+  }
+  if (preview.equitySeries.length) {
+    const last = preview.equitySeries[preview.equitySeries.length - 1]?.date
+    if (last) selectEquityDate(last)
+  }
+}
+
+async function loadTradesIntoPreview(row: FactorItem, a: FactorArtifact) {
+  preview.tradeArtifactId = a.id
+  const blob = await factorsApi.artifactBlob(row.factor_id, a.id)
+  const text = await blob.text()
+  const { headers, rows } = parseCsv(text)
+  const enriched = enrichTrades(rows)
+  const sorted = [...enriched].sort((x, y) => String(y.date || '').localeCompare(String(x.date || '')))
+  const maxShow = 300
+  preview.tradeTab = 'flow'
+  preview.tradeTotal = sorted.length
+  preview.trades = sorted.slice(0, maxShow)
+  preview.tradeColumns = tradeColumnsOf(headers, enriched)
+  const contrib = buildNavContribution(enriched)
+  preview.contribLegs = contrib.legs
+  preview.contribSymbols = contrib.symbols
+  preview.contribTotalNav = contrib.totalNav
+  preview.contribMode = 'symbol'
+  preview.posSeries = []
+  let asOfHint = ''
+  const dailyId = resolveDailyArtifactId(row, a)
+  if (dailyId) {
+    try {
+      const dailyBlob = await factorsApi.artifactBlob(row.factor_id, dailyId)
+      const dailyText = await dailyBlob.text()
+      preview.posSeries = parsePosSeries(dailyText)
+      if (preview.posSeries.length) asOfHint = preview.posSeries[0].date
+    } catch {
+      preview.posSeries = []
+    }
+  }
+  // 净值 tab 已选日时保留其持仓；否则用回测末日持仓
+  if (!preview.selectedDate) {
+    const open = buildOpenHoldings(enriched, asOfHint, {
+      totalExposure: preview.posSeries[0]?.position,
+      nPos: preview.posSeries[0]?.n_pos,
+    })
+    preview.openHoldings = open.holdings
+    preview.holdingsAsOf = open.asOf
+    preview.holdingsTotalWeight = open.totalWeight
+  } else if (!preview.holdingsAsOf) {
+    preview.holdingsAsOf = asOfHint || preview.selectedDate
+  }
+}
+
+function syncDrawerDownloadTarget() {
+  if (drawerTab.value === 'trades' && preview.tradeArtifactId) {
+    preview.kind = 'trades'
+    preview.artifactId = preview.tradeArtifactId
+    preview.filename = preview.tradeArtifactId
+  } else if (preview.equityArtifactId) {
+    preview.kind = 'equity'
+    preview.artifactId = preview.equityArtifactId
+    preview.filename = preview.equityArtifactId
+  } else if (preview.tradeArtifactId) {
+    preview.kind = 'trades'
+    preview.artifactId = preview.tradeArtifactId
+    preview.filename = preview.tradeArtifactId
+  } else {
+    preview.artifactId = ''
+    preview.filename = ''
+  }
+}
+
+function onDrawerClosed() {
+  revokePreview()
+  guide.html = ''
+  guide.loading = false
+  drawerTab.value = 'equity'
+}
+
+async function openFactorDrawer(row: FactorItem, tab: 'equity' | 'trades' | 'guide' = 'equity') {
+  revokePreview()
+  guide.html = ''
+  preview.visible = true
+  preview.loading = true
+  preview.title = row.name
+  preview.factorId = row.factor_id
+  drawerTab.value = tab
+
+  const equityArt = pickEquityArtifact(row)
+  const tradeArt = pickTradeArtifact(row)
+
+  try {
+    const tasks: Promise<void>[] = [loadGuideContent(row.factor_id)]
+    if (equityArt) tasks.push(loadEquityIntoPreview(row, equityArt))
+    if (tradeArt) {
+      tasks.push(
+        loadTradesIntoPreview(row, tradeArt).catch((e: any) => {
+          console.warn('load trades failed', e)
+        }),
+      )
+    }
+    await Promise.all(tasks)
+    if (equityArt && !preview.equitySeries.length && preview.url) {
+      ElMessage.warning('未找到日度回测 CSV，已回退静态净值图')
+    }
+    if (tab === 'trades' && !tradeArt) {
+      ElMessage.warning((row.name || row.factor_id) + ' 暂无交易产物')
+      drawerTab.value = equityArt ? 'equity' : 'guide'
+    }
+    syncDrawerDownloadTarget()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '打开详情失败')
+    preview.visible = false
+  } finally {
+    preview.loading = false
   }
 }
 
@@ -2290,6 +2494,9 @@ function revokePreview() {
   preview.kind = ''
   preview.factorId = ''
   preview.artifactId = ''
+  preview.equityArtifactId = ''
+  preview.tradeArtifactId = ''
+  preview.filename = ''
   preview.trades = []
   preview.tradeColumns = []
   preview.tradeTotal = 0
@@ -2308,131 +2515,24 @@ function revokePreview() {
   preview.selectedDailyPos = null
 }
 
-async function openArtifact(row: FactorItem, a: FactorArtifact) {
-  revokePreview()
-  preview.visible = true
-  preview.loading = true
-  preview.title = `${row.name} · ${a.label}`
-  preview.kind = a.kind || ''
-  preview.factorId = row.factor_id
-  preview.artifactId = a.id
-  preview.filename = a.id
-  try {
-    const blob = await factorsApi.artifactBlob(row.factor_id, a.id)
-    if (a.kind === 'image' && isEquityCurveArtifact(a)) {
-      preview.kind = 'equity'
-      preview.url = URL.createObjectURL(blob)
-      preview.equitySeries = []
-      preview.equityTradeRows = []
-      const dailyId = resolveDailyArtifactIdForEquity(row, a)
-      if (dailyId) {
-        try {
-          const dailyBlob = await factorsApi.artifactBlob(row.factor_id, dailyId)
-          const dailyText = await dailyBlob.text()
-          preview.equitySeries = parseEquitySeries(dailyText)
-        } catch {
-          preview.equitySeries = []
-        }
-      }
-      const tradeId = resolveTradeArtifactIdForEquity(row, a)
-      if (tradeId) {
-        try {
-          const tradeBlob = await factorsApi.artifactBlob(row.factor_id, tradeId)
-          const tradeText = await tradeBlob.text()
-          const { rows } = parseCsv(tradeText)
-          preview.equityTradeRows = enrichTrades(rows)
-        } catch {
-          preview.equityTradeRows = []
-        }
-      }
-      if (!preview.equitySeries.length) {
-        ElMessage.warning('未找到日度回测 CSV，已回退静态净值图')
-      } else {
-        // 默认选中回测末日，与「持仓分布」末日口径一致
-        const last = preview.equitySeries[preview.equitySeries.length - 1]?.date
-        if (last) selectEquityDate(last)
-      }
-    } else if (a.kind === 'image') {
-      preview.url = URL.createObjectURL(blob)
-    } else {
-      const text = await blob.text()
-      if (a.kind === 'json') {
-        try {
-          preview.text = JSON.stringify(JSON.parse(text), null, 2)
-        } catch {
-          preview.text = text
-        }
-      } else if (isTradeArtifact(a)) {
-        const { headers, rows } = parseCsv(text)
-        const enriched = enrichTrades(rows)
-        const sorted = [...enriched].sort((x, y) => String(y.date || '').localeCompare(String(x.date || '')))
-        const maxShow = 300
-        preview.kind = 'trades'
-        preview.tradeTab = 'flow'
-        preview.tradeTotal = sorted.length
-        preview.trades = sorted.slice(0, maxShow)
-        preview.tradeColumns = tradeColumnsOf(headers, enriched)
-        const contrib = buildNavContribution(enriched)
-        preview.contribLegs = contrib.legs
-        preview.contribSymbols = contrib.symbols
-        preview.contribTotalNav = contrib.totalNav
-        preview.contribMode = 'symbol'
-        preview.posSeries = []
-        let asOfHint = ''
-        const dailyId = resolveDailyArtifactId(row, a)
-        if (dailyId) {
-          try {
-            const dailyBlob = await factorsApi.artifactBlob(row.factor_id, dailyId)
-            const dailyText = await dailyBlob.text()
-            preview.posSeries = parsePosSeries(dailyText)
-            if (preview.posSeries.length) asOfHint = preview.posSeries[0].date
-          } catch {
-            preview.posSeries = []
-          }
-        }
-        const open = buildOpenHoldings(enriched, asOfHint, {
-          totalExposure: preview.posSeries[0]?.position,
-          nPos: preview.posSeries[0]?.n_pos,
-        })
-        preview.openHoldings = open.holdings
-        preview.holdingsAsOf = open.asOf
-        preview.holdingsTotalWeight = open.totalWeight
-      } else {
-        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.length)
-        if (lines.length <= 1) {
-          preview.text = text
-        } else {
-          const head = lines[0]
-          const body = lines.slice(1)
-          const tail = body.slice(-120)
-          preview.text =
-            `${head}\n` +
-            (body.length > tail.length ? `…(更早 ${body.length - tail.length} 行省略)\n` : '') +
-            tail.join('\n')
-        }
-      }
-    }
-  } catch (e: any) {
-    ElMessage.error(e?.message || '打开产物失败')
-    preview.visible = false
-  } finally {
-    preview.loading = false
-  }
-}
-
 async function downloadCurrent() {
   if (!preview.factorId) return
+  if (drawerTab.value === 'guide') {
+    ElMessage.info('说明页不支持下载')
+    return
+  }
   try {
-    if (preview.kind === 'trades' && preview.tradeTab === 'contrib') {
+    if (drawerTab.value === 'trades' && preview.tradeTab === 'contrib') {
       downloadContributionCsv()
       ElMessage.success('已下载净值贡献表')
       return
     }
-    if (preview.kind === 'trades' && preview.tradeTab === 'holdings') {
+    if (drawerTab.value === 'trades' && preview.tradeTab === 'holdings') {
       downloadHoldingsCsv()
       ElMessage.success('已下载持仓分布与总仓位表')
       return
     }
+    syncDrawerDownloadTarget()
     if (!preview.artifactId) return
     await factorsApi.downloadArtifact(preview.factorId, preview.artifactId, preview.filename)
   } catch (e: any) {
@@ -2440,8 +2540,13 @@ async function downloadCurrent() {
   }
 }
 
+watch(drawerTab, () => {
+  if (preview.visible) syncDrawerDownloadTarget()
+})
+
 onMounted(async () => {
   window.addEventListener('keydown', onEquityPreviewKeydown)
+  void loadUpdateSettings()
   await load()
   await applyFactorDeepLink()
 })
@@ -2457,6 +2562,7 @@ watch(
     await applyFactorDeepLink()
   },
 )
+
 </script>
 
 <style scoped>
@@ -2469,6 +2575,18 @@ watch(
   flex-wrap: wrap;
 }
 .page-title { margin: 0; font-size: 22px; }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.backtest-range-top {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .stock-match {
   display: flex;
   align-items: center;
@@ -2530,6 +2648,32 @@ watch(
 .result { white-space: pre-wrap; font-size: 12px; max-height: 420px; overflow: auto; margin: 0; }
 .muted { color: var(--el-text-color-secondary); }
 .range { font-size: 12px; color: var(--el-text-color-regular); }
+.holdings-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+  line-height: 1.35;
+  padding: 2px 0;
+}
+.holding-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+  max-width: 100%;
+}
+.holding-chip--new {
+  color: var(--el-color-danger);
+  font-weight: 500;
+}
+.holding-new {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--el-color-danger);
+  margin-left: 1px;
+}
 :deep(.factor-row-highlight) {
   --el-table-tr-bg-color: #fff8e1;
   background: #fff8e1 !important;
@@ -2539,10 +2683,20 @@ watch(
   background: #e8f5e9 !important;
 }
 .gen-seq { color: var(--el-text-color-secondary); font-variant-numeric: tabular-nums; }
+.factors-table :deep(.el-table__body tr) {
+  cursor: pointer;
+}
 .pos { color: var(--el-color-success); font-variant-numeric: tabular-nums; }
 .neg { color: var(--el-color-danger); font-variant-numeric: tabular-nums; }
 .mdd { color: var(--el-color-warning); font-variant-numeric: tabular-nums; }
 .preview-body { min-height: 120px; }
+.drawer-body { min-height: 160px; }
+.drawer-tabs :deep(.el-tabs__header) { margin-bottom: 12px; }
+.drawer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .preview-img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
 .equity-toolbar {
   display: flex;

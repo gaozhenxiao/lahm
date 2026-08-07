@@ -90,6 +90,16 @@ TASK_METADATA = {
         "display_name": "新闻数据同步（AKShare）",
         "description": "使用AKShare（东方财富）同步所有股票的个股新闻。每2小时执行一次，每只股票获取最新50条新闻。支持批量处理，自动去重和情绪分析。"
     },
+
+    # 因子数据增量
+    "factor_kline_auto_sync": {
+        "display_name": "因子K线增量下载",
+        "description": "增量下载因子宇宙前复权日线（腾讯）。默认工作日 12:00 与 16:00。",
+    },
+    "factor_financial_auto_sync": {
+        "display_name": "因子财报增量下载",
+        "description": "增量下载因子用利润/成长财报。默认每天 08:00 与 21:00。",
+    },
 }
 
 

@@ -46,6 +46,14 @@ INCOME_MAP = {
     "LESS_SELLING_DIST_EXP": "fin_selling_exp",
     "LESS_GERL_ADMIN_EXP": "fin_admin_exp",
     "LESS_FIN_EXP": "fin_fin_exp",
+    # 银行特色：利息 / 中收 / 信用减值
+    "INT_INC": "fin_int_inc",
+    "LESS_INT_EXP": "fin_int_exp",
+    "NET_INT_INC": "fin_net_int_inc",
+    "NET_HANDLING_CHRG_COMM_INC": "fin_fee_inc_net",
+    "LESS_HANDLING_CHRG_COMM_EXP": "fin_fee_exp",
+    "CREDIT_IMPAIRMENT_LOSS": "fin_credit_impair",
+    "LESS_IMPAIR_LOSS_ASSETS": "fin_asset_impair",
 }
 
 BALANCE_MAP = {
@@ -70,6 +78,13 @@ BALANCE_MAP = {
     "ACCT_PAYABLE": "fin_acct_pay",
     "INTANG_ASSETS": "fin_intang_assets",
     "GOODWILL": "fin_goodwill",
+    # 银行特色：贷款 / 拨备（名义风险准备更全）
+    "LOANS_AND_ADV_GRANTED": "fin_loans",
+    "PROVISIONS": "fin_provisions",
+    "PROV_NOM_RISKS": "fin_prov_nom_risks",
+    "LOANS_TO_OTH_BANKS": "fin_loans_to_banks",
+    "BORROW_CENTRAL_BANK": "fin_borrow_cb",
+    "CASH_DEPOSITS_CENTRAL_BANK": "fin_cash_at_cb",
 }
 
 CASHFLOW_MAP = {
@@ -860,6 +875,68 @@ def merged_funda_frame(
         if "fin_cfo_yoy" in base.columns:
             cy = pd.to_numeric(base["fin_cfo_yoy"], errors="coerce")
             base["fin_cfo_yoy_accel"] = cy - cy.shift(1)
+
+    # ----- 银行特色：净息 / 中收 / 减值 / 贷款拨备 -----
+    # 存款科目在本库 J66 覆盖为 0，不做贷存比；不良率/官方 NIM 需外源。
+    if "fin_net_int_inc" in base.columns:
+        base = _attach_same_period_yoy(base, "fin_net_int_inc", "fin_net_int_yoy")
+        if "fin_net_int_yoy" in base.columns:
+            niy = pd.to_numeric(base["fin_net_int_yoy"], errors="coerce")
+            base["fin_net_int_yoy_accel"] = niy - niy.shift(1)
+    if "fin_fee_inc_net" in base.columns:
+        base = _attach_same_period_yoy(base, "fin_fee_inc_net", "fin_fee_yoy")
+    if "fin_loans" in base.columns:
+        base = _attach_same_period_yoy(base, "fin_loans", "fin_loan_growth")
+    if "fin_credit_impair" in base.columns:
+        base = _attach_same_period_yoy(base, "fin_credit_impair", "fin_impair_yoy")
+
+    net_int = (
+        pd.to_numeric(base["fin_net_int_inc"], errors="coerce")
+        if "fin_net_int_inc" in base.columns
+        else None
+    )
+    loans = (
+        pd.to_numeric(base["fin_loans"], errors="coerce")
+        if "fin_loans" in base.columns
+        else None
+    )
+    if net_int is not None and loans is not None:
+        # 粗口径息差代理：累计净息收入 / 期末贷款（趋势可比，非监管 NIM）
+        base["fin_nim_proxy"] = net_int / loans.replace(0, pd.NA)
+        base["fin_nim_proxy_delta"] = base["fin_nim_proxy"] - base["fin_nim_proxy"].shift(1)
+
+    if "fin_fee_inc_net" in base.columns and "fin_oper_rev" in base.columns:
+        fee = pd.to_numeric(base["fin_fee_inc_net"], errors="coerce")
+        orev = pd.to_numeric(base["fin_oper_rev"], errors="coerce")
+        base["fin_fee_share"] = fee / orev.replace(0, pd.NA)
+        base["fin_fee_share_delta"] = base["fin_fee_share"] - base["fin_fee_share"].shift(1)
+
+    if "fin_credit_impair" in base.columns and "fin_oper_profit" in base.columns:
+        impair = pd.to_numeric(base["fin_credit_impair"], errors="coerce").abs()
+        op = pd.to_numeric(base["fin_oper_profit"], errors="coerce")
+        base["fin_impair_to_op"] = impair / op.replace(0, pd.NA)
+        base["fin_impair_to_op_delta"] = base["fin_impair_to_op"] - base["fin_impair_to_op"].shift(1)
+
+    if "fin_int_inc" in base.columns and "fin_int_exp" in base.columns:
+        ii = pd.to_numeric(base["fin_int_inc"], errors="coerce")
+        ie = pd.to_numeric(base["fin_int_exp"], errors="coerce")
+        base["fin_int_spread"] = (ii - ie) / ii.replace(0, pd.NA)
+        base["fin_int_spread_delta"] = base["fin_int_spread"] - base["fin_int_spread"].shift(1)
+
+    # 拨备厚度：优先名义风险准备（J66 覆盖更全），否则 PROVISIONS
+    prov = None
+    if "fin_prov_nom_risks" in base.columns:
+        prov = pd.to_numeric(base["fin_prov_nom_risks"], errors="coerce")
+    if "fin_provisions" in base.columns:
+        p2 = pd.to_numeric(base["fin_provisions"], errors="coerce")
+        prov = p2 if prov is None else prov.fillna(p2)
+    if prov is not None and loans is not None:
+        base["fin_prov_loan"] = prov / loans.replace(0, pd.NA)
+        base["fin_prov_loan_delta"] = base["fin_prov_loan"] - base["fin_prov_loan"].shift(1)
+
+    if loans is not None and "fin_tot_assets" in base.columns:
+        assets = pd.to_numeric(base["fin_tot_assets"], errors="coerce")
+        base["fin_loan_assets"] = loans / assets.replace(0, pd.NA)
 
     return base.sort_values("pubDate").reset_index(drop=True)
 

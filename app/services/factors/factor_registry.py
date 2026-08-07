@@ -2782,6 +2782,125 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
             entry="break",
         ),
     },
+    # ----- 二阶挖掘 mine_second_order_round2（UI 接在现有序号之后） -----
+    "ar_cl_dual_ar015_csi500_so2": {
+        "name": "应收收紧×合同负债加速(CSI500·ar015_cl10_brk70·二阶R2)",
+        "category": "fundamental",
+        "description": (
+            "mine_second_order_round2：CSI500 `ar_cl_dual__arcl_ar015_cl10_brk70_h42_np04`。"
+            "应收/营收下行（回款质量）× 合同负债 YoY 再加速（需求领先）交叉后突破；"
+            "行情=腾讯前复权 qfq；静态成分幸存者偏差。"
+        ),
+        "tags": ["应收", "合同负债", "YoY加速", "交叉验证", "突破", "CSI500", "qfq", "mine_second_order_r2", "时间加权"],
+        "title": "AR tighten x CL accel CSI500",
+        "need_profit": True,
+        "need_growth": False,
+        "need_fin_db": True,
+        "need_balance": True,
+        "signal": sig.signal_ar_cl_dual_accel_break,
+        "params": _p(
+            universe="csi500",
+            bench_code="sh.000905",
+            exclude_st=True,
+            price_end="2026-08-05",
+            ar_improve=0.015,
+            cl_accel=0.10,
+            yoy_min=0.10,
+            np_min=0.04,
+            funda_lag=26,
+            break_days=70,
+            hold_days=42,
+            stop_loss=0.12,
+            take_profit=0.32,
+            entry="break",
+        ),
+    },
+    "ar_acc_ar012_hs300_so2": {
+        "name": "应收强度改善二阶(HS300·aracc012_ry05_brk60·二阶R2)",
+        "category": "fundamental",
+        "description": (
+            "mine_second_order_round2：HS300 `ar_acc__aracc012_ry05_brk60_h40`。"
+            "应收/营收改善幅度大于上季（回款质量二阶导）+ 营收 YoY≥5% 后突破；"
+            "与因果R1 一阶应收下行正交；行情=腾讯前复权 qfq。"
+        ),
+        "tags": ["应收", "二阶", "回款质量", "突破", "HS300", "qfq", "mine_second_order_r2", "时间加权"],
+        "title": "AR improve accel HS300",
+        "need_profit": True,
+        "need_growth": False,
+        "need_fin_db": True,
+        "signal": sig.signal_ar_improve_accel_break,
+        "params": _p(
+            exclude_st=True,
+            price_end="2026-08-05",
+            ar_accel=0.012,
+            growth_min=0.05,
+            ar_max=0.55,
+            funda_lag=28,
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+            take_profit=0.30,
+            entry="break",
+        ),
+    },
+    "cfo_np_acc_cfoq08_csi500_so2": {
+        "name": "CFO净利质量二阶(CSI500·cfoq08_m06_brk60·二阶R2)",
+        "category": "fundamental",
+        "description": (
+            "mine_second_order_round2：CSI500 `cfo_np_acc__cfoq08_m06_g00_brk60_h40`。"
+            "经营现金流/归母净利水平达标且环比再改善（利润含金量二阶）后突破；"
+            "行情=腾讯前复权 qfq。"
+        ),
+        "tags": ["现金流", "利润质量", "二阶", "突破", "CSI500", "qfq", "mine_second_order_r2", "时间加权"],
+        "title": "CFO/NP quality accel CSI500",
+        "need_profit": True,
+        "need_growth": True,
+        "need_fin_db": True,
+        "signal": sig.signal_cfo_np_quality_accel_break,
+        "params": _p(
+            universe="csi500",
+            bench_code="sh.000905",
+            exclude_st=True,
+            price_end="2026-08-05",
+            cfo_min=0.6,
+            cfo_improve=0.08,
+            growth_min=0.0,
+            funda_lag=28,
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.12,
+            take_profit=0.30,
+            entry="break",
+        ),
+    },
+    # ----- 新高/新低场景研究：120日新低后站上MA20（中盘） -----
+    # new_low_120_hs300 已删（路径 Sharpe≈0）；保留 CSI500
+    "new_low_120_csi500": {
+        "name": "120日新低反弹(CSI500)",
+        "category": "technical",
+        "description": (
+            "research_new_high_low_by_type：近10日创过120日新低，收盘上穿MA20确认后买入；"
+            "中盘事件 OOS 20日胜率约57%；持有约20日；行情=腾讯前复权 qfq。"
+        ),
+        "tags": ["新低", "反弹", "MA20", "技术面", "CSI500", "qfq", "research_nh_nl"],
+        "title": "120d new-low reclaim CSI500",
+        "need_profit": False,
+        "need_growth": False,
+        "signal": sig.signal_new_low_first_buy,
+        "params": _p(
+            universe="csi500",
+            bench_code="sh.000905",
+            exclude_st=True,
+            price_end="2026-08-05",
+            low_window=120,
+            lookback=10,
+            confirm=True,
+            hold_days=20,
+            stop_loss=0.12,
+            take_profit=0.25,
+            max_positions=8,
+        ),
+    },
     # ----- IPO≈2.5年解禁代理窗 × 业绩改善（expt_ipo_2y5_unlock_earn） -----
     "ipo_2y5_earn_break": {
         "name": "IPO大跌横盘≈2.5年+业绩改善(csi_core)",
@@ -3997,6 +4116,276 @@ FACTOR_IMPL: Dict[str, Dict[str, Any]] = {
             np_min=0.03,
         ),
     },
+    # ----- 银行业 J66 · 2018–2025 挖掘 -----
+    "bank_pe_low_reclaim_j66": {
+        "name": "银行低PE回踩(J66)",
+        "category": "fundamental",
+        "description": (
+            "J66 上市银行：PE历史分位≤30%且收盘站上MA60。"
+            "mine_bank 2018–2025：sh≈0.52 / tw≈0.92 / r2y≈1.69。"
+        ),
+        "tags": ["银行", "J66", "估值", "PE", "回踩", "mine_bank", "时间加权"],
+        "title": "Bank PE low reclaim J66",
+        "need_profit": True,
+        "need_growth": False,
+        "signal": sig.signal_pe_low_ma_reclaim,
+        "params": _p(
+            universe="ind_j66",
+            exclude_st=True,
+            price_end="2025-12-31",
+            max_positions=6,
+            funda_lag=20,
+            break_days=60,
+            hold_days=45,
+            stop_loss=0.10,
+            take_profit=0.22,
+            entry="reclaim",
+            pe_pct_max=0.30,
+            val_window=756,
+        ),
+    },
+    "bank_dual_gv_j66": {
+        "name": "银行成长价值双闸(J66)",
+        "category": "fundamental",
+        "description": (
+            "J66：净利YoY≥5%且PB分位偏低，站上MA60。"
+            "mine_bank 2018–2025：sh≈0.47 / tw≈0.79 / r2y≈1.36。"
+        ),
+        "tags": ["银行", "J66", "成长", "价值", "PB", "mine_bank", "时间加权"],
+        "title": "Bank dual growth-value J66",
+        "need_profit": True,
+        "need_growth": True,
+        "signal": sig.signal_dual_growth_value,
+        "params": _p(
+            universe="ind_j66",
+            exclude_st=True,
+            price_end="2025-12-31",
+            max_positions=6,
+            funda_lag=20,
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.10,
+            take_profit=0.22,
+            entry="reclaim",
+            growth_min=0.05,
+            pb_pct_max=0.40,
+            val_window=756,
+        ),
+    },
+    "bank_pb_below_j66": {
+        "name": "银行破净回踩(J66)",
+        "category": "fundamental",
+        "description": (
+            "J66：PB<1 破净后收盘站上MA20。"
+            "mine_bank 2018–2025：tw≈1.03（主要由2024–25贡献）/ sh≈0.20。"
+        ),
+        "tags": ["银行", "J66", "破净", "PB", "回踩", "mine_bank", "时间加权"],
+        "title": "Bank PB below one J66",
+        "need_profit": True,
+        "need_growth": False,
+        "signal": sig.signal_pb_below_one_reclaim,
+        "params": _p(
+            universe="ind_j66",
+            exclude_st=True,
+            price_end="2025-12-31",
+            max_positions=6,
+            funda_lag=20,
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.10,
+            take_profit=0.22,
+            entry="reclaim",
+            pb_max=1.0,
+        ),
+    },
+    # ----- 银行业 J66 · 结构特色 Round2（净息/中收/减值/拨备）-----
+    "bank_aq_turn_j66": {
+        "name": "银行资产质量拐点(J66)",
+        "category": "fundamental",
+        "description": (
+            "减值/营业利润 曾偏高后明显回落，且拨备/贷款厚度尚可；软闸 PB≤1.05。"
+            "mine_bank_struct_r2 2018–2025：sh≈0.30 / tw≈0.95 / r2y≈1.73。"
+        ),
+        "tags": ["银行", "J66", "资产质量", "减值", "拨备", "mine_bank_struct", "时间加权"],
+        "title": "Bank AQ turn J66",
+        "need_profit": True,
+        "need_growth": False,
+        "need_fin_db": True,
+        "signal": sig.signal_bank_impair_turn_prov,
+        "params": _p(
+            universe="ind_j66",
+            exclude_st=True,
+            price_end="2025-12-31",
+            max_positions=6,
+            funda_lag=28,
+            break_days=60,
+            hold_days=50,
+            stop_loss=0.10,
+            take_profit=0.22,
+            entry="reclaim",
+            ma_days=20,
+            impair_ease=0.015,
+            impair_prior_min=0.25,
+            pb_max=1.05,
+        ),
+    },
+    "bank_fee_mix_j66": {
+        "name": "银行中收占比抬升(J66)",
+        "category": "fundamental",
+        "description": (
+            "手续费及佣金净收入/营业收入 占比抬升（收入结构多元化）+ ROE 软闸。"
+            "mine_bank_struct_r2 2018–2025：sh≈0.31 / tw≈0.69 / r2y≈1.46。"
+        ),
+        "tags": ["银行", "J66", "中收", "收入结构", "mine_bank_struct", "时间加权"],
+        "title": "Bank fee mix J66",
+        "need_profit": True,
+        "need_growth": False,
+        "need_fin_db": True,
+        "signal": sig.signal_bank_fee_mix_improve,
+        "params": _p(
+            universe="ind_j66",
+            exclude_st=True,
+            price_end="2025-12-31",
+            max_positions=6,
+            funda_lag=20,
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.10,
+            take_profit=0.22,
+            entry="reclaim",
+            ma_days=20,
+            fee_share_improve=0.005,
+            fee_share_min=0.05,
+            roe_min=0.08,
+        ),
+    },
+    "bank_dual_int_fee_j66": {
+        "name": "银行净息中收双增(J66)",
+        "category": "fundamental",
+        "description": (
+            "净息收入 YoY 不差且中收 YoY≥5%，突破确认；各段更均衡。"
+            "mine_bank_struct_r2 2018–2025：sh≈0.17 / tw≈0.43 / early/mid 均为正。"
+        ),
+        "tags": ["银行", "J66", "净息", "中收", "双增", "mine_bank_struct", "时间加权"],
+        "title": "Bank dual int+fee J66",
+        "need_profit": True,
+        "need_growth": False,
+        "need_fin_db": True,
+        "signal": sig.signal_bank_dual_int_fee,
+        "params": _p(
+            universe="ind_j66",
+            exclude_st=True,
+            price_end="2025-12-31",
+            max_positions=6,
+            funda_lag=20,
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.10,
+            take_profit=0.22,
+            entry="break",
+            ma_days=20,
+            net_int_yoy_min=0.0,
+            fee_yoy_min=0.05,
+        ),
+    },
+    # ----- 银行业 J66 · 截面分化 Round3（同行相对）-----
+    "bank_cs_fee_leader_j66": {
+        "name": "银行中收同行领先(J66)",
+        "category": "fundamental",
+        "description": (
+            "手续费净收入/营收 在 J66 内截面分位≥75%，捕捉中收结构领先的股份行/城商行。"
+            "mine_bank_cross_r3 2018–2025：sh≈0.62 / tw≈1.06 / ret≈+208%。"
+        ),
+        "tags": ["银行", "J66", "截面", "中收", "同行相对", "mine_bank_cross", "时间加权"],
+        "title": "Bank CS fee leader J66",
+        "need_profit": True,
+        "need_growth": False,
+        "need_fin_db": True,
+        "need_bank_peer": True,
+        "signal": sig.signal_bank_cs_fee_leader,
+        "params": _p(
+            universe="ind_j66",
+            exclude_st=True,
+            price_end="2025-12-31",
+            max_positions=6,
+            funda_lag=20,
+            break_days=60,
+            hold_days=45,
+            stop_loss=0.10,
+            take_profit=0.22,
+            entry="reclaim",
+            ma_days=20,
+            cs_fee_min=0.75,
+            require_fee_improve=False,
+            need_bank_peer=True,
+        ),
+    },
+    "bank_cs_mom_quality_j66": {
+        "name": "银行同行强势质量(J66)",
+        "category": "fundamental",
+        "description": (
+            "60日收益同行分位≥75% + 减值压力不过差 + 综合质量分≥50%，挑银行里的相对强者。"
+            "mine_bank_cross_r3 2018–2025：sh≈0.56 / tw≈0.93 / ret≈+158%。"
+        ),
+        "tags": ["银行", "J66", "截面", "动量", "质量", "mine_bank_cross", "时间加权"],
+        "title": "Bank CS mom quality J66",
+        "need_profit": True,
+        "need_growth": False,
+        "need_fin_db": True,
+        "need_bank_peer": True,
+        "signal": sig.signal_bank_cs_mom_quality,
+        "params": _p(
+            universe="ind_j66",
+            exclude_st=True,
+            price_end="2025-12-31",
+            max_positions=6,
+            funda_lag=20,
+            break_days=60,
+            hold_days=45,
+            stop_loss=0.10,
+            take_profit=0.22,
+            entry="reclaim",
+            ma_days=20,
+            cs_mom_min=0.75,
+            cs_impair_max=0.50,
+            cs_quality_min=0.50,
+            need_bank_peer=True,
+        ),
+    },
+    "bank_cs_catchup_j66": {
+        "name": "银行高质量错杀反转(J66)",
+        "category": "fundamental",
+        "description": (
+            "20日前相对弱势（cs_ret60≤35%），质量分尚可，短期动量回升后回踩确认——"
+            "专门吃银行内部分化下的错杀修复。"
+            "mine_bank_cross_r3 2018–2025：sh≈0.45 / tw≈0.80 / early/mid 均为正。"
+        ),
+        "tags": ["银行", "J66", "截面", "反转", "错杀", "mine_bank_cross", "时间加权"],
+        "title": "Bank CS catchup J66",
+        "need_profit": True,
+        "need_growth": False,
+        "need_fin_db": True,
+        "need_bank_peer": True,
+        "signal": sig.signal_bank_cs_catchup,
+        "params": _p(
+            universe="ind_j66",
+            exclude_st=True,
+            price_end="2025-12-31",
+            max_positions=6,
+            funda_lag=20,
+            break_days=60,
+            hold_days=40,
+            stop_loss=0.10,
+            take_profit=0.22,
+            entry="reclaim",
+            ma_days=20,
+            weak_lag=20,
+            cs_weak_max=0.35,
+            cs_now_min=0.50,
+            cs_quality_min=0.50,
+            need_bank_peer=True,
+        ),
+    },
 
 }
 
@@ -4013,5 +4402,6 @@ def compute_factor_signal(factor_id: str, params: Dict[str, Any] | None = None, 
         need_growth=meta["need_growth"],
         need_balance=bool(meta.get("need_balance")),
         need_fin_db=bool(meta.get("need_fin_db")),
+        need_bank_peer=bool(meta.get("need_bank_peer")),
         asof=asof,
     )

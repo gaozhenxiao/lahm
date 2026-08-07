@@ -76,12 +76,13 @@ class DatabaseManager:
         try:
             logger.info("🔄 正在初始化Redis连接...")
 
-            # 创建Redis连接池
+            # 创建Redis连接池（protocol=2：兼容 Redis 5，避免 HELLO/RESP3）
             self.redis_pool = ConnectionPool.from_url(
                 settings.REDIS_URL,
                 max_connections=settings.REDIS_MAX_CONNECTIONS,
                 retry_on_timeout=settings.REDIS_RETRY_ON_TIMEOUT,
                 decode_responses=True,
+                protocol=2,
                 socket_connect_timeout=5,  # 5秒连接超时
                 socket_timeout=10,  # 10秒套接字超时
             )
@@ -99,7 +100,10 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"❌ Redis连接失败: {e}")
             self._redis_healthy = False
-            raise
+            # Redis 不可用时不阻断启动（缓存降级）
+            logger.warning("⚠️ Redis 不可用，将以降级模式继续启动")
+            self.redis_client = None
+            self.redis_pool = None
 
     async def close_connections(self):
         """关闭所有数据库连接"""

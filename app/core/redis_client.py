@@ -25,6 +25,7 @@ async def init_redis():
             max_connections=settings.REDIS_MAX_CONNECTIONS,  # 使用配置文件中的值
             retry_on_timeout=settings.REDIS_RETRY_ON_TIMEOUT,
             decode_responses=True,
+            protocol=2,  # Redis 5 compat (RESP2)
             socket_keepalive=True,  # 启用 TCP keepalive
             socket_keepalive_options={
                 1: 60,  # TCP_KEEPIDLE: 60秒后开始发送keepalive探测
